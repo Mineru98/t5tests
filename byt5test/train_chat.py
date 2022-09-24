@@ -58,8 +58,8 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 # keep only a subsample of the datasets
 medium_datasets["train"] = medium_datasets["train"].shuffle()
 #medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(10000))
-medium_datasets["validation"] = medium_datasets["validation"].shuffle()
-medium_datasets["test"] = medium_datasets["test"].shuffle()
+medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(500))
+medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(500))
 
 print(medium_datasets)
 
@@ -83,7 +83,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
 prefix = ""
 
-max_input_length = 512
+max_input_length = 1024
 max_target_length = 64
 
 def clean_text(text):
@@ -206,7 +206,7 @@ trainer.save_model()
 tokenizer = AutoTokenizer.from_pretrained(model_dir)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_dir)
 
-max_input_length = 512
+max_input_length = 1024
 
 text = """
 We define access to a Streamlit app in a browser tab as a session.
