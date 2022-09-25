@@ -56,7 +56,7 @@ print(f"- Validation set: {n_samples_validation*100/n_samples_total:.2f}%")
 print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 
 # keep only a subsample of the datasets
-medium_datasets["train"] = medium_datasets["train"].shuffle()
+medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(1000000))
 #medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(5000))
 medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(2000))
 medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(2000))
@@ -121,21 +121,21 @@ from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqT
 
 #!rm -r {model_dir}
 
-batch_size = 4
+batch_size = 8
 args = Seq2SeqTrainingArguments(
     model_dir,
     evaluation_strategy="steps",
-    eval_steps=100,
+    eval_steps=1000,
     logging_strategy="steps",
-    logging_steps=100,
+    logging_steps=1000,
     save_strategy="steps",
-    save_steps=200,
+    save_steps=2000,
     learning_rate=4e-5,
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     weight_decay=0.01,
     save_total_limit=30,
-    num_train_epochs=3,
+    num_train_epochs=1,
     predict_with_generate=True,
     fp16=False,
     load_best_model_at_end=True,
