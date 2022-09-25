@@ -57,9 +57,9 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 
 # keep only a subsample of the datasets
 medium_datasets["train"] = medium_datasets["train"].shuffle()
-#medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(10000))
-medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(500))
-medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(500))
+#medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(5000))
+medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(400))
+medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(400))
 
 print(medium_datasets)
 
@@ -73,18 +73,20 @@ from transformers import AutoTokenizer, T5TokenizerFast
 #model_checkpoint = "google/mt5-base"
 #model_checkpoint = "paust/pko-t5-small"
 model_checkpoint = "google/byt5-base"
+#model_checkpoint = "google/byt5-small"
 
 model_name = "byt5-base-korean-chit-chat"
 model_dir = f"./Models/{model_name}"
 
+max_input_length = 1024
+max_target_length = 256
+
 tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 #tokenizer = T5TokenizerFast.from_pretrained(model_checkpoint)
 #tokenizer = T5TokenizerFast.from_pretrained(model_dir, local_files_only=True)
+tokenizer.model_max_length = max_target_length
 
 prefix = ""
-
-max_input_length = 1024
-max_target_length = 64
 
 def clean_text(text):
   sentences = nltk.sent_tokenize(text.strip())
@@ -119,7 +121,7 @@ from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqT
 
 #!rm -r {model_dir}
 
-batch_size = 8
+batch_size = 4
 args = Seq2SeqTrainingArguments(
     model_dir,
     evaluation_strategy="steps",
@@ -135,7 +137,7 @@ args = Seq2SeqTrainingArguments(
     save_total_limit=30,
     num_train_epochs=3,
     predict_with_generate=True,
-    fp16=True,
+    fp16=False,
     load_best_model_at_end=True,
     metric_for_best_model="rouge1",
     report_to="tensorboard"
@@ -177,11 +179,12 @@ def compute_metrics(eval_pred):
 
 # Function that returns an untrained model to be trained
 def model_init():
-    return AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+    model.config.max_length = max_target_length
+    return model
     #return MT5ForConditionalGeneration.from_pretrained(model_checkpoint)
     #return MT5ForConditionalGeneration.from_pretrained(model_dir, local_files_only=True)
      
-
 trainer = Seq2SeqTrainer(
     model_init=model_init,
     args=args,
@@ -206,7 +209,7 @@ trainer.save_model()
 tokenizer = AutoTokenizer.from_pretrained(model_dir)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_dir)
 
-max_input_length = 1024
+max_input_length = 512
 
 text = """
 We define access to a Streamlit app in a browser tab as a session.

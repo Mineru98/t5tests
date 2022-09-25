@@ -4,7 +4,8 @@ import nltk
 nltk.download('punkt')
 
 model_name = "byt5-base-korean-chit-chat"
-model_dir = f"./Models/{model_name}/checkpoint-500"
+model_dir = f"./Models/{model_name}/checkpoint-16800"
+#model_dir = "paust/pko-t5-base"
 tokenizer = AutoTokenizer.from_pretrained(model_dir)
 model = AutoModelForSeq2SeqLM.from_pretrained(model_dir)
 
@@ -22,8 +23,11 @@ inputs = ["summarize: " + text]
 
 inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, return_tensors="pt")
 output = model.generate(**inputs, num_beams=8, do_sample=True, min_length=20, max_length=500)
+#output = model.generate(**inputs, max_length=1000)
 decoded_output = tokenizer.batch_decode(output, skip_special_tokens=True)[0]
 predicted_title = nltk.sent_tokenize(decoded_output.strip())[0]
 #print(output)
+print("----")
 print(decoded_output)
+print("----")
 print(predicted_title)
