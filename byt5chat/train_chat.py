@@ -37,8 +37,8 @@ medium_datasets
 
 """## Dataset train/validation/test split"""
 
-datasets_train_test = medium_datasets["train"].train_test_split(test_size=3000)
-datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=3000)
+datasets_train_test = medium_datasets["train"].train_test_split(test_size=60000)
+datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=30000)
 
 medium_datasets["train"] = datasets_train_validation["train"]
 medium_datasets["validation"] = datasets_train_validation["test"]
@@ -56,10 +56,10 @@ print(f"- Validation set: {n_samples_validation*100/n_samples_total:.2f}%")
 print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 
 # keep only a subsample of the datasets
-medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(1000000))
+medium_datasets["train"] = medium_datasets["train"].shuffle()
 #medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(5000))
-medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(2000))
-medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(2000))
+medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(500))
+medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(500))
 
 print(medium_datasets)
 
@@ -70,12 +70,15 @@ nltk.download('punkt')
 import string
 from transformers import AutoTokenizer, T5TokenizerFast
 
-#model_checkpoint = "google/mt5-base"
-#model_checkpoint = "paust/pko-t5-small"
-model_checkpoint = "google/byt5-base"
-#model_checkpoint = "google/byt5-small"
+model_name = "pko-t5-base-korean-chit-chat"
 
-model_name = "byt5-base-korean-chit-chat"
+#model_checkpoint = "google/mt5-base"
+model_checkpoint = "paust/pko-t5-base"
+#model_checkpoint = "google/byt5-base"
+#model_checkpoint = "google/byt5-small"
+#model_checkpoint = f"./Models/{model_name}/checkpoint-158000"   # restore and continue
+
+model_name = "pko-t5-base-korean-chit-chat"
 model_dir = f"./Models/{model_name}"
 
 max_input_length = 512
@@ -111,9 +114,11 @@ def preprocess_data(examples):
   model_inputs["labels"] = labels["input_ids"]
   return model_inputs
 
-medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['source']) >= 20) and (len(example['target']) >= 10))
+print("no_train_data=", len(medium_datasets["train"]))
+medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['source']) >= 5) and (len(example['target']) >= 2))
+print("no_train_data(filterd)=", len(medium_datasets_cleaned["train"]))
 tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True)
-tokenized_datasets
+print(tokenized_datasets)
 
 """## Fine-tune T5"""
 
@@ -131,8 +136,8 @@ args = Seq2SeqTrainingArguments(
     save_strategy="steps",
     save_steps=2000,
     learning_rate=4e-5,
-    per_device_train_batch_size=batch_size,
-    per_device_eval_batch_size=batch_size,
+    #per_device_train_batch_size=batch_size,
+    #per_device_eval_batch_size=batch_size,
     weight_decay=0.01,
     save_total_limit=30,
     num_train_epochs=1,
@@ -140,7 +145,9 @@ args = Seq2SeqTrainingArguments(
     fp16=False,
     load_best_model_at_end=True,
     metric_for_best_model="rouge1",
-    report_to="tensorboard"
+    report_to="tensorboard",
+    auto_find_batch_size=True,
+    #sharded_ddp="simple"
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer)
