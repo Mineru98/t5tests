@@ -6,7 +6,7 @@ from datasets import load_dataset, load_metric
 import evaluate
 
 #medium_datasets = load_dataset("json", data_files="test_data.json")
-medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training.zip")
+medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2.zip")
 
 medium_datasets
 
@@ -88,12 +88,12 @@ def preprocess_data2(examples):
 
 def preprocess_data(examples):
   samples = []
-  for i in range(len(examples["source"])):
+  for i in range(len(examples["sample"])):
     #print(i, examples["source"][i])
     #print(i, examples["target"][i])
-    sample = examples["source"][i] + examples["target"][i]
+    sample = examples["sample"][i]
     sample = sample.replace("\n", tokenizer.eos_token)
-    samples.append(sample)
+    samples.append(sample + tokenizer.eos_token)
   #texts_cleaned = [clean_text(text) for text in samples]
   #print("---->", texts_cleaned)
   #inputs = [prefix + text for text in texts_cleaned]
@@ -114,7 +114,8 @@ def preprocess_data(examples):
   return model_inputs
 
 print("no_train_data=", len(medium_datasets["train"]))
-medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['source']) >= 10) and (len(example['target']) >= 10))
+#medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['sample']) >= 100))
+medium_datasets_cleaned = medium_datasets
 print("no_train_data(filterd)=", len(medium_datasets_cleaned["train"]))
 tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True)
 print(tokenized_datasets)
@@ -139,7 +140,7 @@ args = TrainingArguments(
     #per_device_train_batch_size=batch_size,
     #per_device_eval_batch_size=batch_size,
     auto_find_batch_size=True,
-    weight_decay=0.01,
+    weight_decay=0.00001,
     save_total_limit=20,
     num_train_epochs=1,
     #predict_with_generate=True,
