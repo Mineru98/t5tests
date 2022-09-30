@@ -1,11 +1,13 @@
 from transformers import PreTrainedTokenizerFast, GPT2LMHeadModel
 import torch
 import nltk
+import re
+
 nltk.download('punkt')
 
 model_name = "dialoGPT-base-korean-chit-chat"
 #model_checkpoint = 'byeongal/Ko-DialoGPT'
-model_checkpoint = f"./Models/{model_name}/checkpoint-22000"   # restore and continue
+model_checkpoint = f"./Models/{model_name}/checkpoint-220000"   # restore and continue
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -61,13 +63,13 @@ chat_history = []
 for step in range(100):
     print("")
     user_input = input(">> User: ")
-    chat_history.append(user_input)
+    chat_history.append(["User", user_input])
     while len(chat_history) > 7:
         chat_history.pop(0)
     # print(chat_history)
     hist = ""
     for chat in chat_history:
-        hist += chat + tokenizer.eos_token
+        hist += chat[1] + tokenizer.eos_token
     hist = hist[-max_input:]
     print("====", len(chat_history))
     print("===>", hist)
@@ -82,22 +84,29 @@ for step in range(100):
 
     # generated a response while limiting the total chat history to 1000 tokens, 
     chat_history_ids = model.generate(
-        bot_input_ids, max_length=1000,
+        bot_input_ids, max_length=bot_input_ids.shape[-1] + 100,
         pad_token_id=tokenizer.eos_token_id,  
-        #no_repeat_ngram_size=3,       
+        no_repeat_ngram_size=3,       
         do_sample=True, 
+        num_beams=5,
         early_stopping=True,
         repetition_penalty=2.0,
-        length_penalty=0.1,
-        #top_k=100, 
+        length_penalty=0.65,
+        top_k=20, 
         #top_p=0.7,
         #temperature = 0.8
     )
 
     bot_text = tokenizer.decode(chat_history_ids[0][bot_input_ids.shape[-1]:], skip_special_tokens=True).replace("#@이름#", "OOO")
-    bot_text = nltk.sent_tokenize(bot_text)[0]
-    
+    print("org=", bot_text)
+    bot_text = re.sub("\\.\\.+", ". ", bot_text)
+    print("remove ...=", bot_text)
+    bot_text = nltk.sent_tokenize(bot_text)
+    print("sentence=", bot_text)
+    bot_text = bot_text[0]
     print("Bot: {}".format(bot_text))    
-    chat_history.append(bot_text)
+    chat_history.append(["Bot", bot_text])
     
-    # pretty print last ouput tokens from bot
+    print("\nchat history")
+    for chat in chat_history:
+        print(f"{chat[0]}:\t{chat[1]}")
