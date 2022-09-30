@@ -13,8 +13,7 @@ Original file is located at
 Load kaggle.json file.
 """
 
-# !pip install datasets transformers rouge-score nltk
-# !pip install sentencepiece
+# !pip install datasets transformers rouge-score nltk sentencepiece
 
 # from google.colab import drive
 # drive.mount('/content/drive')
@@ -30,21 +29,20 @@ Load kaggle.json file.
 import transformers
 from datasets import load_dataset, load_metric
 
-#medium_datasets = load_dataset("json", data_files="test_data.json")
-medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training.zip")
+medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/022.요약문 및 레포트 생성 데이터/korean_text_summary.zip")
 
 medium_datasets
 
 """## Dataset train/validation/test split"""
 
-datasets_train_test = medium_datasets["train"].train_test_split(test_size=60000)
-datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=30000)
+datasets_train_test = medium_datasets["train"].train_test_split(test_size=3000)
+datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=3000)
 
 medium_datasets["train"] = datasets_train_validation["train"]
 medium_datasets["validation"] = datasets_train_validation["test"]
 medium_datasets["test"] = datasets_train_test["test"]
 
-medium_datasets
+print(medium_datasets)
 
 n_samples_train = len(medium_datasets["train"])
 n_samples_validation = len(medium_datasets["validation"])
@@ -57,11 +55,11 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 
 # keep only a subsample of the datasets
 medium_datasets["train"] = medium_datasets["train"].shuffle()
-#medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(5000))
-medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(500))
-medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(500))
+#medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(10000))
+medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(400))
+medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(400))
 
-print(medium_datasets)
+medium_datasets
 
 """## Data preprocessing"""
 
@@ -70,26 +68,26 @@ nltk.download('punkt')
 import string
 from transformers import AutoTokenizer, T5TokenizerFast
 
-model_name = "pko-t5-base-korean-chit-chat"
-
 #model_checkpoint = "google/mt5-base"
-model_checkpoint = "paust/pko-t5-base"
-#model_checkpoint = "google/byt5-base"
-#model_checkpoint = "google/byt5-small"
-#model_checkpoint = f"./Models/{model_name}/checkpoint-158000"   # restore and continue
+#model_checkpoint = "paust/pko-t5-small"
+#model_checkpoint = "paust/pko-t5-base"
+model_checkpoint = "paust/pko-t5-large"
 
-model_name = "pko-t5-base-korean-chit-chat"
+model_name = "t5-large-korean-text-summary"
+#model_name = "t5-base-korean-text-summary"
 model_dir = f"./Models/{model_name}"
 
-max_input_length = 512
+#tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+tokenizer = T5TokenizerFast.from_pretrained(model_checkpoint)
+#tokenizer = T5TokenizerFast.from_pretrained(model_dir, local_files_only=True)
+
+prefix = "summarize: "
+#prefix = "xxxfff: "
+
+max_input_length = 512 + 256
 max_target_length = 128
 
-tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-#tokenizer = T5TokenizerFast.from_pretrained(model_checkpoint)
-#tokenizer = T5TokenizerFast.from_pretrained(model_dir, local_files_only=True)
 tokenizer.model_max_length = max_target_length
-
-prefix = ""
 
 def clean_text(text):
   sentences = nltk.sent_tokenize(text.strip())
@@ -101,28 +99,26 @@ def clean_text(text):
   return text_cleaned
 
 def preprocess_data(examples):
-  texts_cleaned = [clean_text(text) for text in examples["source"]]
+  texts_cleaned = [clean_text(text) for text in examples["passage"]]
   #print(texts_cleaned)
   inputs = [prefix + text for text in texts_cleaned]
   model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True)
 
   # Setup the tokenizer for targets
   with tokenizer.as_target_tokenizer():
-    labels = tokenizer(examples["target"], max_length=max_target_length, 
+    labels = tokenizer(examples["summary1"], max_length=max_target_length, 
                        truncation=True)
 
   model_inputs["labels"] = labels["input_ids"]
   return model_inputs
 
-print("no_train_data=", len(medium_datasets["train"]))
-medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['source']) >= 5) and (len(example['target']) >= 2))
-print("no_train_data(filterd)=", len(medium_datasets_cleaned["train"]))
+medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['passage']) >= 200) and (len(example['summary1']) >= 20))
 tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True)
 print(tokenized_datasets)
 
 """## Fine-tune T5"""
 
-from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer, MT5ForConditionalGeneration
+from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer, T5ForConditionalGeneration
 
 #!rm -r {model_dir}
 
@@ -130,24 +126,23 @@ batch_size = 8
 args = Seq2SeqTrainingArguments(
     model_dir,
     evaluation_strategy="steps",
-    eval_steps=1000,
+    eval_steps=500,
     logging_strategy="steps",
-    logging_steps=1000,
+    logging_steps=500,
     save_strategy="steps",
-    save_steps=2000,
+    save_steps=1000,
     learning_rate=4e-5,
     #per_device_train_batch_size=batch_size,
     #per_device_eval_batch_size=batch_size,
+    auto_find_batch_size=True,
     weight_decay=0.01,
     save_total_limit=30,
-    num_train_epochs=1,
+    num_train_epochs=3,
     predict_with_generate=True,
-    fp16=False,
+    fp16=True,
     load_best_model_at_end=True,
     metric_for_best_model="rouge1",
-    report_to="tensorboard",
-    auto_find_batch_size=True,
-    #sharded_ddp="simple"
+    report_to="tensorboard"
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer)
@@ -186,12 +181,13 @@ def compute_metrics(eval_pred):
 
 # Function that returns an untrained model to be trained
 def model_init():
-    model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+    #return AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
+    #return MT5ForConditionalGeneration.from_pretrained(model_checkpoint)
+    model = T5ForConditionalGeneration.from_pretrained(model_checkpoint)
     model.config.max_length = max_target_length
     return model
-    #return MT5ForConditionalGeneration.from_pretrained(model_checkpoint)
-    #return MT5ForConditionalGeneration.from_pretrained(model_dir, local_files_only=True)
      
+
 trainer = Seq2SeqTrainer(
     model_init=model_init,
     args=args,
@@ -240,3 +236,32 @@ decoded_output = tokenizer.batch_decode(output, skip_special_tokens=True)[0]
 predicted_title = nltk.sent_tokenize(decoded_output.strip())[0]
 
 print(predicted_title)
+# Session State and Callbacks in Streamlit
+
+text = """
+The special master appointed to review documents federal agents seized at Donald Trump’s Florida estate has given the former president until next Friday to back up his allegation that FBI planted evidence in the search on Aug. 8.
+
+Following the FBI search of his Mar-a-Lago resort in Palm Beach, Trump and his lawyers have publicly insinuated on multiple occasions without providing evidence that agents had planted evidence during the search. “Planting information anyone?” Trump wrote on his Truth Social platform Aug. 12.
+
+In an filing Thursday, Senior U.S. District Judge Raymond J. Dearie of New York, the court-appointed special master, ordered the government to turn over copies of all non-classified items seized in the case to Trump's lawyers by Monday.
+
+He then ordered Trump's team to submit a "declaration or affidavit" of any items in the inventory that were removed from Mar-a-Lago that the "Plaintiff asserts were not seized from the Premises," meaning items that were put there by someone else.
+
+Dearie also asked Trump's lawyers to identify any items that were seized by agents but not listed in the inventory. "This submission shall be Plaintiff’s final opportunity to raise any factual dispute as to the completeness and accuracy of the Detailed Property Inventory," the judge wrote.
+
+Both sides were ordered to appear for a status conference in the case on Oct. 6.
+
+
+
+"""
+
+inputs = [prefix + text]
+
+inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, return_tensors="pt")
+output = model.generate(**inputs, num_beams=8, do_sample=True, min_length=10, max_length=64)
+decoded_output = tokenizer.batch_decode(output, skip_special_tokens=True)[0]
+predicted_title = nltk.sent_tokenize(decoded_output.strip())[0]
+
+print(predicted_title)
+# Conversational AI: The Future of Customer Service
+

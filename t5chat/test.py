@@ -3,8 +3,9 @@ from transformers import AutoTokenizer, T5TokenizerFast
 import nltk
 nltk.download('punkt')
 
-model_name = "pko-t5-base-korean-chit-chat"
-model_dir = f"./Models/{model_name}/checkpoint-96000"
+model_name = "pko-t5-base-korean-chit-chat-finetune"
+#model_name = "pko-t5-base-korean-chit-chat"
+model_dir = f"./Models/{model_name}/checkpoint-80000"
 #model_dir = f"./Models/{model_name}"
 #model_dir = "paust/pko-t5-base"
 tokenizer = AutoTokenizer.from_pretrained(model_dir)
@@ -36,7 +37,7 @@ for step in range(100):
     print("")
     user_input = input(">> User: ")
     chat_history.append("A: " + user_input)
-    while len(chat_history) > 7:
+    while len(chat_history) > 5:
         chat_history.pop(0)
     # print(chat_history)
     hist = ""
@@ -62,7 +63,7 @@ for step in range(100):
         do_sample=True, 
         #top_k=100, 
         #top_p=0.7,
-        #temperature = 0.8
+        #temperature = 0.1
     )
 
     bot_text = tokenizer.decode(chat_history_ids[0], skip_special_tokens=True).replace("#@이름#", "OOO")
