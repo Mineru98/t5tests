@@ -6,7 +6,24 @@ from datasets import load_dataset, load_metric
 import evaluate
 import random, pickle, os
 
+import nltk
+nltk.download('punkt')
+import string
+from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig
+
 step_factor = 10
+fine_tune = True
+
+model_name = "dialoGPT-small-korean-chit-chat-scratch-ft"
+
+#model_checkpoint = "byeongal/Ko-DialoGPT"
+#model_checkpoint = "microsoft/DialoGPT-medium"
+model_checkpoint = f"./Models/dialoGPT-small-korean-chit-chat-scratch/checkpoint-125000"   # restore and continue
+#resume_checkpoint = f"./Models/{model_name}/checkpoint-125000"   # restore and continue
+
+model_dir = f"./Models/{model_name}"
+
+
 #medium_datasets = load_dataset("json", data_files="test_data.json")
 medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
 
@@ -36,7 +53,7 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 if step_factor == 1:
     medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(11000))
 else:
-    medium_datasets["train"] = medium_datasets["train"].shuffle()
+    medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(1000000))
 medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(200 * step_factor))
 medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(200 * step_factor))
 
@@ -44,19 +61,7 @@ print(medium_datasets)
 
 """## Data preprocessing"""
 
-import nltk
-nltk.download('punkt')
-import string
-from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig
 
-model_name = "dialoGPT-medium-korean-chit-chat-scratch"
-
-model_checkpoint = "byeongal/Ko-DialoGPT"
-#model_checkpoint = "microsoft/DialoGPT-medium"
-#model_checkpoint = f"./Models/{model_name}/checkpoint-158000"   # restore and continue
-resume_checkpoint = f"./Models/{model_name}/checkpoint-148000"   # restore and continue
-
-model_dir = f"./Models/{model_name}"
 
 max_input_length = 1000
 #max_target_length = 128
@@ -92,41 +97,41 @@ prefix = ""
 #   return samples
 
 def preprocess_data(examples):
-  samples = []
-  for i in range(len(examples["sample"])):
-    #print(i, examples["source"][i])
-    #print(i, examples["target"][i])
-    sample = examples["sample"][i]
-    sample = sample.replace("\n", tokenizer.eos_token)
-    samples.append(sample + tokenizer.eos_token)
-  #texts_cleaned = [clean_text(text) for text in samples]
-  #print("---->", texts_cleaned)
-  #inputs = [prefix + text for text in texts_cleaned]
-  #print("---->", inputs)
-  inputs = samples
-  tokenizer.pad_token = tokenizer.eos_token
-  model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True)
-  #print("input)_ids len = ", len(model_inputs["input_ids"]))
+    print(".", end="")        
+    samples = []
+    for i in range(len(examples["sample"])):
+        #print(i, examples["source"][i])
+        #print(i, examples["target"][i])
+        sample = examples["sample"][i]
+        sample = sample.replace("\n", tokenizer.eos_token)
+        samples.append(sample + tokenizer.eos_token)
+    #texts_cleaned = [clean_text(text) for text in samples]
+    #print("---->", texts_cleaned)
+    #inputs = [prefix + text for text in texts_cleaned]
+    #print("---->", inputs)
+    inputs = samples
+    tokenizer.pad_token = tokenizer.eos_token
+    model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True)
+    #print("input)_ids len = ", len(model_inputs["input_ids"]))
 
-  # Setup the tokenizer for targets
-  # print("TT---->", examples["target"])
-  # with tokenizer.as_target_tokenizer():
-  #   labels = tokenizer(examples["target"], max_length=max_target_length, 
-  #                      truncation=True)
+    # Setup the tokenizer for targets
+    # print("TT---->", examples["target"])
+    # with tokenizer.as_target_tokenizer():
+    #   labels = tokenizer(examples["target"], max_length=max_target_length, 
+    #                      truncation=True)
 
-  # model_inputs["labels"] = model_inputs["input_ids"]
-  # print("model_inputs", model_inputs)
-  return model_inputs
+    # model_inputs["labels"] = model_inputs["input_ids"]
+    # print("model_inputs", model_inputs)
+    return model_inputs
 
 #medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['sample']) >= 100))
 medium_datasets_cleaned = medium_datasets
 train_data_len = len(medium_datasets_cleaned["train"])
 print("no_train_data(filterd)=", train_data_len)
 
-tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True, 
-    cache_file_names=["train", "val", "test"], load_from_cache_file=True)
+tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True, load_from_cache_file=False)
 
-print(tokenized_datasets)
+print("done loading:", tokenized_datasets)
 
 """## Fine-tune T5"""
 
@@ -135,7 +140,7 @@ from transformers import AutoModelWithLMHead, TrainingArguments, \
 
 #!rm -r {model_dir}
 
-batch_size = 8
+batch_size = 4
 args = TrainingArguments(
     model_dir,
     evaluation_strategy="steps",
@@ -145,11 +150,11 @@ args = TrainingArguments(
     save_strategy="steps",
     save_steps=100 * step_factor,
     learning_rate=5e-5,
-    #per_device_train_batch_size=batch_size,
-    #per_device_eval_batch_size=batch_size,
-    auto_find_batch_size=True,
-    weight_decay=0.000001,
-    save_total_limit=20,
+    per_device_train_batch_size=batch_size,
+    per_device_eval_batch_size=batch_size,
+    #auto_find_batch_size=True,
+    weight_decay=0.02,
+    save_total_limit=5,
     num_train_epochs=1,
     #predict_with_generate=True,
     fp16=True,
@@ -197,11 +202,9 @@ def compute_metrics_rouge(pred):
 
     try:
         pred_str_filterd = [s for s in pred_str if len(s) > 0]
-        print("----------pridiction=", pred_str_filterd[:100])
         ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
         #print("******************ppl=", ppl)
-        random.shuffle(pred_str_filterd)
-        print("===========pridiction=", pred_str_filterd[:100])
+        print("===========pridiction=", pred_str_filterd[:200])
     except Exception as e:
       print("$$$$$$$$$$$$$$$$$$$$$$$$$$ ppl error=", e)
       ppl["mean_perplexity"] = 0.0
@@ -290,11 +293,13 @@ def compute_metrics_old(eval_pred):
 
 # Function that returns an untrained model to be trained
 def model_init():
-    #model =  AutoModelWithLMHead.from_pretrained(model_checkpoint)
-    #config = AutoConfig.from_pretrained("microsoft/DialoGPT-medium")
-    config = AutoConfig.from_pretrained("./configs/config_dialogGPT_ko_medium")
-    print("****config=", config)
-    model = AutoModelWithLMHead.from_config(config)    
+    if fine_tune:
+        model =  AutoModelWithLMHead.from_pretrained(model_checkpoint)
+    else:
+        #config = AutoConfig.from_pretrained("microsoft/DialoGPT-medium")
+        config = AutoConfig.from_pretrained("./configs/config_dialogGPT_ko_small")
+        print("****config=", config)
+        model = AutoModelWithLMHead.from_config(config)    
     return model
      
 class MyTrainer(Trainer):     
@@ -355,8 +360,8 @@ trainer = MyTrainer(
 # %tensorboard --logdir '{model_dir}'/runs
 
 print("start trainning -----------------------------")
-#trainer.train()
-trainer.train(True)
+trainer.train()
+#trainer.train(True)
 #trainer.train(resume_checkpoint)
 
 trainer.save_model()

@@ -5,9 +5,9 @@ import re
 
 nltk.download('punkt')
 
-model_name = "dialoGPT-medium-korean-chit-chat-scratch"
+model_name = "dialoGPT-small-korean-chit-chat-scratch"
 #model_checkpoint = 'byeongal/Ko-DialoGPT'
-model_checkpoint = f"./Models/{model_name}/checkpoint-23000"   # restore and continue
+model_checkpoint = f"./Models/{model_name}/checkpoint-122000"   # restore and continue
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
