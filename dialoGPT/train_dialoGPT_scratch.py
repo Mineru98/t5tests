@@ -4,7 +4,9 @@
 import transformers
 from datasets import load_dataset, load_metric
 import evaluate
+import random, pickle, os
 
+step_factor = 10
 #medium_datasets = load_dataset("json", data_files="test_data.json")
 medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
 
@@ -31,10 +33,12 @@ print(f"- Validation set: {n_samples_validation*100/n_samples_total:.2f}%")
 print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 
 # keep only a subsample of the datasets
-#medium_datasets["train"] = medium_datasets["train"].shuffle()
-medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(50000))
-medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(2000))
-medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(2000))
+if step_factor == 1:
+    medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(11000))
+else:
+    medium_datasets["train"] = medium_datasets["train"].shuffle()
+medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(200 * step_factor))
+medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(200 * step_factor))
 
 print(medium_datasets)
 
@@ -43,17 +47,16 @@ print(medium_datasets)
 import nltk
 nltk.download('punkt')
 import string
-from transformers import  PreTrainedTokenizerFast, GPT2Tokenizer
+from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig
 
-model_name = "dialoGPT-base-korean-chit-chat-v2"
+model_name = "dialoGPT-medium-korean-chit-chat-scratch"
 
 model_checkpoint = "byeongal/Ko-DialoGPT"
 #model_checkpoint = "microsoft/DialoGPT-medium"
 #model_checkpoint = f"./Models/{model_name}/checkpoint-158000"   # restore and continue
 resume_checkpoint = f"./Models/{model_name}/checkpoint-148000"   # restore and continue
 
-#model_dir = f"./Models/{model_name}"
-model_dir = f"./Models/{model_name}/save-checkpoint-180000"
+model_dir = f"./Models/{model_name}"
 
 max_input_length = 1000
 #max_target_length = 128
@@ -67,26 +70,26 @@ tokenizer = PreTrainedTokenizerFast.from_pretrained(model_checkpoint)
 
 prefix = ""
 
-def clean_text(text):
-  sentences = nltk.sent_tokenize(text.strip())
-  sentences_cleaned = [s for sent in sentences for s in sent.split("\n")]
-  sentences_cleaned_no_titles = [sent for sent in sentences_cleaned
-                                 if len(sent) > 0 and
-                                 sent[-1] in string.punctuation]
-  text_cleaned = "\n".join(sentences_cleaned_no_titles)
-  return text_cleaned
+# def clean_text(text):
+#   sentences = nltk.sent_tokenize(text.strip())
+#   sentences_cleaned = [s for sent in sentences for s in sent.split("\n")]
+#   sentences_cleaned_no_titles = [sent for sent in sentences_cleaned
+#                                  if len(sent) > 0 and
+#                                  sent[-1] in string.punctuation]
+#   text_cleaned = "\n".join(sentences_cleaned_no_titles)
+#   return text_cleaned
 
-def preprocess_data2(examples):
-  samples = []
-  for i in range(len(examples["source"])):
-    #print(i, examples["source"][i])
-    #print(i, examples["target"][i])
-    sample = examples["source"][i] + examples["target"][i]
-    sample = sample.replace("\n", tokenizer.eos_token)
-    input_id = tokenizer.encode(sample)
-    #print(input_id)
-    samples.append(input_id[:max_input_length])
-  return samples
+# def preprocess_data2(examples):
+#   samples = []
+#   for i in range(len(examples["source"])):
+#     #print(i, examples["source"][i])
+#     #print(i, examples["target"][i])
+#     sample = examples["source"][i] + examples["target"][i]
+#     sample = sample.replace("\n", tokenizer.eos_token)
+#     input_id = tokenizer.encode(sample)
+#     #print(input_id)
+#     samples.append(input_id[:max_input_length])
+#   return samples
 
 def preprocess_data(examples):
   samples = []
@@ -115,11 +118,14 @@ def preprocess_data(examples):
   # print("model_inputs", model_inputs)
   return model_inputs
 
-print("no_train_data=", len(medium_datasets["train"]))
 #medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['sample']) >= 100))
 medium_datasets_cleaned = medium_datasets
-print("no_train_data(filterd)=", len(medium_datasets_cleaned["train"]))
-tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True)
+train_data_len = len(medium_datasets_cleaned["train"])
+print("no_train_data(filterd)=", train_data_len)
+
+tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True, 
+    cache_file_names=["train", "val", "test"], load_from_cache_file=True)
+
 print(tokenized_datasets)
 
 """## Fine-tune T5"""
@@ -129,15 +135,15 @@ from transformers import AutoModelWithLMHead, TrainingArguments, \
 
 #!rm -r {model_dir}
 
-batch_size = 2
+batch_size = 8
 args = TrainingArguments(
     model_dir,
     evaluation_strategy="steps",
-    eval_steps=500,
+    eval_steps=50 * step_factor,
     logging_strategy="steps",
-    logging_steps=500,
+    logging_steps=50 * step_factor,
     save_strategy="steps",
-    save_steps=1000,
+    save_steps=100 * step_factor,
     learning_rate=5e-5,
     #per_device_train_batch_size=batch_size,
     #per_device_eval_batch_size=batch_size,
@@ -150,7 +156,7 @@ args = TrainingArguments(
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     report_to="tensorboard",
-    #sharded_ddp="simple"
+    ignore_data_skip=True,     # set true for ignore batch skip, fast
 )
 
 data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
@@ -160,7 +166,7 @@ import torch
 from torch import nn
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 
-rouge = load_metric("rouge")
+#rouge = load_metric("rouge")
 metric_accuracy = evaluate.load("accuracy")
 perplexity = evaluate.load("perplexity", module_type="metric")
 
@@ -189,13 +195,16 @@ def compute_metrics_rouge(pred):
     labels_ids[labels_ids == -100] = tokenizer.pad_token_id
     label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=True)
 
-    pred_str_filterd = [s for s in pred_str if len(s) > 0]
     try:
-      print("----------pridiction=", pred_str_filterd[:20])
-      ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
-      #print("******************ppl=", ppl)
-    except:
-      print("ppl error")
+        pred_str_filterd = [s for s in pred_str if len(s) > 0]
+        print("----------pridiction=", pred_str_filterd[:100])
+        ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
+        #print("******************ppl=", ppl)
+        random.shuffle(pred_str_filterd)
+        print("===========pridiction=", pred_str_filterd[:100])
+    except Exception as e:
+      print("$$$$$$$$$$$$$$$$$$$$$$$$$$ ppl error=", e)
+      ppl["mean_perplexity"] = 0.0
 
     #print("pred_str=", pred_str)
     #print("label_str=", label_str)
@@ -281,12 +290,12 @@ def compute_metrics_old(eval_pred):
 
 # Function that returns an untrained model to be trained
 def model_init():
-    #model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
-    model =  AutoModelWithLMHead.from_pretrained(model_checkpoint)
-    #model.config.max_length = max_target_length
+    #model =  AutoModelWithLMHead.from_pretrained(model_checkpoint)
+    #config = AutoConfig.from_pretrained("microsoft/DialoGPT-medium")
+    config = AutoConfig.from_pretrained("./configs/config_dialogGPT_ko_medium")
+    print("****config=", config)
+    model = AutoModelWithLMHead.from_config(config)    
     return model
-    #return MT5ForConditionalGeneration.from_pretrained(model_checkpoint)
-    #return MT5ForConditionalGeneration.from_pretrained(model_dir, local_files_only=True)
      
 class MyTrainer(Trainer):     
     def unwrap_model(self, model: nn.Module) -> nn.Module:
@@ -347,7 +356,8 @@ trainer = MyTrainer(
 
 print("start trainning -----------------------------")
 #trainer.train()
-trainer.train(resume_checkpoint)
+trainer.train(True)
+#trainer.train(resume_checkpoint)
 
 trainer.save_model()
 

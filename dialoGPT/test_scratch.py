@@ -5,10 +5,10 @@ import re
 
 nltk.download('punkt')
 
-model_name = "dialoGPT-base-korean-chit-chat-v2"
+model_name = "dialoGPT-base-korean-chit-chat-scratch"
 #model_checkpoint = 'byeongal/Ko-DialoGPT'
-#model_checkpoint = f"./Models/{model_name}/save-checkpoint-180000"   # restore and continue
-model_checkpoint = 'lcw99/dialoGPT-medium-korean-chit-chat'
+model_checkpoint = f"./Models/{model_name}/checkpoint-153000"   # restore and continue
+
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #device = 'cpu'
@@ -23,19 +23,23 @@ generated_responses = []
 
 max_input = 512
 
+chat_history = []
 chat_history_all = []
 while True:
     print("")
     user_input = input(">> User: ")
     if user_input == 'bye':
         break;
+    chat_history.append(["User", user_input])
     chat_history_all.append(["User", user_input])
+    while len(chat_history) > 5:
+        chat_history.pop(0)
     # print(chat_history)
     hist = ""
-    for chat in chat_history_all[-5:]:
+    for chat in chat_history:
         hist += chat[1] + tokenizer.eos_token
     hist = hist[-max_input:]
-    print("====")
+    print("====", len(chat_history))
     print("===>", hist)
     print("----")
     # encode the new user input, add the eos_token and return a tensor in Pytorch
@@ -56,9 +60,9 @@ while True:
         early_stopping=True,
         repetition_penalty=2.0,
         length_penalty=0.65,
-        #top_k=20, 
+        top_k=20, 
         #top_p=0.7,
-        #temperature=0
+        #temperature = 0.8
     )
 
     bot_text = tokenizer.decode(chat_history_ids[0][bot_input_ids.shape[-1]:], skip_special_tokens=True).replace("#@이름#", "OOO")
@@ -74,10 +78,11 @@ while True:
         bot_text_temp += bot_text[1]
     bot_text = bot_text_temp
     print("Bot: {}".format(bot_text))    
+    chat_history.append(["Bot", bot_text])
     chat_history_all.append(["Bot", bot_text])
     
     print("\nchat history---")
-    for chat in chat_history_all[:-5]:
+    for chat in chat_history:
         print(f"{chat[0]}:\t{chat[1]}")
         if chat[0] == 'Bot':
             print()
