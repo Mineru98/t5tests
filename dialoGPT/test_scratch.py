@@ -5,15 +5,16 @@ import re
 
 nltk.download('punkt')
 
-model_name = "dialoGPT-small-korean-chit-chat-scratch"
+model_name = "dialoGPT-medium-korean-chit-chat-scratch"
+#model_name = "dialoGPT-small-korean-chit-chat-scratch-newtok"
 #model_checkpoint = 'byeongal/Ko-DialoGPT'
-model_checkpoint = f"./Models/{model_name}/checkpoint-122000"   # restore and continue
+model_checkpoint = f"./Models/{model_name}/checkpoint-235000"   # restore and continue
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #device = 'cpu'
 
-print("running on", device)
+print("running on", device, model_checkpoint)
 
 tokenizer = PreTrainedTokenizerFast.from_pretrained(model_checkpoint)
 model = GPT2LMHeadModel.from_pretrained(model_checkpoint).to(device)
@@ -32,7 +33,7 @@ while True:
         break;
     chat_history.append(["User", user_input])
     chat_history_all.append(["User", user_input])
-    while len(chat_history) > 5:
+    while len(chat_history) > 3:
         chat_history.pop(0)
     # print(chat_history)
     hist = ""

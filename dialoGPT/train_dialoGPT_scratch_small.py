@@ -2,30 +2,36 @@
 """## Load the dataset"""
 
 import transformers
-from datasets import load_dataset, load_metric
+from datasets import load_dataset, load_metric, load_from_disk
 import evaluate
 import random, pickle, os
 
 import nltk
 nltk.download('punkt')
 import string
-from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig
+from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig, AutoTokenizer
 
-step_factor = 10
-fine_tune = True
+step_factor = 1
+fine_tune = False
+continue_train = False
+model_size = "medium" # small, medium
+dataset_source = "wiki" # sns, wiki
+feature_name = "text" # sample, text
 
-model_name = "dialoGPT-small-korean-chit-chat-scratch-ft"
+model_name = f"dialoGPT-{model_size}-korean-chit-chat-scratch-newtok"
 
-#model_checkpoint = "byeongal/Ko-DialoGPT"
+model_checkpoint = "byeongal/Ko-DialoGPT"
 #model_checkpoint = "microsoft/DialoGPT-medium"
-model_checkpoint = f"./Models/dialoGPT-small-korean-chit-chat-scratch/checkpoint-125000"   # restore and continue
+#model_checkpoint = f"./Models/dialoGPT-{model_size}-korean-chit-chat-scratch-ft/checkpoint-125000"   # restore and continue
 #resume_checkpoint = f"./Models/{model_name}/checkpoint-125000"   # restore and continue
 
 model_dir = f"./Models/{model_name}"
 
 
-#medium_datasets = load_dataset("json", data_files="test_data.json")
-medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
+if dataset_source == "sns":
+    medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
+else:
+    medium_datasets = load_from_disk("/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr")
 
 print(medium_datasets)
 
@@ -53,7 +59,10 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 if step_factor == 1:
     medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(11000))
 else:
-    medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(1000000))
+    if dataset_source == "sns":
+        medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(1000000))
+    else:
+        medium_datasets["train"] = medium_datasets["train"].shuffle()
 medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(200 * step_factor))
 medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(200 * step_factor))
 
@@ -62,12 +71,14 @@ print(medium_datasets)
 """## Data preprocessing"""
 
 
-
 max_input_length = 1000
 #max_target_length = 128
 
 #tokenizer = GPT2Tokenizer.from_pretrained(model_checkpoint)
-tokenizer = PreTrainedTokenizerFast.from_pretrained(model_checkpoint)
+#tokenizer = PreTrainedTokenizerFast.from_pretrained(model_checkpoint)
+#tokenizer = AutoTokenizer.from_pretrained("beomi/KcELECTRA-base")
+#tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+tokenizer = AutoTokenizer.from_pretrained("../train_tokenizer/tokenizer_SNS_Korean2")
 
 #tokenizer = T5TokenizerFast.from_pretrained(model_checkpoint)
 #tokenizer = T5TokenizerFast.from_pretrained(model_dir, local_files_only=True)
@@ -99,10 +110,10 @@ prefix = ""
 def preprocess_data(examples):
     print(".", end="")        
     samples = []
-    for i in range(len(examples["sample"])):
+    for i in range(len(examples[f"{feature_name}"])):
         #print(i, examples["source"][i])
         #print(i, examples["target"][i])
-        sample = examples["sample"][i]
+        sample = examples[f"{feature_name}"][i]
         sample = sample.replace("\n", tokenizer.eos_token)
         samples.append(sample + tokenizer.eos_token)
     #texts_cleaned = [clean_text(text) for text in samples]
@@ -206,8 +217,9 @@ def compute_metrics_rouge(pred):
         #print("******************ppl=", ppl)
         print("===========pridiction=", pred_str_filterd[:200])
     except Exception as e:
-      print("$$$$$$$$$$$$$$$$$$$$$$$$$$ ppl error=", e)
-      ppl["mean_perplexity"] = 0.0
+        ppl = {}
+        print("$$$$$$$$$$$$$$$$$$$$$$$$$$ ppl error=", e)
+        ppl["mean_perplexity"] = 0.0
 
     #print("pred_str=", pred_str)
     #print("label_str=", label_str)
@@ -297,7 +309,7 @@ def model_init():
         model =  AutoModelWithLMHead.from_pretrained(model_checkpoint)
     else:
         #config = AutoConfig.from_pretrained("microsoft/DialoGPT-medium")
-        config = AutoConfig.from_pretrained("./configs/config_dialogGPT_ko_small")
+        config = AutoConfig.from_pretrained(f"./configs/config_dialogGPT_ko_{model_size}")
         print("****config=", config)
         model = AutoModelWithLMHead.from_config(config)    
     return model
@@ -360,8 +372,10 @@ trainer = MyTrainer(
 # %tensorboard --logdir '{model_dir}'/runs
 
 print("start trainning -----------------------------")
-trainer.train()
-#trainer.train(True)
+if continue_train:
+    trainer.train(True)
+else:
+    trainer.train()
 #trainer.train(resume_checkpoint)
 
 trainer.save_model()

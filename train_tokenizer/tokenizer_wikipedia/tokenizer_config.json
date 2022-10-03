@@ -1,0 +1,10 @@
+{
+  "bos_token": "<s>",
+  "eos_token": "</s>",
+  "mask_token": "<mask>",
+  "name_or_path": "./tokenizer_ko_dialoGPT",
+  "pad_token": "</s>",
+  "special_tokens_map_file": "special_tokens_map.json",
+  "tokenizer_class": "PreTrainedTokenizerFast",
+  "unk_token": "<unk>"
+}
