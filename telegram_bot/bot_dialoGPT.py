@@ -42,12 +42,12 @@ model = AutoModelForCausalLM.from_pretrained("lcw99/ko-dialoGPT-korean-chit-chat
 history = []
 def dialoGPT_korean(update, context):
     context.bot.send_chat_action(chat_id=update.message.chat_id, action=telegram.ChatAction.TYPING)
-    input = update.message.text
+    user_input = update.message.text
     # tokenize the new input sentence
     hist = ""
     for chat in history[-2:]:
-        hist += chat[0] + tokenizer.eos_token + chat[0] + tokenizer.eos_token
-    hist += input + tokenizer.eos_token
+        hist += chat[0] + tokenizer.eos_token + chat[1] + tokenizer.eos_token
+    hist += user_input + tokenizer.eos_token
     hist = hist[-512:]    
     new_user_input_ids = tokenizer.encode(hist, return_tensors='pt')
 
@@ -64,7 +64,7 @@ def dialoGPT_korean(update, context):
         early_stopping=True,
         repetition_penalty=2.0,
         length_penalty=0.65,
-        #top_k=20, 
+        top_k=20, 
         #top_p=0.7,
         #temperature=0
     )
@@ -84,7 +84,7 @@ def dialoGPT_korean(update, context):
     bot_text = bot_text_temp
     print("Bot: {}".format(bot_text))    
 
-    history.append((input, bot_text))
+    history.append((user_input, bot_text))
 
     update.message.reply_text(bot_text)
 

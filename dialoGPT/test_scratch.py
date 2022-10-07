@@ -5,10 +5,11 @@ import re
 
 nltk.download('punkt')
 
-model_name = "dialoGPT-medium-korean-chit-chat-scratch"
+model_name = "dialoGPT-medium-korean-chit-chat-scratch-wikipedia"
+#model_name = "dialoGPT-medium-korean-chit-chat-scratch"
 #model_name = "dialoGPT-small-korean-chit-chat-scratch-newtok"
 #model_checkpoint = 'byeongal/Ko-DialoGPT'
-model_checkpoint = f"./Models/{model_name}/checkpoint-235000"   # restore and continue
+model_checkpoint = f"./Models/{model_name}/checkpoint-130000"   # restore and continue
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -24,23 +25,20 @@ generated_responses = []
 
 max_input = 512
 
-chat_history = []
-chat_history_all = []
+history = []
 while True:
     print("")
     user_input = input(">> User: ")
     if user_input == 'bye':
         break;
-    chat_history.append(["User", user_input])
-    chat_history_all.append(["User", user_input])
-    while len(chat_history) > 3:
-        chat_history.pop(0)
-    # print(chat_history)
     hist = ""
-    for chat in chat_history:
-        hist += chat[1] + tokenizer.eos_token
+    if user_input[-1] == '/':
+        history = []
+    for chat in history[-3:]:
+        hist += chat[0] + tokenizer.eos_token + chat[1] + tokenizer.eos_token
+    hist += user_input + tokenizer.eos_token
     hist = hist[-max_input:]
-    print("====", len(chat_history))
+    print("====", len(history))
     print("===>", hist)
     print("----")
     # encode the new user input, add the eos_token and return a tensor in Pytorch
@@ -79,17 +77,12 @@ while True:
         bot_text_temp += bot_text[1]
     bot_text = bot_text_temp
     print("Bot: {}".format(bot_text))    
-    chat_history.append(["Bot", bot_text])
-    chat_history_all.append(["Bot", bot_text])
+    history.append((user_input, bot_text))
     
     print("\nchat history---")
-    for chat in chat_history:
-        print(f"{chat[0]}:\t{chat[1]}")
-        if chat[0] == 'Bot':
-            print()
+    for chat in history:
+        print(f"User:\t{chat[0]}:\nBot:\t{chat[1]}\n")
 
 print("\nchat history full---")
-for chat in chat_history_all:
-    print(f"{chat[0]}:\t{chat[1]}")
-    if chat[0] == 'Bot':
-        print()
+for chat in history:
+    print(f"User:\t{chat[0]}:\nBot:\t{chat[1]}\n")

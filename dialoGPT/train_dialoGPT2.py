@@ -13,7 +13,7 @@ from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig,
 
 step_factor = 10
 fine_tune = False
-continue_train = False
+continue_train = True
 model_size = "medium" # small, medium
 dataset_source = "wiki" # sns, wiki
 feature_name = "text" # sample, text

@@ -4,26 +4,59 @@
 import transformers
 from datasets import load_dataset, load_metric, load_from_disk
 import evaluate
-import random, pickle, os
+import random, pickle, os, glob
 
 import nltk
 nltk.download('punkt')
 import string
 from transformers import  PreTrainedTokenizerFast, AutoConfig, PretrainedConfig, AutoTokenizer
 
-step_factor = 10
-fine_tune = False
+import argparse
+
+use_weight = False
 continue_train = False
-model_size = "small" # small, medium
-dataset_source = "sns" # sns, wiki
-feature_name = "sample" # sample, text
+fine_tune = False
+model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 
-model_name = f"dialoGPT-{model_size}-korean-chit-chat-scratch-newtok"
+parser = argparse.ArgumentParser()
+parser.add_argument("-w", "--use_weight", help = "using weight")
+parser.add_argument("-c", "--continue_train", help = "continue trainning")
+parser.add_argument("-f", "--fine_tune", help = "fine tune original model")
+args = parser.parse_args()
+if args.use_weight:
+    print("=== param using weight of model")
+    use_weight = True
+    model_name = model_name + "-use-weight"
+if args.continue_train:
+    print("=== param continue trainning")
+    continue_train = True
+if args.fine_tune:
+    print("=== param fine tune original model")
+    fine_tune = True
+    model_name = "GPT-j-6B-8bit-wikipedia-finetune-org-model"
+    dataset_cache_path = "./wikipedia-tokenized-org-tokenizer"
+else:
+    dataset_cache_path = "./wikipedia-tokenized"
 
-model_checkpoint = "byeongal/Ko-DialoGPT"
-#model_checkpoint = "microsoft/DialoGPT-medium"
-#model_checkpoint = f"./Models/dialoGPT-{model_size}-korean-chit-chat-scratch-ft/checkpoint-125000"   # restore and continue
-#resume_checkpoint = f"./Models/{model_name}/checkpoint-125000"   # restore and continue
+print("--------------------")
+print("trainning:", model_name)
+print("--------------------")
+
+if fine_tune:
+    tokenizer_path = "EleutherAI/gpt-j-6B"
+else:
+    tokenizer_path = "../train_tokenizer/tokenizer_wikipedia_gpt_j"
+
+step_factor = 10
+model_size = "medium" # small, medium
+dataset_source = "wiki" # sns, wiki
+feature_name = "text" # sample, text
+
+num_train_epochs = 2
+huggingface_trainner = True
+
+
+model_checkpoint = "hivemind/gpt-j-6B-8bit"
 
 model_dir = f"./Models/{model_name}"
 
@@ -57,33 +90,34 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 
 # keep only a subsample of the datasets
 if step_factor == 1:
-    medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(11000))
+    medium_datasets["train"] = medium_datasets["train"].select(range(11000))
 else:
     if dataset_source == "sns":
-        #medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(1000000))
-        medium_datasets["train"] = medium_datasets["train"].shuffle()
+        medium_datasets["train"] = medium_datasets["train"].select(range(1000000))
     else:
-        medium_datasets["train"] = medium_datasets["train"].shuffle()
-medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(200 * step_factor))
-medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(200 * step_factor))
+        medium_datasets["train"] = medium_datasets["train"]
+medium_datasets["validation"] = medium_datasets["validation"].select(range(5 * step_factor))
+medium_datasets["test"] = medium_datasets["test"].select(range(5 * step_factor))
 
 print(medium_datasets)
 
 """## Data preprocessing"""
 
 
-max_input_length = 1000
+max_input_length = 256
 #max_target_length = 128
 
 #tokenizer = GPT2Tokenizer.from_pretrained(model_checkpoint)
 #tokenizer = PreTrainedTokenizerFast.from_pretrained(model_checkpoint)
 #tokenizer = AutoTokenizer.from_pretrained("beomi/KcELECTRA-base")
 #tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-tokenizer = AutoTokenizer.from_pretrained("../train_tokenizer/tokenizer_SNS_Korean2")
+tokenizer = AutoTokenizer.from_pretrained(f"{tokenizer_path}")
 
 #tokenizer = T5TokenizerFast.from_pretrained(model_checkpoint)
 #tokenizer = T5TokenizerFast.from_pretrained(model_dir, local_files_only=True)
 #tokenizer.model_max_length = max_target_length
+
+tokenizer.pad_token = tokenizer.eos_token
 
 prefix = ""
 
@@ -112,28 +146,11 @@ def preprocess_data(examples):
     print(".", end="")        
     samples = []
     for i in range(len(examples[f"{feature_name}"])):
-        #print(i, examples["source"][i])
-        #print(i, examples["target"][i])
         sample = examples[f"{feature_name}"][i]
         sample = sample.replace("\n", tokenizer.eos_token)
         samples.append(sample + tokenizer.eos_token)
-    #texts_cleaned = [clean_text(text) for text in samples]
-    #print("---->", texts_cleaned)
-    #inputs = [prefix + text for text in texts_cleaned]
-    #print("---->", inputs)
     inputs = samples
-    tokenizer.pad_token = tokenizer.eos_token
     model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True)
-    #print("input)_ids len = ", len(model_inputs["input_ids"]))
-
-    # Setup the tokenizer for targets
-    # print("TT---->", examples["target"])
-    # with tokenizer.as_target_tokenizer():
-    #   labels = tokenizer(examples["target"], max_length=max_target_length, 
-    #                      truncation=True)
-
-    # model_inputs["labels"] = model_inputs["input_ids"]
-    # print("model_inputs", model_inputs)
     return model_inputs
 
 #medium_datasets_cleaned = medium_datasets.filter(lambda example: (len(example['sample']) >= 100))
@@ -141,14 +158,16 @@ medium_datasets_cleaned = medium_datasets
 train_data_len = len(medium_datasets_cleaned["train"])
 print("no_train_data(filterd)=", train_data_len)
 
-tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True, load_from_cache_file=False)
-
-print("done loading:", tokenized_datasets)
-
-"""## Fine-tune T5"""
+if huggingface_trainner:
+    if os.path.exists(dataset_cache_path):
+        tokenized_datasets = load_from_disk(dataset_cache_path)    
+    else:
+        tokenized_datasets = medium_datasets_cleaned.map(preprocess_data, batched=True, load_from_cache_file=True)
+        print("done loading:", tokenized_datasets)
+        tokenized_datasets.save_to_disk(dataset_cache_path)
 
 from transformers import AutoModelWithLMHead, TrainingArguments, \
-                          DataCollatorForLanguageModeling, Trainer, GPT2LMHeadModel
+                          DataCollatorForLanguageModeling, Trainer, GPTJConfig
 
 #!rm -r {model_dir}
 
@@ -156,20 +175,20 @@ batch_size = 4
 args = TrainingArguments(
     model_dir,
     evaluation_strategy="steps",
-    eval_steps=50 * step_factor,
+    eval_steps=50,
     logging_strategy="steps",
-    logging_steps=50 * step_factor,
+    logging_steps=50,
     save_strategy="steps",
-    save_steps=100 * step_factor,
+    save_steps=200,
     learning_rate=5e-5,
-    per_device_train_batch_size=batch_size,
-    per_device_eval_batch_size=batch_size,
-    #auto_find_batch_size=True,
+    #per_device_train_batch_size=batch_size,
+    #per_device_eval_batch_size=batch_size,
+    auto_find_batch_size=True,
     weight_decay=0.02,
     save_total_limit=5,
-    num_train_epochs=1,
+    num_train_epochs=num_train_epochs,
     #predict_with_generate=True,
-    fp16=True,
+    fp16=False,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     report_to="tensorboard",
@@ -199,10 +218,13 @@ def compute_metrics_accuracy2(p):
 
     return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
 
-def compute_metrics_rouge(pred):
+prev_model_dir = ""
+prev_ppl = {}
+def compute_metrics_rouge(eval_pred):
+    global prev_model_dir, prev_ppl, trainer
     # print("pred=", np.array(pred.predictions, dtype=object).shape)
-    labels_ids = pred.label_ids
-    pred_ids = pred.predictions[0]
+    labels_ids = eval_pred.label_ids
+    pred_ids = eval_pred.predictions[0]
 
     # predictions = np.argmax(pred.predictions[0], axis=-1)
     # output = metric_accuracy.compute(predictions=predictions, references=labels_ids)
@@ -212,43 +234,20 @@ def compute_metrics_rouge(pred):
     labels_ids[labels_ids == -100] = tokenizer.pad_token_id
     label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=True)
 
-    try:
-        pred_str_filterd = [s for s in pred_str if len(s) > 0]
-        ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
-        #print("******************ppl=", ppl)
-        print("===========pridiction=", pred_str_filterd[:200])
-    except Exception as e:
-        ppl = {}
-        print("$$$$$$$$$$$$$$$$$$$$$$$$$$ ppl error=", e)
-        ppl["mean_perplexity"] = 0.0
+    ppl = {}
+    ppl["mean_perplexity"] = 0.0
 
-    #print("pred_str=", pred_str)
-    #print("label_str=", label_str)
-    # rouge_output = rouge.compute(
-    #     predictions=pred_str,
-    #     references=label_str,
-    #     rouge_types=["rouge1", "rouge2", "rougeL", "rougeLsum"],
-    # )
-    #print("rouge_output=", rouge_output)
-    #return rouge_output
-    #return {k: v for k, v in rouge_output.items()}
+    for i in range(5):
+        print("\n===========pridiction=", pred_str[i])
+        print("===========referrence=", label_str[i])
 
-    #loss = model(input_ids=pred_ids, labels=labels_ids).loss
-    #print("loss=", loss)
-    # return {
-    #     "R1_recall": round(rouge_output["rouge1"].mid.recall, 4),
-    #     "R1_precision": round(rouge_output["rouge1"].mid.precision, 4),
-    #     "R1_fmeasure": round(rouge_output["rouge1"].mid.fmeasure, 4),
-    #     "R2_recall": round(rouge_output["rouge2"].mid.recall, 4),
-    #     "R2_precision": round(rouge_output["rouge2"].mid.precision, 4),
-    #     "R2_fmeasure": round(rouge_output["rouge2"].mid.fmeasure, 4),
-    #     "RL_recall": round(rouge_output["rougeL"].mid.recall, 4),
-    #     "RL_precision": round(rouge_output["rougeL"].mid.precision, 4),
-    #     "RL_fmeasure": round(rouge_output["rougeL"].mid.fmeasure, 4),
-    #     "RLS_recall": round(rouge_output["rougeLsum"].mid.recall, 4),
-    #     "RLS_precision": round(rouge_output["rougeLsum"].mid.precision, 4),
-    #     "RLS_fmeasure": round(rouge_output["rougeLsum"].mid.fmeasure, 4),
-    # }
+    # if prev_model_dir != latest_model_dir:
+    #     prev_model_dir = latest_model_dir
+    #     ppl = perplexity.compute(predictions=pred_str_filterd, model_id=latest_model_dir)
+    #     prev_ppl = ppl
+    # else:
+    #     ppl = prev_ppl 
+
     return {
         "mean_perplexity": round(ppl["mean_perplexity"], 4)
     }
@@ -276,46 +275,48 @@ def compute_metrics_accuracy(eval_pred):
     print("metrics=", output)
     return output
 
-def compute_metrics_old(eval_pred):
-    predictions, labels = eval_pred
-    decoded_preds = tokenizer.batch_decode(predictions, skip_special_tokens=True)
-    
-    # Replace -100 in the labels as we can't decode them.
-    labels = np.where(labels != -100, labels, tokenizer.pad_token_id)
-    decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
-    
-    # Rouge expects a newline after each sentence
-    decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip()))
-                      for pred in decoded_preds]
-    decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) 
-                      for label in decoded_labels]
-    
-    # Compute ROUGE scores
-    result = rouge.compute(predictions=decoded_preds, references=decoded_labels,
-                            use_stemmer=True)
+from gpt_j_8bit import GPTJBlock, GPTJForCausalLM, GPTJModel, add_adapters, Adam8bit
+from loguru import logger
+import time, os
+import torch.nn.functional as F
 
-    # Extract ROUGE f1 scores
-    result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
-    
-    # Add mean generated length to metrics
-    prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id)
-                      for pred in predictions]
-    result["gen_len"] = np.mean(prediction_lens)
-    
-    return {k: round(v, 4) for k, v in result.items()}
+transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock  # monkey-patch GPT-J
+
 
 # Function that returns an untrained model to be trained
 def model_init():
     if fine_tune:
-        model =  AutoModelWithLMHead.from_pretrained(model_checkpoint)
+        gpt =  GPTJForCausalLM.from_pretrained("hivemind/gpt-j-6B-8bit", low_cpu_mem_usage=True)
     else:
-        #config = AutoConfig.from_pretrained("microsoft/DialoGPT-medium")
-        config = AutoConfig.from_pretrained(f"./configs/config_dialogGPT_ko_{model_size}")
-        print("****config=", config)
-        model = AutoModelWithLMHead.from_config(config)    
-    return model
+        # Initializing a GPT-J 6B configuration
+        if continue_train:
+            latest_model_dir = max(glob.glob(os.path.join(model_dir, 'checkpoint-*/')), key=os.path.getmtime)
+            model =  GPTJForCausalLM.from_pretrained(latest_model_dir, low_cpu_mem_usage=True)
+            #configuration = GPTJConfig()
+            #model = GPTJForCausalLM(configuration)
+        else:
+            model =  GPTJForCausalLM.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
+        if use_weight:
+            gpt = model
+        else:
+            #configuration = GPTJConfig()
+            configuration = model.config
+            gpt = GPTJForCausalLM(configuration)
+    gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
+    gpt.config.__dict__["use_cache"] = False
+    add_adapters(gpt)
+    gpt.to('cuda')
+    gpt.gradient_checkpointing_enable()
+    return gpt
      
-class MyTrainer(Trainer):     
+class MyTrainer(Trainer):    
+    # def create_optimizer_and_scheduler(self, num_training_steps):
+    #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
+
+    #     self.scheduler=transformers.get_cosine_schedule_with_warmup(optimizer=self.optimizer,
+    #             num_warmup_steps = 200,
+    #             num_training_steps = num_training_steps)
+
     def unwrap_model(self, model: nn.Module) -> nn.Module:
         """
         Recursively unwraps a model from potential containers (as used in distributed training).
@@ -333,51 +334,89 @@ class MyTrainer(Trainer):
         How the loss is computed by Trainer. By default, all models return the loss in the first element.
         Subclass and override for custom behavior.
         """
-        if self.label_smoother is not None and "labels" in inputs:
-            labels = inputs.pop("labels")
-        else:
-            labels = None
         outputs = model(**inputs)
         # Save past state if it exists
         # TODO: this needs to be fixed and made cleaner later.
         if self.args.past_index >= 0:
             self._past = outputs[self.args.past_index]
 
-        if labels is not None:
-            loss = self.label_smoother(outputs, labels)
-        else:
-            if isinstance(outputs, dict) and "loss" not in outputs:
-                raise ValueError(
-                    "The model did not return a loss from the inputs, only the following keys: "
-                    f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
-                )
-            # We don't use .loss here since the model may return tuples instead of ModelOutput.
-            loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
+        loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+                               reduction='mean')
+
         #print("loss=", loss)
         return (loss, outputs) if return_outputs else loss
 
-trainer = MyTrainer(
-    model_init=model_init,
-    args=args,
-    train_dataset=tokenized_datasets["train"],
-    eval_dataset=tokenized_datasets["validation"],
-    data_collator=data_collator,
-    tokenizer=tokenizer,
-    compute_metrics=compute_metrics_rouge,
-    preprocess_logits_for_metrics=preprocess_logits_for_metrics
-)
 
-# Commented out IPython magic to ensure Python compatibility.
-# Start TensorBoard before training to monitor it in progress
-# %load_ext tensorboard
-# %tensorboard --logdir '{model_dir}'/runs
+if huggingface_trainner:
+    trainer = MyTrainer(
+        model_init=model_init,
+        args=args,
+        train_dataset=tokenized_datasets["train"],
+        eval_dataset=tokenized_datasets["validation"],
+        data_collator=data_collator,
+        tokenizer=tokenizer,
+        compute_metrics=compute_metrics_rouge,
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics
+    )
 
-print("start trainning -----------------------------")
-if continue_train:
-    trainer.train(True)
+    # Commented out IPython magic to ensure Python compatibility.
+    # Start TensorBoard before training to monitor it in progress
+    # %load_ext tensorboard
+    # %tensorboard --logdir '{model_dir}'/runs
+
+    print("start trainning -----------------------------")
+    if continue_train:
+        trainer.train(True)
+    else:
+        trainer.train()
+    #trainer.train(resume_checkpoint)
+    trainer.save_model()
+
 else:
-    trainer.train()
-#trainer.train(resume_checkpoint)
 
-trainer.save_model()
+    model =  GPTJForCausalLM.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
+    #configuration = GPTJConfig()
 
+    #gpt = GPTJModel(model.config)
+    gpt = model
+    add_adapters(gpt)
+    gpt.to('cuda')
+    gpt.gradient_checkpointing_enable()
+
+    # example dataset
+    #dataset = load_dataset("transformersbook/codeparrot-train", streaming=True)
+
+    # custom dataset
+    dataset = medium_datasets_cleaned
+
+    optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
+
+    # Set the model to training mode
+    start = time.time()
+
+    # Training loop
+    with torch.cuda.amp.autocast():
+        for row in tqdm(dataset["train"]):
+            if len(row[feature_name]) <= 1:
+                continue
+            batch = tokenizer(row[feature_name], truncation=True, max_length=128, return_tensors='pt')
+            batch = {k: v.cuda() for k, v in batch.items()}
+            out = gpt.forward(**batch,)
+            loss = F.cross_entropy(out.logits[:, :-1, :].flatten(0, -2), batch['input_ids'][:, 1:].flatten(),
+                                reduction='mean')
+            print(loss)
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+
+    logger.info("Finished fine-tuning in {}".format(time.time() - start))
+
+    # --------------> Saving fine-tuned model <-----------------#
+    try:
+        save_dir = "./finetuned_gpt-j-8_bit"
+        os.makedirs(save_dir)
+        gpt.save_pretrained(save_dir)
+    except Exception as e:
+        #print("Error saving model: ", e)
+        logger.info("Error saving model: {}".format(e))
