@@ -160,5 +160,4 @@ cython_debug/
 #.idea/
 Models/
 venv/
-wikipedia-tokenized/
-wikipedia-tokenized-org-tokenizer/
+wikipedia-tokenized*/

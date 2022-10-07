@@ -33,8 +33,8 @@ if args.continue_train:
 if args.fine_tune:
     print("=== param fine tune original model")
     fine_tune = True
-    model_name = "GPT-j-6B-8bit-wikipedia-finetune-org-model"
-    dataset_cache_path = "./wikipedia-tokenized-org-tokenizer"
+    model_name = "GPT-j-6B-8bit-wikipedia-finetune-org-model-ko-tokenizer"
+    dataset_cache_path = "./wikipedia-tokenized-org_plus_ko_tokenizer"
 else:
     dataset_cache_path = "./wikipedia-tokenized"
 
@@ -43,7 +43,8 @@ print("trainning:", model_name)
 print("--------------------")
 
 if fine_tune:
-    tokenizer_path = "EleutherAI/gpt-j-6B"
+    tokenizer_path = "../train_tokenizer/tokenizer-gpt-j-plus-ko"
+    #tokenizer_path = "EleutherAI/gpt-j-6B"
 else:
     tokenizer_path = "../train_tokenizer/tokenizer_wikipedia_gpt_j"
 
@@ -275,18 +276,17 @@ def compute_metrics_accuracy(eval_pred):
     print("metrics=", output)
     return output
 
-from gpt_j_8bit import GPTJBlock, GPTJForCausalLM, GPTJModel, add_adapters, Adam8bit
-from loguru import logger
+from transformers import GPTJForCausalLM
 import time, os
 import torch.nn.functional as F
-
-transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock  # monkey-patch GPT-J
-
 
 # Function that returns an untrained model to be trained
 def model_init():
     if fine_tune:
-        gpt =  GPTJForCausalLM.from_pretrained("hivemind/gpt-j-6B-8bit", low_cpu_mem_usage=True)
+        gpt =  GPTJForCausalLM.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc", device_map='auto', load_in_8bit=True)
+        # tokenizer_len = len(tokenizer)
+        # print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
+        # gpt.resize_token_embeddings(tokenizer_len)
     else:
         # Initializing a GPT-J 6B configuration
         if continue_train:
@@ -303,10 +303,9 @@ def model_init():
             configuration = model.config
             gpt = GPTJForCausalLM(configuration)
     gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
-    gpt.config.__dict__["use_cache"] = False
-    add_adapters(gpt)
+    #gpt.config.__dict__["use_cache"] = False
     gpt.to('cuda')
-    gpt.gradient_checkpointing_enable()
+    #gpt.gradient_checkpointing_enable()
     return gpt
      
 class MyTrainer(Trainer):    
@@ -348,7 +347,7 @@ class MyTrainer(Trainer):
 
 
 if huggingface_trainner:
-    trainer = MyTrainer(
+    trainer = Trainer(
         model_init=model_init,
         args=args,
         train_dataset=tokenized_datasets["train"],
