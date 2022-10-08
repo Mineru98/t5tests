@@ -6,6 +6,8 @@ model_name = "EleutherAI/gpt-j-6B"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 tokenizer_bert = AutoTokenizer.from_pretrained("kykim/bert-kor-base")
 
+tokenizer.save_pretrained("../train_tokenizer/tokenizer-gpt-j-6B-org")
+
 vocabulary = list(tokenizer.get_vocab().keys())
 print(vocabulary[:100])
 
