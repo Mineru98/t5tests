@@ -34,7 +34,8 @@ if args.fine_tune:
     print("=== param fine tune original model")
     fine_tune = True
     model_name = "GPT-j-6B-8bit-wikipedia-finetune-org-model-ko-tokenizer"
-    dataset_cache_path = "./wikipedia-tokenized-org_plus_ko_tokenizer"
+    #dataset_cache_path = "./wikipedia-tokenized-org_plus_ko_tokenizer"
+    dataset_cache_path = "wikipedia-tokenized-org-tokenizer"
 else:
     dataset_cache_path = "./wikipedia-tokenized"
 
@@ -43,8 +44,8 @@ print("trainning:", model_name)
 print("--------------------")
 
 if fine_tune:
-    tokenizer_path = "../train_tokenizer/tokenizer-gpt-j-plus-ko"
-    #tokenizer_path = "EleutherAI/gpt-j-6B"
+    #tokenizer_path = "../train_tokenizer/tokenizer-gpt-j-plus-ko"
+    tokenizer_path = "EleutherAI/gpt-j-6B"
 else:
     tokenizer_path = "../train_tokenizer/tokenizer_wikipedia_gpt_j"
 
@@ -189,7 +190,7 @@ args = TrainingArguments(
     save_total_limit=5,
     num_train_epochs=num_train_epochs,
     #predict_with_generate=True,
-    fp16=False,
+    fp16=True,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     report_to="tensorboard",
@@ -277,16 +278,49 @@ def compute_metrics_accuracy(eval_pred):
     return output
 
 from transformers import GPTJForCausalLM
+from transformers.optimization import Adafactor, AdafactorSchedule
+from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 import time, os
 import torch.nn.functional as F
+from bitsandbytes.optim import Adam8bit
+
+transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
+
+if fine_tune:
+    if False:
+        max_memory_mapping = {0: "10GB", 1: "10GB"}
+        gpt = GPTJForCausalLM.from_pretrained(
+            "EleutherAI/gpt-j-6B",
+            revision="float16",
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=True,
+            use_cache=False,
+            gradient_checkpointing=True,
+            device_map='auto',
+            max_memory=max_memory_mapping,
+            load_in_8bit=True
+        )
+    else:
+        #gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc", low_cpu_mem_usage=True)
+        gpt =  GPTJForCausalLM8.from_pretrained("hivemind/gpt-j-6B-8bit", low_cpu_mem_usage=True)
+    tokenizer_len = len(tokenizer)
+    print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
+    #gpt.resize_token_embeddings(tokenizer_len)
+
+gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
+gpt.config.__dict__["use_cache"] = False
+add_adapters(gpt)
+gpt.to('cuda')
+gpt.gradient_checkpointing_enable()
 
 # Function that returns an untrained model to be trained
 def model_init():
+    global gpt
     if fine_tune:
-        gpt =  GPTJForCausalLM.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc", device_map='auto', load_in_8bit=True)
-        # tokenizer_len = len(tokenizer)
-        # print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
-        # gpt.resize_token_embeddings(tokenizer_len)
+        if False:
+            model =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc", low_cpu_mem_usage=True)
+        else:
+            model = gpt
     else:
         # Initializing a GPT-J 6B configuration
         if continue_train:
@@ -296,25 +330,16 @@ def model_init():
             #model = GPTJForCausalLM(configuration)
         else:
             model =  GPTJForCausalLM.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
-        if use_weight:
-            gpt = model
-        else:
+        if not use_weight:
             #configuration = GPTJConfig()
             configuration = model.config
-            gpt = GPTJForCausalLM(configuration)
-    gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
-    #gpt.config.__dict__["use_cache"] = False
-    gpt.to('cuda')
-    #gpt.gradient_checkpointing_enable()
-    return gpt
+            model = GPTJForCausalLM(configuration)
+    return model
      
 class MyTrainer(Trainer):    
-    # def create_optimizer_and_scheduler(self, num_training_steps):
-    #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
-
-    #     self.scheduler=transformers.get_cosine_schedule_with_warmup(optimizer=self.optimizer,
-    #             num_warmup_steps = 200,
-    #             num_training_steps = num_training_steps)
+    def create_optimizer_and_scheduler(self, num_training_steps):
+        self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
+        self.lr_scheduler = AdafactorSchedule(optimizer)    
 
     def unwrap_model(self, model: nn.Module) -> nn.Module:
         """
@@ -347,15 +372,18 @@ class MyTrainer(Trainer):
 
 
 if huggingface_trainner:
+    optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
+    lr_scheduler = AdafactorSchedule(optimizer)    
     trainer = Trainer(
-        model_init=model_init,
+        model=gpt,
         args=args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
         data_collator=data_collator,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics_rouge,
-        preprocess_logits_for_metrics=preprocess_logits_for_metrics
+        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
+        #optimizers=(optimizer, lr_scheduler)
     )
 
     # Commented out IPython magic to ensure Python compatibility.
@@ -373,7 +401,7 @@ if huggingface_trainner:
 
 else:
 
-    model =  GPTJForCausalLM.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
+    model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
     #configuration = GPTJConfig()
 
     #gpt = GPTJModel(model.config)

@@ -6,7 +6,6 @@ from torch.cuda.amp import custom_fwd, custom_bwd
 from bitsandbytes.functional import quantize_blockwise, dequantize_blockwise
 from tqdm.auto import tqdm
 from datasets import load_dataset
-from bitsandbytes.optim import Adam8bit
 
 # ---------------------> Converting the model to 8 bits <------------------- #
 """
@@ -69,6 +68,8 @@ class FrozenBNBEmbedding(nn.Module):
     def __init__(self, weight, absmax, code):
         super().__init__()
         self.num_embeddings, self.embedding_dim = weight.shape
+        #self.num_embeddings = 91238
+        print("self.num_embeddings=", self.num_embeddings)
         self.register_buffer("weight", weight.requires_grad_(False))
         self.register_buffer("absmax", absmax.requires_grad_(False))
         self.register_buffer("code", code.requires_grad_(False))
@@ -135,7 +136,7 @@ def convert_to_int8(model):
                     )
                 )
 
-class GPTJBlock(transformers.models.gptj.modeling_gptj.GPTJBlock):
+class GPTJBlock8(transformers.models.gptj.modeling_gptj.GPTJBlock):
     def __init__(self, config):
         super().__init__(config)
 
@@ -143,13 +144,13 @@ class GPTJBlock(transformers.models.gptj.modeling_gptj.GPTJBlock):
         convert_to_int8(self.mlp)
 
 
-class GPTJModel(transformers.models.gptj.modeling_gptj.GPTJModel):
+class GPTJModel8(transformers.models.gptj.modeling_gptj.GPTJModel):
     def __init__(self, config):
         super().__init__(config)
         convert_to_int8(self)
 
 
-class GPTJForCausalLM(transformers.models.gptj.modeling_gptj.GPTJForCausalLM):
+class GPTJForCausalLM8(transformers.models.gptj.modeling_gptj.GPTJForCausalLM):
     def __init__(self, config):
         super().__init__(config)
         convert_to_int8(self)
