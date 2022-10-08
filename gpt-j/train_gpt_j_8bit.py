@@ -18,6 +18,7 @@ continue_train = False
 fine_tune = False
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 token_expand = True
+max_input_length = 1024
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-w", "--use_weight", help = "using weight")
@@ -36,11 +37,11 @@ if args.fine_tune:
     fine_tune = True
     model_name = "GPT-j-6B-8bit-wikipedia-finetune-org-model-ko-tokenizer"
     if token_expand:
-        dataset_cache_path = "./wikipedia-tokenized-org_plus_ko_tokenizer"
+        dataset_cache_path = f"./wikipedia-tokenized-org_plus_ko_tokenizer_{max_input_length}"
     else:
-        dataset_cache_path = "wikipedia-tokenized-org-tokenizer"
+        dataset_cache_path = f"wikipedia-tokenized-org-tokenizer_{max_input_length}"
 else:
-    dataset_cache_path = "./wikipedia-tokenized"
+    dataset_cache_path = f"./wikipedia-tokenized_{max_input_length}"
 
 print("--------------------")
 print("trainning:", model_name)
@@ -111,7 +112,6 @@ print(medium_datasets)
 """## Data preprocessing"""
 
 
-max_input_length = 256
 #max_target_length = 128
 
 #tokenizer = GPT2Tokenizer.from_pretrained(model_checkpoint)

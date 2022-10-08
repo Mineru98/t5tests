@@ -1,11 +1,15 @@
 import os, glob
 import transformers
 import torch
-from gpt_j_8bit import GPTJBlock, GPTJForCausalLM, GPTJModel, add_adapters, Adam8bit
-from transformers import AutoTokenizer, logging, pipeline
+from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
+from transformers import AutoTokenizer, logging, pipeline, GPTJForCausalLM
 import argparse
 
-transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock  # monkey-patch GPT-J
+patched_8bit = True
+pipe = False
+
+if patched_8bit:
+    transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  # monkey-patch GPT-J
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -36,8 +40,15 @@ print("---------------------------\n")
 logging.set_verbosity_error()
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-gpt = GPTJForCausalLM.from_pretrained(latest_model_dir).to(device)
-tokenizer.pad_token = tokenizer.eos_token
+if patched_8bit:
+    gpt = GPTJForCausalLM8.from_pretrained(latest_model_dir).to(device)
+else:
+    gpt = GPTJForCausalLM.from_pretrained(
+        latest_model_dir,
+        #low_cpu_mem_usage=True,
+        device_map='auto',
+        load_in_8bit=True,
+    ).to(device)
 
 text_generation = pipeline(
     "text-generation",
@@ -48,13 +59,18 @@ text_generation = pipeline(
 
 while True:
     text = input("Input: ")
-    generated = text_generation(
-        text,
-        max_length=300,
-        do_sample=True,
-        num_return_sequences=5,
-        top_p=0.95,
-        top_k=50
-    )
-
-    print(*generated, sep="\n")
+    if pipe:
+        generated = text_generation(
+            text,
+            max_length=300,
+            do_sample=True,
+            num_return_sequences=5,
+            top_p=0.95,
+            top_k=50
+        )
+        print(*generated, sep="\n")
+    else:
+        encoded_input = tokenizer(text, return_tensors='pt')
+        output_sequences = gpt.generate(input_ids=encoded_input['input_ids'].cuda())
+        generated =  tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
+        print(generated)
