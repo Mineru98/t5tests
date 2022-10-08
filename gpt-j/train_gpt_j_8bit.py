@@ -17,6 +17,7 @@ use_weight = False
 continue_train = False
 fine_tune = False
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
+token_expand = True
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-w", "--use_weight", help = "using weight")
@@ -34,8 +35,10 @@ if args.fine_tune:
     print("=== param fine tune original model")
     fine_tune = True
     model_name = "GPT-j-6B-8bit-wikipedia-finetune-org-model-ko-tokenizer"
-    #dataset_cache_path = "./wikipedia-tokenized-org_plus_ko_tokenizer"
-    dataset_cache_path = "wikipedia-tokenized-org-tokenizer"
+    if token_expand:
+        dataset_cache_path = "./wikipedia-tokenized-org_plus_ko_tokenizer"
+    else:
+        dataset_cache_path = "wikipedia-tokenized-org-tokenizer"
 else:
     dataset_cache_path = "./wikipedia-tokenized"
 
@@ -44,8 +47,10 @@ print("trainning:", model_name)
 print("--------------------")
 
 if fine_tune:
-    #tokenizer_path = "../train_tokenizer/tokenizer-gpt-j-plus-ko"
-    tokenizer_path = "EleutherAI/gpt-j-6B"
+    if token_expand:
+        tokenizer_path = "../train_tokenizer/tokenizer-gpt-j-plus-ko"
+    else:
+        tokenizer_path = "EleutherAI/gpt-j-6B"
 else:
     tokenizer_path = "../train_tokenizer/tokenizer_wikipedia_gpt_j"
 
@@ -161,6 +166,8 @@ train_data_len = len(medium_datasets_cleaned["train"])
 print("no_train_data(filterd)=", train_data_len)
 
 if huggingface_trainner:
+    if step_factor == 1:
+        dataset_cache_path += "_small"
     if os.path.exists(dataset_cache_path):
         tokenized_datasets = load_from_disk(dataset_cache_path)    
     else:
@@ -173,7 +180,7 @@ from transformers import AutoModelWithLMHead, TrainingArguments, \
 
 #!rm -r {model_dir}
 
-batch_size = 4
+batch_size = 1
 args = TrainingArguments(
     model_dir,
     evaluation_strategy="steps",
@@ -190,7 +197,7 @@ args = TrainingArguments(
     save_total_limit=5,
     num_train_epochs=num_train_epochs,
     #predict_with_generate=True,
-    fp16=True,
+    fp16=False,
     load_best_model_at_end=True,
     metric_for_best_model="eval_loss",
     report_to="tensorboard",
@@ -284,34 +291,40 @@ import time, os
 import torch.nn.functional as F
 from bitsandbytes.optim import Adam8bit
 
-transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
-
 if fine_tune:
     if False:
         max_memory_mapping = {0: "10GB", 1: "10GB"}
         gpt = GPTJForCausalLM.from_pretrained(
-            "EleutherAI/gpt-j-6B",
+            #"EleutherAI/gpt-j-6B",
+            "./Models/gpt-j-6B-fp16-ko-voc",
             revision="float16",
             torch_dtype=torch.float16,
             low_cpu_mem_usage=True,
             use_cache=False,
-            gradient_checkpointing=True,
             device_map='auto',
-            max_memory=max_memory_mapping,
-            load_in_8bit=True
+            load_in_8bit=True,
+            #gradient_checkpointing=True,
+            #max_memory=max_memory_mapping,
         )
+        # tokenizer_len = len(tokenizer)
+        # print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
+        # gpt.resize_token_embeddings(tokenizer_len)
+        # print("resize done....")
+        gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
+        gpt.config.__dict__["use_cache"] = False
+        gpt.save_pretrained("./Models/gpt-j-6B-8bit-ko-voc")
+        print("save done....")
     else:
-        #gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc", low_cpu_mem_usage=True)
-        gpt =  GPTJForCausalLM8.from_pretrained("hivemind/gpt-j-6B-8bit", low_cpu_mem_usage=True)
-    tokenizer_len = len(tokenizer)
-    print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
-    #gpt.resize_token_embeddings(tokenizer_len)
+        transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
+        #gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-org-91238", low_cpu_mem_usage=True)
+        gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc")
+        #gpt =  GPTJForCausalLM8.from_pretrained("hivemind/gpt-j-6B-8bit", low_cpu_mem_usage=True)
+        add_adapters(gpt)
+        gpt.gradient_checkpointing_enable()
 
 gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
 gpt.config.__dict__["use_cache"] = False
-add_adapters(gpt)
 gpt.to('cuda')
-gpt.gradient_checkpointing_enable()
 
 # Function that returns an untrained model to be trained
 def model_init():
@@ -371,6 +384,8 @@ class MyTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
+from tqdm.auto import tqdm
+
 if huggingface_trainner:
     optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
     lr_scheduler = AdafactorSchedule(optimizer)    
@@ -391,6 +406,7 @@ if huggingface_trainner:
     # %load_ext tensorboard
     # %tensorboard --logdir '{model_dir}'/runs
 
+    #input("wait...")
     print("start trainning -----------------------------")
     if continue_train:
         trainer.train(True)
@@ -437,7 +453,7 @@ else:
             optimizer.zero_grad()
 
 
-    logger.info("Finished fine-tuning in {}".format(time.time() - start))
+    print("Finished fine-tuning in {}".format(time.time() - start))
 
     # --------------> Saving fine-tuned model <-----------------#
     try:
@@ -446,4 +462,4 @@ else:
         gpt.save_pretrained(save_dir)
     except Exception as e:
         #print("Error saving model: ", e)
-        logger.info("Error saving model: {}".format(e))
+        print("Error saving model: {}".format(e))

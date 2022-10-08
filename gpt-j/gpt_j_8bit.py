@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch.cuda.amp import custom_fwd, custom_bwd
 from bitsandbytes.functional import quantize_blockwise, dequantize_blockwise
-from tqdm.auto import tqdm
 from datasets import load_dataset
 
 # ---------------------> Converting the model to 8 bits <------------------- #
@@ -68,8 +67,6 @@ class FrozenBNBEmbedding(nn.Module):
     def __init__(self, weight, absmax, code):
         super().__init__()
         self.num_embeddings, self.embedding_dim = weight.shape
-        #self.num_embeddings = 91238
-        print("self.num_embeddings=", self.num_embeddings)
         self.register_buffer("weight", weight.requires_grad_(False))
         self.register_buffer("absmax", absmax.requires_grad_(False))
         self.register_buffer("code", code.requires_grad_(False))
@@ -86,6 +83,7 @@ class FrozenBNBEmbedding(nn.Module):
 
     @classmethod
     def from_embedding(cls, embedding: nn.Embedding) -> "FrozenBNBEmbedding":
+        print("\n$$$$$$$$\nembedding.weight=", embedding.weight)
         weights_int8, state = quantize_blockise_lowmemory(embedding.weight)
         return cls(weights_int8, *state)
 
@@ -114,7 +112,10 @@ def convert_to_int8(model):
     for module in list(model.modules()):
         for name, child in module.named_children():
             if isinstance(child, nn.Linear):
-                #print(name, child)
+                if name == 'lm_head':
+                    #child.out_features = 91238
+                    print("\n********************\nchild.out_features=", child.out_features, child.in_features)
+                    print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
                 setattr(
                     module,
                     name,
@@ -126,6 +127,9 @@ def convert_to_int8(model):
                     ),
                 )
             elif isinstance(child, nn.Embedding):
+                #child.num_embeddings = 91238
+                print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
+                print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
                 setattr(
                     module,
                     name,
@@ -160,12 +164,14 @@ def add_adapters(model, adapter_dim=16):
 
     for module in model.modules():
         if isinstance(module, FrozenBNBLinear):
+            #print("\n==============\nmodule.in_features=", module.in_features, module.out_features, adapter_dim)
             module.adapter = nn.Sequential(
                 nn.Linear(module.in_features, adapter_dim, bias=False),
                 nn.Linear(adapter_dim, module.out_features, bias=False),
             )
             nn.init.zeros_(module.adapter[1].weight)
         elif isinstance(module, FrozenBNBEmbedding):
+            #print("\n===============\nmodule.num_embeddings=", module.num_embeddings, module.embedding_dim, adapter_dim)
             module.adapter = nn.Sequential(
                 nn.Embedding(module.num_embeddings, adapter_dim),
                 nn.Linear(adapter_dim, module.embedding_dim, bias=False),
