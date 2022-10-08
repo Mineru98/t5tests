@@ -299,7 +299,7 @@ if fine_tune:
             "./Models/gpt-j-6B-fp16-ko-voc",
             revision="float16",
             torch_dtype=torch.float16,
-            low_cpu_mem_usage=True,
+            #low_cpu_mem_usage=True,
             use_cache=False,
             device_map='auto',
             load_in_8bit=True,
@@ -317,7 +317,7 @@ if fine_tune:
     else:
         transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
         #gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-org-91238", low_cpu_mem_usage=True)
-        gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-8bit-ko-voc")
+        gpt =  GPTJForCausalLM8.from_pretrained("./Models/gpt-j-6B-ko-voc-to-8bit-conv")
         #gpt =  GPTJForCausalLM8.from_pretrained("hivemind/gpt-j-6B-8bit", low_cpu_mem_usage=True)
         add_adapters(gpt)
         gpt.gradient_checkpointing_enable()

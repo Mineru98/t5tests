@@ -21,8 +21,8 @@ import transformers
 # tokenizer_name = model_name
 model_name = "./Models/gpt-j-6B-fp16-ko-voc"
 tokenizer_name = "../train_tokenizer/tokenizer-gpt-j-plus-ko"
-gpt = transformers.AutoModelForCausalLM.from_pretrained(model_name)
-tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+gpt = transformers.GPTJForCausalLM.from_pretrained(model_name)
+tokenizer = transformers.AutoTokenizer.from_pretrained(tokenizer_name)
 
 def quantize_blockise_lowmemory(matrix: torch.Tensor, chunk_size: int = 2 ** 20):
     assert chunk_size % 4096 == 0
@@ -159,4 +159,4 @@ prompt = tokenizer("A cat sat on a mat and", return_tensors='pt')
 out = gpt.generate(**prompt, min_length=8, max_length=8, do_sample=True)
 tokenizer.decode(out[0])
 
-gpt.save_pretrained("./Models/gpt-j-6B-org-to-8bit-conv")
+gpt.save_pretrained("./Models/gpt-j-6B-ko-voc-to-8bit-conv")

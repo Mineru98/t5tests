@@ -15,10 +15,13 @@ model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 parser = argparse.ArgumentParser()
+parser.add_argument("-8", "--bit8", help = "8bit patch")
 parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer")
 args = parser.parse_args()
+if args.bit8:
+    patched_8bit = True
 if args.local_model:
     print("=== param using local model", args.local_model)
     model_name = args.local_model
