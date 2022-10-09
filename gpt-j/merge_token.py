@@ -1,4 +1,6 @@
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from tokenizers import AddedToken
+
 import re
 
 model_name = "EleutherAI/gpt-j-6B"
@@ -18,7 +20,8 @@ new_tokens = []
 for word in vocabulary_bert:
     if word not in vocabulary:
         if not re.match('^#+[a-zA-Z0-9_]+$', word): 
-            new_tokens.append(word)
+            t = AddedToken(word, lstrip=True, rstrip=True)
+            new_tokens.append(t)
         else:
             print(word)
 
@@ -26,5 +29,5 @@ print("adding new tokens count=", len(new_tokens))
 tokenizer.add_tokens(new_tokens)
 print("done, adding")
 
-tokenizer.save_pretrained("../train_tokenizer/tokenizer-gpt-j-plus-ko")
+tokenizer.save_pretrained("../train_tokenizer/tokenizer-gpt-j-plus-ko-test")
 print("done, saving")

@@ -23,13 +23,13 @@ trainning_size = 0
 val_data_size = 32
 model_size = "medium" # small, medium
 dataset_source = "wiki" # sns, wiki
-feature_name = "text" # sample, text
+#feature_name = "text" # sample, text
 
 num_train_epochs = 10
 huggingface_trainner = True
 
 model_name_base = "GPT-j-6B-8bit"
-tokenizer_name = "tokenizer-gpt-j-plus-ko"
+tokenizer_name = "tokenizer-gpt-j-plus-ko-v2"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--continue_train", help = "continue trainning")
@@ -132,7 +132,7 @@ def combine_lines(ids):
     #str = tokenizer.batch_decode(combined_line_list, skip_special_tokens=False)
     return combined_line_list
 
-def build_list_from_dataset(ds):
+def build_list_from_dataset(ds, feature_name):
     examples = []
     for s in ds:
         lines = s[feature_name].split("\n")
@@ -142,6 +142,7 @@ def build_list_from_dataset(ds):
         tt = tokenizer(lines, max_length=max_input_length, truncation=True, padding=False)
         combined_line_list = combine_lines(tt["input_ids"])
         examples += combined_line_list
+    examples = combine_lines(examples)
     return examples
         
 def get_dataset():
@@ -151,18 +152,23 @@ def get_dataset():
     elif dataset_source == "wiki":
         ds = load_from_disk("/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr")
         feature_name = "text"
-    else:
-        ds = load_from_disk
+    elif dataset_source == "cc100":
+        cc100_local = "./dataset/cc100.kr"
+        if os.path.exists(cc100_local):
+            ds = load_from_disk(cc100_local)    
+        else:
+            ds = load_dataset("cc100", lang="ko")
+            ds.save_to_disk(cc100_local)
         feature_name = "text"
     ds = ds["train"]
-    return ds
+    return ds, feature_name
     
 def get_data_list(eval_size: int = 100):
-    ds = get_dataset()
+    ds, feature_name = get_dataset()
     if trainning_size > 0:
         ds = ds.select(range(trainning_size))
     return {
-        "input_ids": build_list_from_dataset(ds),
+        "input_ids": build_list_from_dataset(ds, feature_name),
     }
 
 if os.path.exists(dataset_cache_path):
@@ -397,7 +403,7 @@ if huggingface_trainner:
 
 else:
 
-    dataset = get_dataset()
+    dataset, feature_name = get_dataset()
     
     #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
     #configuration = GPTJConfig()
