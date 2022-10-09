@@ -86,7 +86,7 @@ while True:
             top_p=0.95,
             top_k=50
         )
-        print(*generated, sep="\n")
+        print(*generated, sep="\n\n")
     else:
         encoded_input = tokenizer(text, return_tensors='pt').to(device)
         print(encoded_input)

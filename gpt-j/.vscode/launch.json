@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "name": "Python: File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args":["-d", "wiki", "-i", "32", "-s", "1000"],
+            "justMyCode": true
+        }
+    ]
+}
