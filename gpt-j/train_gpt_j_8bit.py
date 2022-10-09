@@ -24,7 +24,7 @@ model_size = "medium" # small, medium
 dataset_source = "wiki" # sns, wiki
 feature_name = "text" # sample, text
 
-num_train_epochs = 2
+num_train_epochs = 10
 huggingface_trainner = True
 
 model_name_base = "GPT-j-6B-8bit"
@@ -334,16 +334,16 @@ if huggingface_trainner:
     args = TrainingArguments(
         model_dir,
         evaluation_strategy="steps",
-        eval_steps=10,
+        eval_steps=50,
         logging_strategy="steps",
-        logging_steps=10,
+        logging_steps=50,
         save_strategy="steps",
         save_steps=200,
         learning_rate=5e-5,
         #per_device_train_batch_size=batch_size,
         #per_device_eval_batch_size=batch_size,
         auto_find_batch_size=True,
-        gradient_accumulation_steps=1,
+        gradient_accumulation_steps=2,
         weight_decay=0.02,
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
