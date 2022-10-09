@@ -18,6 +18,7 @@ continue_train = False
 token_expand = True
 max_input_length = 256
 
+batch_size = 0
 trainning_size = 0
 val_data_size = 32
 model_size = "medium" # small, medium
@@ -36,6 +37,7 @@ parser.add_argument("-d", "--dataset", help = "dataset source = [sns, wiki, cc10
 parser.add_argument("-t", "--tokenizer", help = "tokenizer name")
 parser.add_argument("-i", "--max_input_length", help = "max input length")
 parser.add_argument("-s", "--trainning_size", help = "trainning size, 0 for all")
+parser.add_argument("-b", "--batch_size", help = "batch size, 0 for auto")
 
 args = parser.parse_args()
 
@@ -56,6 +58,8 @@ if args.max_input_length:
     max_input_length = int(args.max_input_length)
 if args.trainning_size:
     trainning_size = int(args.trainning_size)
+if args.batch_size:
+    batch_size = int(args.batch_size)
     
 model_name = f'{model_name_base}_{tokenizer_name}_{dataset_source}_{max_input_length}' 
 dataset_cache_path = f"./cache/{model_name}_{trainning_size}"
@@ -140,7 +144,7 @@ def build_list_from_dataset(ds):
         examples += combined_line_list
     return examples
         
-def get_data_list(eval_size: int = 100):
+def get_dataset():
     if dataset_source == "sns":
         ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
         feature_name = "sample"
@@ -151,6 +155,10 @@ def get_data_list(eval_size: int = 100):
         ds = load_from_disk
         feature_name = "text"
     ds = ds["train"]
+    return ds
+    
+def get_data_list(eval_size: int = 100):
+    ds = get_dataset()
     if trainning_size > 0:
         ds = ds.select(range(trainning_size))
     return {
@@ -320,7 +328,8 @@ def compute_metrics(eval_pred):
 
     #ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
 
-    print("\n===========pridiction=", pred_str)
+    print("\n===========predictions\n", pred_str)
+    print()
     for label in random.sample(list(label_str), 2):
         print("label=", label)
 
@@ -328,9 +337,18 @@ def compute_metrics(eval_pred):
         "mean_perplexity": round(ppl["mean_perplexity"], 4)
     }
 
+import math
+def _get_lr(param_group, param_state):
+    step = param_state["step"]
+    eps = param_group["eps"]
+    return 5e-5 - eps * step * 1e-3
 
 if huggingface_trainner:
-    batch_size = 1
+    if batch_size == 0:
+        auto_find_batch_size = True
+        batch_size = 8
+    else:
+        auto_find_batch_size = False
     args = TrainingArguments(
         model_dir,
         evaluation_strategy="steps",
@@ -340,10 +358,10 @@ if huggingface_trainner:
         save_strategy="steps",
         save_steps=200,
         learning_rate=5e-5,
-        #per_device_train_batch_size=batch_size,
-        #per_device_eval_batch_size=batch_size,
-        auto_find_batch_size=True,
-        gradient_accumulation_steps=2,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        auto_find_batch_size=auto_find_batch_size,
+        gradient_accumulation_steps=1,
         weight_decay=0.02,
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
@@ -357,6 +375,7 @@ if huggingface_trainner:
     
     optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
     lr_scheduler = AdafactorSchedule(optimizer)    
+    optimizer._get_lr = _get_lr
     trainer = Trainer(
         model=gpt,
         args=args,
@@ -366,7 +385,7 @@ if huggingface_trainner:
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-        #optimizers=(optimizer, lr_scheduler)
+        optimizers=(optimizer, lr_scheduler)
     )
 
     print("start trainning -----------------------------")
@@ -378,20 +397,19 @@ if huggingface_trainner:
 
 else:
 
-    model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
+    dataset = get_dataset()
+    
+    #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
     #configuration = GPTJConfig()
 
     #gpt = GPTJModel(model.config)
-    gpt = model
-    add_adapters(gpt)
-    gpt.to('cuda')
+    #gpt = model
+    #add_adapters(gpt)
+    #gpt.to('cuda')
     gpt.gradient_checkpointing_enable()
 
     # example dataset
     #dataset = load_dataset("transformersbook/codeparrot-train", streaming=True)
-
-    # custom dataset
-    dataset = medium_datasets_cleaned
 
     optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
 
@@ -400,7 +418,7 @@ else:
 
     # Training loop
     with torch.cuda.amp.autocast():
-        for row in tqdm(dataset["train"]):
+        for row in tqdm(dataset):
             if len(row[feature_name]) <= 1:
                 continue
             batch = tokenizer(row[feature_name], truncation=True, max_length=128, return_tensors='pt')
@@ -411,8 +429,6 @@ else:
             print(loss)
             loss.backward()
             optimizer.step()
-            optimizer.zero_grad()
-
 
     print("Finished fine-tuning in {}".format(time.time() - start))
 

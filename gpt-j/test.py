@@ -5,7 +5,7 @@ from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
 from transformers import AutoTokenizer, logging, pipeline, GPTJForCausalLM
 import argparse
 
-patched_8bit = False
+patched_8bit = True
 pipe = True
 
 if patched_8bit:
@@ -19,9 +19,12 @@ parser.add_argument("-8", "--bit8", help = "8bit patch")
 parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer")
+parser.add_argument("-p", "--path", help = "model path with tokenizer")
 args = parser.parse_args()
 if args.bit8:
-    patched_8bit = True
+    if args.bit8 == 'n':
+        patched_8bit = False
+latest_model_dir = "none"
 if args.local_model:
     print("=== param using local model", args.local_model)
     model_name = args.local_model
@@ -41,6 +44,10 @@ if args.model:
         tokenizer_dir = latest_model_dir
 if args.tokenizer:
     tokenizer_dir = args.tokenizer
+    
+if args.path:
+    latest_model_dir = args.path
+    tokenizer_dir = latest_model_dir
 
 print("\n---------------------------")
 print("patched 8bit =\t", patched_8bit)
