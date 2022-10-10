@@ -157,6 +157,8 @@ def build_list_from_dataset(ds, feature_name):
     examples = []
     num_worker = 12
     chunk_size = int(len(ds) / (num_worker * 4))
+    if chunk_size > 100000:
+        chunk_size = 100000
     print("chunk_size=", chunk_size)
     for result in process_map(tokenizing_sample, ds, max_workers=num_worker, chunksize=chunk_size):
         examples += result
