@@ -168,7 +168,7 @@ def build_list_from_dataset(ds, feature_name):
     # for s in ds:
     #     combined_line_list = tokenizing_sample(s)
     #     examples += combined_line_list
-    examples = combine_lines(examples)
+    # examples = combine_lines(examples)
     return examples
         
 def get_dataset():
@@ -177,7 +177,11 @@ def get_dataset():
         ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
         feature_name = "sample"
     elif dataset_source == "wiki":
-        ds = load_from_disk("/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr")
+        wiki_local = "/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr"
+        if os.path.exists(wiki_local):
+            ds = load_from_disk(wiki_local)
+        else:
+            ds = load_dataset("lcw99/wikipedia-korean-20221001")
         feature_name = "text"
     elif dataset_source == "cc100":
         # cc100_local = "./dataset/cc100.kr"
