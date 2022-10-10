@@ -393,7 +393,62 @@ def _get_lr(param_group, param_state):
     eps = param_group["eps"]
     return 5e-5 - eps * step * 1e-3
 
+from torch.utils.data import DataLoader
+from accelerate import Accelerator
+
+accelerator = Accelerator()
+
+def loss_function(out, batch):
+    loss = F.cross_entropy(out.logits[:, :-1, :].flatten(0, -2), batch['input_ids'][:, 1:].flatten(),
+                        reduction='mean')
+    return loss
+
+def new_trainer():
+
+    device = accelerator.device
+
+    dataset, feature_name = get_dataset()
+    
+    training_dataloader = DataLoader(dataset, batch_size=32)
+
+    #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
+    #configuration = GPTJConfig()
+
+    #gpt = GPTJModel(model.config)
+    #gpt = model
+    #add_adapters(gpt)
+    #gpt.to('cuda')
+    gpt.gradient_checkpointing_enable()
+
+    # example dataset
+    #dataset = load_dataset("transformersbook/codeparrot-train", streaming=True)
+
+    optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
+    lr_scheduler = AdafactorSchedule(optimizer)    
+
+    gpt, optimizer, training_dataloader, lr_scheduler = accelerator.prepare(
+        gpt, optimizer, training_dataloader, lr_scheduler
+    )
+    
+    for batch in training_dataloader:
+        optimizer.zero_grad()
+        inputs, targets = batch
+        outputs = gpt(inputs)
+        loss = loss_function(outputs, targets)
+        accelerator.backward(loss)
+        optimizer.step()
+        lr_scheduler.step()
+        
+    
 if huggingface_trainner:
+    optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
+    lr_scheduler = AdafactorSchedule(optimizer)    
+    optimizer._get_lr = _get_lr
+
+    gpt, optimizer, lr_scheduler = accelerator.prepare(
+        gpt, optimizer, lr_scheduler
+    )
+            
     if batch_size == 0:
         auto_find_batch_size = True
         batch_size = 8
@@ -422,10 +477,7 @@ if huggingface_trainner:
         report_to="tensorboard",
         ignore_data_skip=True,     # set true for ignore batch skip, fast
     )
-    
-    optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
-    lr_scheduler = AdafactorSchedule(optimizer)    
-    optimizer._get_lr = _get_lr
+
     trainer = Trainer(
         model=gpt,
         args=args,
@@ -446,47 +498,47 @@ if huggingface_trainner:
     trainer.save_model()
 
 else:
-
-    dataset, feature_name = get_dataset()
+    new_trainer()
+    # dataset, feature_name = get_dataset()
     
-    #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
-    #configuration = GPTJConfig()
+    # #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
+    # #configuration = GPTJConfig()
 
-    #gpt = GPTJModel(model.config)
-    #gpt = model
-    #add_adapters(gpt)
-    #gpt.to('cuda')
-    gpt.gradient_checkpointing_enable()
+    # #gpt = GPTJModel(model.config)
+    # #gpt = model
+    # #add_adapters(gpt)
+    # #gpt.to('cuda')
+    # gpt.gradient_checkpointing_enable()
 
-    # example dataset
-    #dataset = load_dataset("transformersbook/codeparrot-train", streaming=True)
+    # # example dataset
+    # #dataset = load_dataset("transformersbook/codeparrot-train", streaming=True)
 
-    optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
 
-    # Set the model to training mode
-    start = time.time()
+    # # Set the model to training mode
+    # start = time.time()
 
-    # Training loop
-    with torch.cuda.amp.autocast():
-        for row in tqdm(dataset):
-            if len(row[feature_name]) <= 1:
-                continue
-            batch = tokenizer(row[feature_name], truncation=True, max_length=128, return_tensors='pt')
-            batch = {k: v.cuda() for k, v in batch.items()}
-            out = gpt.forward(**batch,)
-            loss = F.cross_entropy(out.logits[:, :-1, :].flatten(0, -2), batch['input_ids'][:, 1:].flatten(),
-                                reduction='mean')
-            print(loss)
-            loss.backward()
-            optimizer.step()
+    # # Training loop
+    # with torch.cuda.amp.autocast():
+    #     for row in tqdm(dataset):
+    #         if len(row[feature_name]) <= 1:
+    #             continue
+    #         batch = tokenizer(row[feature_name], truncation=True, max_length=128, return_tensors='pt')
+    #         batch = {k: v.cuda() for k, v in batch.items()}
+    #         out = gpt.forward(**batch,)
+    #         loss = F.cross_entropy(out.logits[:, :-1, :].flatten(0, -2), batch['input_ids'][:, 1:].flatten(),
+    #                             reduction='mean')
+    #         print(loss)
+    #         loss.backward()
+    #         optimizer.step()
+    #         lr_scheduler.step()
 
-    print("Finished fine-tuning in {}".format(time.time() - start))
+    # print("Finished fine-tuning in {}".format(time.time() - start))
 
-    # --------------> Saving fine-tuned model <-----------------#
-    try:
-        save_dir = "./finetuned_gpt-j-8_bit"
-        os.makedirs(save_dir)
-        gpt.save_pretrained(save_dir)
-    except Exception as e:
-        #print("Error saving model: ", e)
-        print("Error saving model: {}".format(e))
+    # # --------------> Saving fine-tuned model <-----------------#
+    # try:
+    #     save_dir = "./finetuned_gpt-j-8_bit"
+    #     os.makedirs(save_dir)
+    #     gpt.save_pretrained(save_dir)
+    # except Exception as e:
+    #     #print("Error saving model: ", e)
+    #     print("Error saving model: {}".format(e))
