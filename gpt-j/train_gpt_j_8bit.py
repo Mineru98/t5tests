@@ -61,7 +61,7 @@ if args.trainning_size:
 if args.batch_size:
     batch_size = int(args.batch_size)
     
-model_name = f'{model_name_base}_{tokenizer_name}_{dataset_source}_{max_input_length}' 
+model_name = f'{model_name_base}_{tokenizer_name}_{dataset_source}' 
 dataset_cache_path = f"./cache/{model_name}_{trainning_size}"
 tokenizer_path = f"../train_tokenizer/{tokenizer_name}"
 
