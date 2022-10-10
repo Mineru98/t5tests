@@ -29,7 +29,7 @@ num_train_epochs = 10
 huggingface_trainner = True
 
 model_name_base = "GPT-j-6B-8bit"
-tokenizer_name = "tokenizer-gpt-j-plus-ko-v2"
+tokenizer_name = "tokenizer-gpt-j-plus-ko"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--continue_train", help = "continue trainning")
@@ -114,7 +114,12 @@ model_dir = f"./Models/{model_name}"
 
 
 print("\n-----------------------\ntokenizer_path = ", tokenizer_path)
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+if os.path.exists(tokenizer_path):
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+else:
+    print("downloading tokenizer from hf")
+    tokenizer = AutoTokenizer.from_pretrained("lcw99/tokenizer-gpt-j-ext-ko")
+
 tokenizer.pad_token = tokenizer.eos_token
 
 def combine_lines(ids):
@@ -146,6 +151,7 @@ def build_list_from_dataset(ds, feature_name):
     return examples
         
 def get_dataset():
+    print("reading dataset...", dataset_source)
     if dataset_source == "sns":
         ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
         feature_name = "sample"
@@ -153,14 +159,16 @@ def get_dataset():
         ds = load_from_disk("/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr")
         feature_name = "text"
     elif dataset_source == "cc100":
-        cc100_local = "./dataset/cc100.kr"
-        if os.path.exists(cc100_local):
-            ds = load_from_disk(cc100_local)    
-        else:
-            ds = load_dataset("cc100", lang="ko")
-            ds.save_to_disk(cc100_local)
+        # cc100_local = "./dataset/cc100.kr"
+        # if os.path.exists(cc100_local):
+        #     ds = load_from_disk(cc100_local)    
+        # else:
+        #     ds = load_dataset("cc100", lang="ko")
+        #     ds.save_to_disk(cc100_local)
+        ds = load_dataset("cc100", lang="ko")
         feature_name = "text"
     ds = ds["train"]
+    print("reading dataset done...", dataset_source)
     return ds, feature_name
     
 def get_data_list(eval_size: int = 100):
@@ -172,8 +180,10 @@ def get_data_list(eval_size: int = 100):
     }
 
 if os.path.exists(dataset_cache_path):
+    print("loading form cashed dataset...")
     datasets = load_from_disk(dataset_cache_path)    
 else:
+    print("start building dataset...")
     dict = get_data_list(val_data_size)
     datasets = Dataset.from_dict(dict)
     datasets = datasets.train_test_split(test_size = val_data_size)
@@ -264,8 +274,13 @@ if False:
 else:
     transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
     model_path = "./Models/gpt-j-6B-ko-voc-to-8bit-conv"
-    print("base model path = ", model_path)
-    gpt =  GPTJForCausalLM8.from_pretrained(model_path)
+    if os.path.exists(model_path):
+        print("base model path = ", model_path)
+        gpt =  GPTJForCausalLM8.from_pretrained(model_path)
+    else:
+        hf_model = "lcw99/gpt-j-6B-voc-ext-to-91238-8bit"
+        print("downloading..", hf_model)
+        gpt = GPTJForCausalLM8.from_pretrained(hf_model)
     add_adapters(gpt)
     gpt.gradient_checkpointing_enable()
 
