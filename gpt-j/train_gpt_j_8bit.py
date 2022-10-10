@@ -112,6 +112,10 @@ model_dir = f"./Models/{model_name}"
 
 # """## Data preprocessing"""
 
+from multiprocessing import Pool
+from tqdm.contrib.concurrent import process_map
+
+glo_feature_name = ""
 
 print("\n-----------------------\ntokenizer_path = ", tokenizer_path)
 if os.path.exists(tokenizer_path):
@@ -137,16 +141,31 @@ def combine_lines(ids):
     #str = tokenizer.batch_decode(combined_line_list, skip_special_tokens=False)
     return combined_line_list
 
+def tokenizing_sample(s):
+    global glo_feature_name
+    lines = s[glo_feature_name].split("\n")
+    lines = list(filter(lambda l: len(l) > 0, lines))
+    if len(lines) == 0:
+        return []
+    tt = tokenizer(lines, max_length=max_input_length, truncation=True, padding=False)
+    combined_line_list = combine_lines(tt["input_ids"])
+    return combined_line_list
+            
 def build_list_from_dataset(ds, feature_name):
+    global glo_feature_name
+    glo_feature_name = feature_name
     examples = []
-    for s in ds:
-        lines = s[feature_name].split("\n")
-        lines = list(filter(lambda l: len(l) > 0, lines))
-        if len(lines) == 0:
-            continue
-        tt = tokenizer(lines, max_length=max_input_length, truncation=True, padding=False)
-        combined_line_list = combine_lines(tt["input_ids"])
-        examples += combined_line_list
+    num_worker = 12
+    chunk_size = int(len(ds) / (num_worker * 4))
+    print("chunk_size=", chunk_size)
+    for result in process_map(tokenizing_sample, ds, max_workers=num_worker, chunksize=chunk_size):
+        examples += result
+    # with Pool(10) as pool:
+    #     for result in pool.map(tokenizing_sample, ds):
+    #         examples += result
+    # for s in ds:
+    #     combined_line_list = tokenizing_sample(s)
+    #     examples += combined_line_list
     examples = combine_lines(examples)
     return examples
         
