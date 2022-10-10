@@ -33,7 +33,7 @@ tokenizer_name = "tokenizer-gpt-j-plus-ko"
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", "--continue_train", help = "continue trainning")
-parser.add_argument("-d", "--dataset", help = "dataset source = [sns, wiki, cc100]")
+parser.add_argument("-d", "--dataset", help = "dataset source = [sns, wiki, cc100, namu]")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer name")
 parser.add_argument("-i", "--max_input_length", help = "max input length")
 parser.add_argument("-s", "--trainning_size", help = "trainning size, 0 for all")
@@ -192,6 +192,10 @@ def get_dataset():
         #     ds.save_to_disk(cc100_local)
         ds = load_dataset("cc100", lang="ko")
         feature_name = "text"
+    elif dataset_source == "namu":
+        ds = load_dataset("heegyu/namuwiki-extracted")
+        feature_name = "text"
+    
     ds = ds["train"]
     print("reading dataset done...", dataset_source)
     return ds, feature_name
