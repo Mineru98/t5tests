@@ -16,7 +16,7 @@ import sys
 
 continue_train = False
 token_expand = True
-max_input_length = 256
+max_input_length = 128
 
 batch_size = 0
 trainning_size = 0
@@ -26,7 +26,7 @@ dataset_source = "wiki" # sns, wiki
 #feature_name = "text" # sample, text
 
 num_train_epochs = 10
-huggingface_trainner = True
+huggingface_trainner = False
 
 model_name_base = "GPT-j-6B-8bit"
 tokenizer_name = "tokenizer-gpt-j-plus-ko"
@@ -143,12 +143,15 @@ def combine_lines(ids):
 
 def tokenizing_sample(s):
     global glo_feature_name
-    lines = s[glo_feature_name].split("\n")
-    lines = list(filter(lambda l: len(l) > 0, lines))
-    if len(lines) == 0:
-        return []
-    tt = tokenizer(lines, max_length=max_input_length, truncation=True, padding=False)
-    combined_line_list = combine_lines(tt["input_ids"])
+    text = s[glo_feature_name]
+    #print("-------\n",text)
+    # lines = s[glo_feature_name].split("\n")
+    # lines = list(filter(lambda l: len(l) > 0, lines))
+    # if len(lines) == 0:
+    #     return []
+    tt = tokenizer(text, max_length=max_input_length, truncation=True, padding=False)
+    #combined_line_list = combine_lines(tt["input_ids"])
+    combined_line_list = [tt["input_ids"]]
     return combined_line_list
             
 def build_list_from_dataset(ds, feature_name):
@@ -218,7 +221,7 @@ else:
     datasets = datasets.train_test_split(test_size = val_data_size)
     print("\n------------------\n")
     print(datasets)
-    datasets.save_to_disk(dataset_cache_path)
+    # datasets.save_to_disk(dataset_cache_path)
 
 # def preprocess_data(examples):
 #     print("len(examples)=", len(examples[f"{feature_name}"]))        
@@ -270,7 +273,6 @@ metric_accuracy = evaluate.load("accuracy")
 #perplexity = evaluate.load("perplexity", module_type="metric")
 
 
-
 from transformers import GPTJForCausalLM
 from transformers.optimization import Adafactor, AdafactorSchedule
 from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
@@ -278,15 +280,23 @@ import time, os
 import torch.nn.functional as F
 from bitsandbytes.optim import Adam8bit
 
-if False:
+from torch.utils.data import DataLoader
+from accelerate import Accelerator, DistributedDataParallelKwargs
+
+arg = DistributedDataParallelKwargs(find_unused_parameters=True)
+accelerator = Accelerator()
+device = accelerator.device
+
+if True:
     max_memory_mapping = {0: "10GB", 1: "10GB"}
     gpt = GPTJForCausalLM.from_pretrained(
         #"EleutherAI/gpt-j-6B",
+        #"./Models/gpt-j-6B-ko-voc-to-8bit-conv",
         "./Models/gpt-j-6B-fp16-ko-voc",
-        revision="float16",
+        #revision="float16",
         torch_dtype=torch.float16,
         #low_cpu_mem_usage=True,
-        use_cache=False,
+        #use_cache=False,
         device_map='auto',
         load_in_8bit=True,
         #gradient_checkpointing=True,
@@ -298,7 +308,7 @@ if False:
     # print("resize done....")
     gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
     gpt.config.__dict__["use_cache"] = False
-    gpt.save_pretrained("./Models/gpt-j-6B-8bit-ko-voc")
+    #gpt.save_pretrained("./Models/gpt-j-6B-8bit-ko-voc")
     print("save done....")
 else:
     transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
@@ -315,31 +325,40 @@ else:
 
 gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
 gpt.config.__dict__["use_cache"] = False
-gpt.to('cuda')
      
-# class MyTrainer(Trainer):    
-#     def create_optimizer_and_scheduler(self, num_training_steps):
-#         self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
-#         self.lr_scheduler = AdafactorSchedule(optimizer)    
+if batch_size == 0:
+    auto_find_batch_size = True
+    batch_size = 8
+else:
+    auto_find_batch_size = False
+     
+class MyTrainer(Trainer):    
+    # def create_optimizer_and_scheduler(self, num_training_steps):
+    #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
+    #     self.lr_scheduler = AdafactorSchedule(self.optimizer)    
 
-#     def unwrap_model(self, model: nn.Module) -> nn.Module:
-#         if hasattr(model, "module"):
-#             return self.unwrap_model(model.module)
-#         else:
-#             return model
+    # def unwrap_model(self, model: nn.Module) -> nn.Module:
+    #     if hasattr(model, "module"):
+    #         return self.unwrap_model(model.module)
+    #     else:
+    #         return model
 
-#     def compute_loss(self, model, inputs, return_outputs=False):
-#         outputs = model(**inputs)
-#         # Save past state if it exists
-#         # TODO: this needs to be fixed and made cleaner later.
-#         if self.args.past_index >= 0:
-#             self._past = outputs[self.args.past_index]
+    # def compute_loss(self, model, inputs, return_outputs=False):
+    #     outputs = model(**inputs)
+    #     # Save past state if it exists
+    #     # TODO: this needs to be fixed and made cleaner later.
+    #     if self.args.past_index >= 0:
+    #         self._past = outputs[self.args.past_index]
 
-#         loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
-#                                reduction='mean')
+    #     loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+    #                            reduction='mean')
 
-#         #print("loss=", loss)
-#         return (loss, outputs) if return_outputs else loss
+    #     #print("loss=", loss)
+    #     return (loss, outputs) if return_outputs else loss
+    
+    def get_train_dataloader(self):
+        train_dataloader = super(MyTrainer, self).get_train_dataloader()
+        return accelerator.prepare(train_dataloader)
 
 
 from tqdm.auto import tqdm
@@ -391,54 +410,54 @@ import math
 def _get_lr(param_group, param_state):
     step = param_state["step"]
     eps = param_group["eps"]
-    return 5e-5 - eps * step * 1e-3
-
-from torch.utils.data import DataLoader
-from accelerate import Accelerator
-
-accelerator = Accelerator()
+    return 5e-5 - eps * step * 1e-2
 
 def loss_function(out, batch):
     loss = F.cross_entropy(out.logits[:, :-1, :].flatten(0, -2), batch['input_ids'][:, 1:].flatten(),
                         reduction='mean')
     return loss
 
-def new_trainer():
+def compute_loss(model, inputs, return_outputs=False):
+    outputs = model(**inputs)
+    # Save past state if it exists
+    # TODO: this needs to be fixed and made cleaner later.
+    loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+                            reduction='mean')
 
-    device = accelerator.device
+    return (loss, outputs) if return_outputs else loss
+    
+def new_trainer(model):
 
     dataset, feature_name = get_dataset()
     
-    training_dataloader = DataLoader(dataset, batch_size=32)
+    training_dataloader = DataLoader(dataset, batch_size=2, shuffle=False, collate_fn=lambda x: x)
 
-    #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
-    #configuration = GPTJConfig()
+    #model.to(device)
+    model.train()
+    model.gradient_checkpointing_enable()
 
-    #gpt = GPTJModel(model.config)
-    #gpt = model
-    #add_adapters(gpt)
-    #gpt.to('cuda')
-    gpt.gradient_checkpointing_enable()
-
-    # example dataset
-    #dataset = load_dataset("transformersbook/codeparrot-train", streaming=True)
-
-    optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
+    optimizer = Adam8bit(model.parameters(), lr=1e-5)
     lr_scheduler = AdafactorSchedule(optimizer)    
+    optimizer._get_lr = _get_lr
 
-    gpt, optimizer, training_dataloader, lr_scheduler = accelerator.prepare(
-        gpt, optimizer, training_dataloader, lr_scheduler
+    model, optimizer, training_dataloader, lr_scheduler = accelerator.prepare(
+        model, optimizer, training_dataloader, lr_scheduler
     )
     
-    for batch in training_dataloader:
+    for i, batch in enumerate(tqdm(training_dataloader)):
         optimizer.zero_grad()
-        inputs, targets = batch
-        outputs = gpt(inputs)
-        loss = loss_function(outputs, targets)
+        texts = [t[feature_name] for t in batch]
+        batch_token = tokenizer(texts, truncation=True, padding=True, max_length=16, return_tensors='pt')
+        #batch = {k: v.to(device) for k, v in batch_token.items()}
+        #outputs = model.forward(**batch,)        
+        outputs = model.forward(**batch_token.to(device))
+        loss = loss_function(outputs, batch_token)
+        #loss = compute_loss(model, batch_token)
         accelerator.backward(loss)
         optimizer.step()
         lr_scheduler.step()
-        
+        if i % 10 == 0:
+            print(loss, lr_scheduler.get_last_lr())
     
 if huggingface_trainner:
     optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
@@ -449,11 +468,6 @@ if huggingface_trainner:
         gpt, optimizer, lr_scheduler
     )
             
-    if batch_size == 0:
-        auto_find_batch_size = True
-        batch_size = 8
-    else:
-        auto_find_batch_size = False
     args = TrainingArguments(
         model_dir,
         evaluation_strategy="steps",
@@ -487,9 +501,10 @@ if huggingface_trainner:
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-        optimizers=(optimizer, lr_scheduler)
+        #optimizers=(optimizer, lr_scheduler)
     )
 
+    trainer = accelerator.prepare(trainer)
     print("start trainning -----------------------------")
     if continue_train:
         trainer.train(True)
@@ -498,7 +513,7 @@ if huggingface_trainner:
     trainer.save_model()
 
 else:
-    new_trainer()
+    new_trainer(gpt)
     # dataset, feature_name = get_dataset()
     
     # #model =  GPTJForCausalLM8.from_pretrained(model_checkpoint, low_cpu_mem_usage=True)
