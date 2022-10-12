@@ -12,7 +12,7 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args":["-d wiki", "-i 128"],
+            "args":["-d", "wiki", "-i", "64", "-s", "1000"],
         }
     ]
 }

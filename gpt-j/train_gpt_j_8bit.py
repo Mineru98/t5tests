@@ -19,14 +19,14 @@ token_expand = True
 max_input_length = 128
 
 batch_size = 0
-trainning_size = 0
-val_data_size = 32
+training_size = 0
+val_data_size = 100
 model_size = "medium" # small, medium
 dataset_source = "wiki" # sns, wiki
 #feature_name = "text" # sample, text
 
 num_train_epochs = 10
-huggingface_trainner = False
+huggingface_trainner = True
 
 model_name_base = "GPT-j-6B-8bit"
 tokenizer_name = "tokenizer-gpt-j-plus-ko"
@@ -36,7 +36,7 @@ parser.add_argument("-c", "--continue_train", help = "continue trainning")
 parser.add_argument("-d", "--dataset", help = "dataset source = [sns, wiki, cc100, namu]")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer name")
 parser.add_argument("-i", "--max_input_length", help = "max input length")
-parser.add_argument("-s", "--trainning_size", help = "trainning size, 0 for all")
+parser.add_argument("-s", "--training_size", help = "trainning size, 0 for all")
 parser.add_argument("-b", "--batch_size", help = "batch size, 0 for auto")
 
 args = parser.parse_args()
@@ -56,13 +56,13 @@ if args.continue_train:
 
 if args.max_input_length:
     max_input_length = int(args.max_input_length)
-if args.trainning_size:
-    trainning_size = int(args.trainning_size)
+if args.training_size:
+    training_size = int(args.training_size)
 if args.batch_size:
     batch_size = int(args.batch_size)
     
 model_name = f'{model_name_base}_{tokenizer_name}_{dataset_source}' 
-dataset_cache_path = f"./cache/{model_name}_{trainning_size}"
+dataset_cache_path = f"./cache/{model_name}_{training_size}"
 tokenizer_path = f"../train_tokenizer/{tokenizer_name}"
 
 print("--------------------")
@@ -205,8 +205,8 @@ def get_dataset():
     
 def get_data_list(eval_size: int = 100):
     ds, feature_name = get_dataset()
-    if trainning_size > 0:
-        ds = ds.select(range(trainning_size))
+    if training_size > 0:
+        ds = ds.select(range(training_size))
     return {
         "input_ids": build_list_from_dataset(ds, feature_name),
     }
@@ -284,10 +284,10 @@ from torch.utils.data import DataLoader
 from accelerate import Accelerator, DistributedDataParallelKwargs
 
 arg = DistributedDataParallelKwargs(find_unused_parameters=True)
-accelerator = Accelerator()
+accelerator = Accelerator(arg)
 device = accelerator.device
 
-if True:
+if False:
     max_memory_mapping = {0: "10GB", 1: "10GB"}
     gpt = GPTJForCausalLM.from_pretrained(
         #"EleutherAI/gpt-j-6B",
@@ -332,29 +332,84 @@ if batch_size == 0:
 else:
     auto_find_batch_size = False
      
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+     
 class MyTrainer(Trainer):    
     # def create_optimizer_and_scheduler(self, num_training_steps):
     #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
     #     self.lr_scheduler = AdafactorSchedule(self.optimizer)    
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+        """
+        Perform a training step on a batch of inputs.
 
-    # def unwrap_model(self, model: nn.Module) -> nn.Module:
-    #     if hasattr(model, "module"):
-    #         return self.unwrap_model(model.module)
-    #     else:
-    #         return model
+        Subclass and override to inject custom behavior.
 
-    # def compute_loss(self, model, inputs, return_outputs=False):
-    #     outputs = model(**inputs)
-    #     # Save past state if it exists
-    #     # TODO: this needs to be fixed and made cleaner later.
-    #     if self.args.past_index >= 0:
-    #         self._past = outputs[self.args.past_index]
+        Args:
+            model (`nn.Module`):
+                The model to train.
+            inputs (`Dict[str, Union[torch.Tensor, Any]]`):
+                The inputs and targets of the model.
 
-    #     loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
-    #                            reduction='mean')
+                The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
+                argument `labels`. Check your model's documentation for all accepted arguments.
 
-    #     #print("loss=", loss)
-    #     return (loss, outputs) if return_outputs else loss
+        Return:
+            `torch.Tensor`: The tensor with training loss on this batch.
+        """
+        #model.train()
+        inputs = self._prepare_inputs(inputs)
+
+        #outputs = model.forward(**inputs)
+        
+        # if is_sagemaker_mp_enabled():
+        #     loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
+        #     return loss_mb.reduce_mean().detach().to(self.args.device)
+
+
+        with self.compute_loss_context_manager():
+            loss = self.compute_loss(model, inputs)
+
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+        if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
+            # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
+            loss = loss / self.args.gradient_accumulation_steps
+
+        if self.do_grad_scaling:
+            # self.scaler.scale(loss).backward()
+            accelerator.backward(self.scaler.scale(loss), retain_graph=True)
+        # elif self.use_apex:
+        #     with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+        #         scaled_loss.backward()
+        elif self.deepspeed:
+            # loss gets scaled under gradient_accumulation_steps in deepspeed
+            loss = self.deepspeed.backward(loss)
+        else:
+            #loss.backward()
+            accelerator.backward(loss, retain_graph=True)
+        # loss.backward(retain_graph=True)
+
+        #return loss.detach()
+        return loss.detach()
+
+    def unwrap_model(self, model: nn.Module) -> nn.Module:
+        if hasattr(model, "module"):
+            return self.unwrap_model(model.module)
+        else:
+            return model
+
+    # def compute_loss(self, outputs, inputs, return_outputs=False):
+    #     return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
+        # Save past state if it exists
+        # TODO: this needs to be fixed and made cleaner later.
+        if "loss" in outputs:
+            loss1 = outputs["loss"]
+        loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+                               reduction='mean')
+
+        #print("loss=", loss)
+        return (loss, outputs) if return_outputs else loss
     
     def get_train_dataloader(self):
         train_dataloader = super(MyTrainer, self).get_train_dataloader()
@@ -460,7 +515,7 @@ def new_trainer(model):
             print(loss, lr_scheduler.get_last_lr())
     
 if huggingface_trainner:
-    optimizer = Adam8bit(gpt.parameters(), lr=1e-5, min_8bit_size=16384)
+    optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
     lr_scheduler = AdafactorSchedule(optimizer)    
     optimizer._get_lr = _get_lr
 
@@ -485,14 +540,14 @@ if huggingface_trainner:
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
         #predict_with_generate=True,
-        fp16=False,
+        fp16=True,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         report_to="tensorboard",
         ignore_data_skip=True,     # set true for ignore batch skip, fast
     )
 
-    trainer = Trainer(
+    trainer = MyTrainer(
         model=gpt,
         args=args,
         train_dataset = datasets["train"],
@@ -501,7 +556,7 @@ if huggingface_trainner:
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
         preprocess_logits_for_metrics=preprocess_logits_for_metrics,
-        #optimizers=(optimizer, lr_scheduler)
+        optimizers=(optimizer, lr_scheduler)
     )
 
     trainer = accelerator.prepare(trainer)

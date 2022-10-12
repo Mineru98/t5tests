@@ -15,15 +15,14 @@ model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-8", "--bit8", help = "8bit patch")
+parser.add_argument("-f", "--float", action='store_true', help = "float model")
 parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer")
 parser.add_argument("-p", "--path", help = "model path with tokenizer")
 args = parser.parse_args()
-if args.bit8:
-    if args.bit8 == 'n':
-        patched_8bit = False
+if args.float:
+    patched_8bit = False
 latest_model_dir = "none"
 if args.local_model:
     print("=== param using local model", args.local_model)
