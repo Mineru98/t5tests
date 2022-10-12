@@ -5,8 +5,8 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args":["-d", "wiki", "-i", "128", "-s", "10000"],
-            "justMyCode": true
+            "args":["-d", "wiki", "-i", "128", "-s", "1000"],
+            "justMyCode": false
         }
     ]
 }

@@ -5,6 +5,9 @@ from torch import nn
 from torch.cuda.amp import custom_fwd, custom_bwd
 from bitsandbytes.functional import quantize_blockwise, dequantize_blockwise
 from datasets import load_dataset
+import bitsandbytes as bnb
+from bitsandbytes.nn import Linear8bitLt
+from accelerate import init_empty_weights
 
 # ---------------------> Converting the model to 8 bits <------------------- #
 """
@@ -139,14 +142,30 @@ def convert_to_int8(model):
                         code=torch.zeros(256),
                     )
                 )
+                
+def replace_8bit_linear(model, threshold=6.0, module_to_not_convert="lm_head"):
+    for name, module in model.named_children():
+        if len(list(module.children())) > 0:
+            replace_8bit_linear(module, threshold, module_to_not_convert)
 
+        if isinstance(module, nn.Linear) and name != module_to_not_convert:
+            with init_empty_weights():
+                model._modules[name] = bnb.nn.Linear8bitLt(
+                    module.in_features,
+                    module.out_features,
+                    module.bias is not None,
+                    has_fp16_weights=False,
+                    threshold=threshold,
+                )
+                
 class GPTJBlock8(transformers.models.gptj.modeling_gptj.GPTJBlock):
     def __init__(self, config):
         super().__init__(config)
 
         convert_to_int8(self.attn)
         convert_to_int8(self.mlp)
-
+        # replace_8bit_linear(self.attn)
+        # replace_8bit_linear(self.mlp)
 
 class GPTJModel8(transformers.models.gptj.modeling_gptj.GPTJModel):
     def __init__(self, config):
@@ -157,7 +176,8 @@ class GPTJModel8(transformers.models.gptj.modeling_gptj.GPTJModel):
 class GPTJForCausalLM8(transformers.models.gptj.modeling_gptj.GPTJForCausalLM):
     def __init__(self, config):
         super().__init__(config)
-        convert_to_int8(self)
+        # convert_to_int8(self)
+        replace_8bit_linear(self)
 
 def add_adapters(model, adapter_dim=4, p = 0.1):
     assert adapter_dim > 0

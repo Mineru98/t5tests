@@ -315,12 +315,12 @@ else:
     model_path = "./Models/gpt-j-6B-ko-voc-to-8bit-conv"
     if os.path.exists(model_path):
         print("base model path = ", model_path)
-        gpt =  GPTJForCausalLM8.from_pretrained(model_path)
+        gpt =  GPTJForCausalLM.from_pretrained(model_path)
     else:
         hf_model = "lcw99/gpt-j-6B-voc-ext-to-91238-8bit"
         print("downloading..", hf_model)
-        gpt = GPTJForCausalLM8.from_pretrained(hf_model)
-    add_adapters(gpt)
+        gpt = GPTJForCausalLM.from_pretrained(hf_model)
+    # add_adapters(gpt)
     gpt.gradient_checkpointing_enable()
 
 gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
@@ -399,15 +399,16 @@ class MyTrainer(Trainer):
         else:
             return model
 
-    # def compute_loss(self, outputs, inputs, return_outputs=False):
-    #     return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
         # Save past state if it exists
         # TODO: this needs to be fixed and made cleaner later.
+        outputs = model(**inputs)
         if "loss" in outputs:
-            loss1 = outputs["loss"]
-        loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+            loss = outputs["loss"]
+        else:
+            loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
                                reduction='mean')
-
         #print("loss=", loss)
         return (loss, outputs) if return_outputs else loss
     
