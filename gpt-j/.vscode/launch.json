@@ -5,7 +5,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args":["-d", "wiki", "-i", "128", "-s", "1000"],
+            "args":["-d", "wiki", "-i", "128", "-s", "10000"],
             "justMyCode": false
         }
     ]

@@ -18,8 +18,15 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 # fp16 model, 8bit loading
     State must contain either CBt or CB matrix for backward
 
-# fp16 model, not 8bit loading
-    Attempting to unscale FP16 gradients.
+# fp16 model, not load_in_8bit 
+    working.
+    
+# 8bit model, torch.float16 loading
+    workging?
+
+# 8bit model, no parameter loading= torch.float32 loading
+    oom
+
 """
 
 original_model = False
@@ -30,7 +37,7 @@ else:
     tokenizer_name = "tokenizer-gpt-j-plus-ko"
     base_model_name = "gpt-j-6B-ko-voc-to-8bit-conv"
 
-num_train_epochs = 10
+num_train_epochs = 2
 dataset_source = "wiki"
 max_input_length = 128
 continue_train = False
@@ -42,7 +49,7 @@ base_model_type = "fp16"    # fp16, int8
 load_in_8bit = False
 
 model_name = None 
-model_dir = None
+model_save_dir = None
 train_dataloader = None 
 eval_dataloader = None
 # accelerate
@@ -178,8 +185,8 @@ def init_model():
         gpt.config.__dict__["use_cache"] = False
         # gpt.save_pretrained("./StockModels/gpt-j-6B-8bit-ko-voc")
         if True:
-            #optimizer = Adam8bit(gpt.parameters(), lr=1e-5)
-            optimizer = build_adam8bit_optimizer(gpt)
+            optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
+            #optimizer = build_adam8bit_optimizer(gpt)
         else:
             optimizer = torch.optim.AdamW(gpt.parameters(), lr=1e-5)
     else:
@@ -189,7 +196,7 @@ def init_model():
             accelerator.print("base model path = ", model_path)
             gpt =  GPTJForCausalLM.from_pretrained(
                 model_path,
-                torch_dtype=torch.float16,
+                # torch_dtype=torch.float16,
             )
         else:
             hf_model = "lcw99/gpt-j-6B-voc-ext-to-91238-8bit"
@@ -306,8 +313,8 @@ class MyTrainer(Trainer):
     
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
         model.train()
-        #inputs = self._prepare_inputs(inputs)
-        inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True, return_tensors='pt').to(device)
+        inputs = self._prepare_inputs(inputs)
+        #inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True, return_tensors='pt').to(device)
 
         #outputs = model.forward(**inputs)
         
@@ -373,7 +380,6 @@ class MyTrainer(Trainer):
             Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]: A tuple with the loss,
             logits and labels (each being optional).
         """
-        inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True, return_tensors='pt').to(device)
         
         has_labels = all(inputs.get(k) is not None for k in self.label_names)
         inputs = self._prepare_inputs(inputs)
@@ -431,11 +437,11 @@ class MyTrainer(Trainer):
         #print("loss=", loss)
         return (loss, outputs) if return_outputs else loss
     
-    def get_train_dataloader(self) -> DataLoader:
-        return accelerator.prepare(train_dataloader)
+    # def get_train_dataloader(self) -> DataLoader:
+    #     return accelerator.prepare(train_dataloader)
 
-    def get_eval_dataloader(self, eval_dataset: Optional[Dataset] = None) -> DataLoader:
-        return accelerator.prepare(eval_dataloader)
+    # def get_eval_dataloader(self, eval_dataset: Optional[Dataset] = None) -> DataLoader:
+    #     return accelerator.prepare(eval_dataloader)
         
 def compute_metrics(eval_pred):
     # preds, labels = eval_pred
@@ -484,13 +490,15 @@ def huggingface_trainer():
     global batch_size, train_dataloader, eval_dataloader
 
     model, optimizer = init_model()
-    train_dataloader, eval_dataloader = get_dataloaders(tokenize=False, loader_batch_size=batch_size)
+    train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
  
-    num_epochs = 5
-    num_training_steps = num_epochs * len(train_dataloader)
-    lr_scheduler = transformers.get_linear_schedule_with_warmup(
-        optimizer, int(num_training_steps*0.1), num_training_steps
-    )
+    # num_training_steps = num_train_epochs * len(train_dataloader)
+    # lr_scheduler = transformers.get_linear_schedule_with_warmup(
+    #     optimizer, 500, num_training_steps
+    # )
+
+    lr_scheduler = AdafactorSchedule(optimizer)    
+    optimizer._get_lr = _get_lr
 
     model, optimizer, lr_scheduler = accelerator.prepare(
         model, optimizer, lr_scheduler
@@ -503,14 +511,14 @@ def huggingface_trainer():
         auto_find_batch_size = False
     
     args = TrainingArguments(
-        model_dir,
+        model_save_dir,
         evaluation_strategy="steps",
         eval_steps=50,
         logging_strategy="steps",
         logging_steps=50,
         save_strategy="steps",
         save_steps=2000,
-        learning_rate=5e-5,
+        # learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         auto_find_batch_size=auto_find_batch_size,
@@ -530,8 +538,8 @@ def huggingface_trainer():
     trainer = MyTrainer(
         model=model,
         args=args,
-        # train_dataset = train_dataloader.dataset,
-        # eval_dataset = eval_dataloader.dataset,
+        train_dataset = train_dataloader.dataset,
+        eval_dataset = eval_dataloader.dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
         compute_metrics=compute_metrics,
@@ -549,7 +557,7 @@ def huggingface_trainer():
     
                                     
 def main():
-    global model_dir, dataset_source, tokenizer_name, max_input_length, continue_train, training_size, batch_size, tokenizer
+    global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, training_size, batch_size, tokenizer
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -582,7 +590,7 @@ def main():
         batch_size = int(args.batch_size)
      
     model_name = f'{base_model_name}_{tokenizer_name}_{dataset_source}' 
-    model_dir = f"./StockModels/{model_name}"
+    model_save_dir = f"./Models/{model_name}"
         
     tokenizer = build_tokenizer()
     
