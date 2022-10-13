@@ -35,7 +35,7 @@ fine_tune = True
 kor_voca_extention = True
 eval_sample = False
 
-num_train_epochs = 2
+num_train_epochs = 10
 dataset_source = "wiki"
 max_input_length = 128
 continue_train = False
@@ -183,16 +183,15 @@ def set_require_grad(model):
                 child.requires_grad_(requires_grad=True)
                 
 def init_model():
-    max_memory_mapping = {0: "10GB", 1: "10GB"}
+    kwarg = {"revision": "float16", "use_cache" :False}
+    if load_in_8bit:
+        kwarg["device_map"] = 'auto'
+        kwarg["load_in_8bit"] = True
+    else:
+        kwarg["torch_dtype"] = torch.float16
+        
     gpt = GPTJForCausalLM.from_pretrained(
-        "EleutherAI/gpt-j-6B",
-        revision="float16",
-        torch_dtype=torch.float16,
-        #device_map='auto',
-        #load_in_8bit=load_in_8bit,
-        #max_memory=max_memory_mapping,
-        #low_cpu_mem_usage=True,
-        use_cache=False,
+        "EleutherAI/gpt-j-6B", **kwarg
     )
     
     # list_model_children(gpt)
@@ -204,13 +203,19 @@ def init_model():
         accelerator.print("resize done....")
     
     if not fine_tune:
-        gpt.init_weights()  # from scarch
+        if not load_in_8bit:
+            gpt.init_weights()  # from scarch
         # set_require_grad(gpt)
         for param in gpt.base_model.parameters():
-            param.requires_grad = True         
+            if param.dtype == torch.int8:
+                param.has_fp16_weight = True    # for training
+                # param.requires_grad = True      # not working   
     else:            
         for param in gpt.base_model.parameters():
-            param.requires_grad = False         # freeze all parameter
+            if param.dtype != torch.int8:
+                param.requires_grad = False         
+            else:
+                param.has_fp16_weight = True    # for training
                 
     gpt.gradient_checkpointing_enable()
     
@@ -640,11 +645,11 @@ def huggingface_trainer():
     args = TrainingArguments(
         model_save_dir,
         evaluation_strategy="steps",
-        eval_steps=200,
+        eval_steps=100,
         logging_strategy="steps",
-        logging_steps=200,
+        logging_steps=100,
         save_strategy="steps",
-        save_steps=2000,
+        save_steps=1000,
         # learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -685,7 +690,7 @@ def huggingface_trainer():
                                     
 def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
-            training_size, batch_size, tokenizer, eval_sample, fine_tune
+            training_size, batch_size, tokenizer, eval_sample, fine_tune, kor_voca_extention, load_in_8bit
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -696,6 +701,7 @@ def main():
     parser.add_argument("-b", "--batch_size", help = "batch size, 0 for auto")
     parser.add_argument("--eval_sample", action='store_true', help = "eval sample")
     parser.add_argument("--scratch", action='store_true', help = "training from scratch")
+    parser.add_argument("--load_in_8bit", action='store_true', help = "load in 8bit")
     
     args = parser.parse_args()
 
@@ -722,7 +728,9 @@ def main():
         eval_sample = True
     if args.scratch:
         fine_tune = False
-        
+    if args.load_in_8bit:
+        load_in_8bit = True
+      
     if not fine_tune:
         kor_voca_extention = False
         

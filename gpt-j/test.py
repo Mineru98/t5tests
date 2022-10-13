@@ -1,28 +1,21 @@
 import os, glob
 import transformers
 import torch
-from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
+#from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
 from transformers import AutoTokenizer, logging, pipeline, GPTJForCausalLM
 import argparse
 
-patched_8bit = True
 pipe = True
-
-if patched_8bit:
-    transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  # monkey-patch GPT-J
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-f", "--float", action='store_true', help = "float model")
 parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer")
 parser.add_argument("-p", "--path", help = "model path with tokenizer")
 args = parser.parse_args()
-if args.float:
-    patched_8bit = False
 latest_model_dir = "none"
 if args.local_model:
     print("=== param using local model", args.local_model)
@@ -49,7 +42,6 @@ if args.path:
     tokenizer_dir = latest_model_dir
 
 print("\n---------------------------")
-print("patched 8bit =\t", patched_8bit)
 print("model dir =\t", latest_model_dir)
 print("tokenizer dir =\t", tokenizer_dir)
 print("---------------------------\n")
@@ -57,20 +49,13 @@ print("---------------------------\n")
 logging.set_verbosity_error()
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-if patched_8bit:
-    gpt = GPTJForCausalLM8.from_pretrained(latest_model_dir).to(device)
-else:
-    gpt = GPTJForCausalLM.from_pretrained(
-        latest_model_dir,
-        #revision="float16",
-        #torch_dtype=torch.float16,
-        #low_cpu_mem_usage=True,
-        #device_map='auto',
-        #load_in_8bit=True,
-    ).to(device)
-
-if patched_8bit:
-    add_adapters(gpt)
+gpt = GPTJForCausalLM.from_pretrained(
+    latest_model_dir,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True,
+    device_map='auto',
+    load_in_8bit=True,
+).to(device)
 
 text_generation = pipeline(
     "text-generation",
