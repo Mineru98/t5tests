@@ -723,6 +723,9 @@ def main():
     if args.scratch:
         fine_tune = False
         
+    if not fine_tune:
+        kor_voca_extention = False
+        
     base_model_name = "gpt-j-6B"
     if kor_voca_extention:
         base_model_name += "_kor-ext"
