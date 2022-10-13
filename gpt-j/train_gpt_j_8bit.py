@@ -405,10 +405,11 @@ class MyTrainer(Trainer):
         # TODO: this needs to be fixed and made cleaner later.
         outputs = model(**inputs)
         if "loss" in outputs:
-            loss = outputs["loss"]
+            loss1 = outputs["loss"]
         else:
             loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
                                reduction='mean')
+
         #print("loss=", loss)
         return (loss, outputs) if return_outputs else loss
     

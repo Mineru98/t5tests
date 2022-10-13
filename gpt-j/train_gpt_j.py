@@ -2,9 +2,12 @@ import sys, os, argparse, transformers, torch, random
 from datasets import load_dataset, load_metric, load_from_disk, Dataset
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
-from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, DataCollatorForLanguageModeling
+from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
+                            DataCollatorForLanguageModeling, pipeline
 from transformers.optimization import AdafactorSchedule
-from transformers.trainer_pt_utils import get_parameter_names, nested_detach
+from transformers.trainer_pt_utils import get_parameter_names, nested_detach, IterableDatasetShard
+from transformers.trainer_utils import seed_worker
+from transformers.utils import is_datasets_available
 from bitsandbytes.optim import Adam8bit
 import torch.nn.functional as F
 import torch.nn as nn
@@ -16,7 +19,7 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 
 """
 # fp16 model, 8bit loading
-    State must contain either CBt or CB matrix for backward
+    State must contain either CBt or CB matrix for backward error
 
 # fp16 model, not load_in_8bit 
     working.
@@ -34,8 +37,10 @@ if original_model:
     tokenizer_name = "tokenizer-gpt-j-6B-org"
     base_model_name = "gpt-j-6B-8bit-org"
 else:
-    tokenizer_name = "tokenizer-gpt-j-plus-ko"
-    base_model_name = "gpt-j-6B-ko-voc-to-8bit-conv"
+    #tokenizer_name = "tokenizer-gpt-j-plus-ko"
+    tokenizer_name = "tokenizer_wikipedia_gpt_j"
+    #base_model_name = "gpt-j-6B-ko-voc-to-8bit-conv"
+    base_model_name = "gpt-j-6B-fp16-ko-voc-saved-as-8bit"
 
 num_train_epochs = 2
 dataset_source = "wiki"
@@ -44,9 +49,9 @@ continue_train = False
 training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
 validation_data_size = batch_size * 10
-# base_model_type = "int8"    # fp16, int8
+#base_model_type = "int8"    # fp16, int8
 base_model_type = "fp16"    # fp16, int8
-load_in_8bit = False
+load_in_8bit = True
 
 model_name = None 
 model_save_dir = None
@@ -61,6 +66,8 @@ device = accelerator.device
 
 # tokenizer
 tokenizer = None
+
+last_eval_model = None
 
 class TextDataset(Dataset):
     def tokenizing_sample(self, s):
@@ -162,46 +169,77 @@ def build_adam8bit_optimizer(model):
     )
     return adam_bnb_optim
         
+def list_model_children(model):
+    for module in list(model.modules()):
+        for name, child in module.named_children():
+            if isinstance(child, nn.Linear):
+                if name == 'lm_head':
+                    #child.out_features = 91238
+                    print("\n********************\nchild.out_features=", child.out_features, child.in_features)
+                    print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+            elif isinstance(child, nn.Embedding):
+                #child.num_embeddings = 91238
+                print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
+                print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+
+def set_require_grad(model):
+    for module in list(model.modules()):
+        for name, child in module.named_children():
+            if isinstance(child, nn.Linear):
+                child.requires_grad_(requires_grad=True)
+            elif isinstance(child, nn.Embedding):
+                child.requires_grad_(requires_grad=True)
+                
 def init_model():
     if base_model_type == "fp16":
         max_memory_mapping = {0: "10GB", 1: "10GB"}
         gpt = GPTJForCausalLM.from_pretrained(
-            "./StockModels/gpt-j-6B-fp16-ko-voc",
-            #revision="float16",
-            torch_dtype=torch.float16,
+            #"./StockModels/gpt-j-6B-fp16-ko-voc",
+            "EleutherAI/gpt-j-6B",
+            revision="float16",
+            #torch_dtype=torch.float16,
             device_map='auto',
             load_in_8bit=load_in_8bit,
             #max_memory=max_memory_mapping,
             #low_cpu_mem_usage=True,
             use_cache=False,
         )
-        # tokenizer_len = len(tokenizer)
-        # print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
+        
+        list_model_children(gpt)
+        
+        tokenizer_len = len(tokenizer)
+        print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
         # gpt.resize_token_embeddings(tokenizer_len)
         # print("resize done....")
+        
+        gpt.init_weights()  # from scarch
+        set_require_grad(gpt)
+        for param in gpt.base_model.parameters():
+            param.requires_grad = True        
         gpt.gradient_checkpointing_enable()
         
-        gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit"
+        gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-fp16-kor-scratch"
         gpt.config.__dict__["use_cache"] = False
-        # gpt.save_pretrained("./StockModels/gpt-j-6B-8bit-ko-voc")
+        # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
         if True:
             optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
             #optimizer = build_adam8bit_optimizer(gpt)
         else:
             optimizer = torch.optim.AdamW(gpt.parameters(), lr=1e-5)
     else:
-        # transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8  
+        #transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8
+        M = GPTJForCausalLM
         model_path = f"./StockModels/{base_model_name}"
         if os.path.exists(model_path):
             accelerator.print("base model path = ", model_path)
-            gpt =  GPTJForCausalLM.from_pretrained(
+            gpt =  M.from_pretrained(
                 model_path,
-                # torch_dtype=torch.float16,
+                #torch_dtype=torch.float16,
             )
         else:
             hf_model = "lcw99/gpt-j-6B-voc-ext-to-91238-8bit"
             accelerator.print("downloading..", hf_model)
-            gpt = GPTJForCausalLM.from_pretrained(hf_model)
+            gpt = M.from_pretrained(hf_model)
         # add_adapters(gpt)
         gpt.gradient_checkpointing_enable()
         gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit-custom"
@@ -215,7 +253,7 @@ def init_model():
 def _get_lr(param_group, param_state):
     step = param_state["step"]
     eps = param_group["eps"]
-    return 5e-5 - eps * step * 1e-2
+    return 5e-5 - eps * step
               
 def loss_function(output, input):
     # loss_cross_entropy = nn.CrossEntropyLoss()
@@ -314,9 +352,6 @@ class MyTrainer(Trainer):
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
         model.train()
         inputs = self._prepare_inputs(inputs)
-        #inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, padding=True, return_tensors='pt').to(device)
-
-        #outputs = model.forward(**inputs)
         
         # if is_sagemaker_mp_enabled():
         #     loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
@@ -380,6 +415,7 @@ class MyTrainer(Trainer):
             Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]: A tuple with the loss,
             logits and labels (each being optional).
         """
+        global last_eval_model
         
         has_labels = all(inputs.get(k) is not None for k in self.label_names)
         inputs = self._prepare_inputs(inputs)
@@ -413,7 +449,8 @@ class MyTrainer(Trainer):
         logits = nested_detach(logits)
         if len(logits) == 1:
             logits = logits[0]
-
+            
+        last_eval_model = model
         return (loss, logits, [])
 
     def unwrap_model(self, model: nn.Module) -> nn.Module:
@@ -437,12 +474,110 @@ class MyTrainer(Trainer):
         #print("loss=", loss)
         return (loss, outputs) if return_outputs else loss
     
-    # def get_train_dataloader(self) -> DataLoader:
-    #     return accelerator.prepare(train_dataloader)
+    def get_train_dataloader(self) -> DataLoader:
+        """
+        Returns the training [`~torch.utils.data.DataLoader`].
 
-    # def get_eval_dataloader(self, eval_dataset: Optional[Dataset] = None) -> DataLoader:
-    #     return accelerator.prepare(eval_dataloader)
+        Will use no sampler if `train_dataset` does not implement `__len__`, a random sampler (adapted to distributed
+        training if necessary) otherwise.
+
+        Subclass and override this method if you want to inject some custom behavior.
+        """
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+
+        train_dataset = self.train_dataset
+        data_collator = self.data_collator
+        if is_datasets_available() and isinstance(train_dataset, Dataset):
+            train_dataset = self._remove_unused_columns(train_dataset, description="training")
+        else:
+            data_collator = self._get_collator_with_removed_columns(data_collator, description="training")
+
+        if isinstance(train_dataset, torch.utils.data.IterableDataset):
+            if self.args.world_size > 1:
+                train_dataset = IterableDatasetShard(
+                    train_dataset,
+                    batch_size=self._train_batch_size,
+                    drop_last=self.args.dataloader_drop_last,
+                    num_processes=self.args.world_size,
+                    process_index=self.args.process_index,
+                )
+
+            dl = DataLoader(
+                train_dataset,
+                batch_size=self.args.per_device_train_batch_size,
+                collate_fn=data_collator,
+                num_workers=self.args.dataloader_num_workers,
+                pin_memory=self.args.dataloader_pin_memory,
+            )
+            return accelerator.prepare(dl)
         
+        train_sampler = self._get_train_sampler()
+
+        dl = DataLoader(
+            train_dataset,
+            batch_size=self._train_batch_size,
+            sampler=train_sampler,
+            collate_fn=data_collator,
+            drop_last=self.args.dataloader_drop_last,
+            num_workers=self.args.dataloader_num_workers,
+            pin_memory=self.args.dataloader_pin_memory,
+            worker_init_fn=seed_worker,
+        )
+        return accelerator.prepare(dl)
+
+    def get_eval_dataloader(self, eval_dataset: Optional[Dataset] = None) -> DataLoader:
+        """
+        Returns the evaluation [`~torch.utils.data.DataLoader`].
+
+        Subclass and override this method if you want to inject some custom behavior.
+
+        Args:
+            eval_dataset (`torch.utils.data.Dataset`, *optional*):
+                If provided, will override `self.eval_dataset`. If it is a [`~datasets.Dataset`], columns not accepted
+                by the `model.forward()` method are automatically removed. It must implement `__len__`.
+        """
+        if eval_dataset is None and self.eval_dataset is None:
+            raise ValueError("Trainer: evaluation requires an eval_dataset.")
+        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
+        data_collator = self.data_collator
+
+        if is_datasets_available() and isinstance(eval_dataset, Dataset):
+            eval_dataset = self._remove_unused_columns(eval_dataset, description="evaluation")
+        else:
+            data_collator = self._get_collator_with_removed_columns(data_collator, description="evaluation")
+
+        if isinstance(eval_dataset, torch.utils.data.IterableDataset):
+            if self.args.world_size > 1:
+                eval_dataset = IterableDatasetShard(
+                    eval_dataset,
+                    batch_size=self.args.per_device_eval_batch_size,
+                    drop_last=self.args.dataloader_drop_last,
+                    num_processes=self.args.world_size,
+                    process_index=self.args.process_index,
+                )
+            dl = DataLoader(
+                eval_dataset,
+                batch_size=self.args.eval_batch_size,
+                collate_fn=data_collator,
+                num_workers=self.args.dataloader_num_workers,
+                pin_memory=self.args.dataloader_pin_memory,
+            )
+            return accelerator.prepare(dl)
+
+        eval_sampler = self._get_eval_sampler(eval_dataset)
+
+        dl = DataLoader(
+            eval_dataset,
+            sampler=eval_sampler,
+            batch_size=self.args.eval_batch_size,
+            collate_fn=data_collator,
+            drop_last=self.args.dataloader_drop_last,
+            num_workers=self.args.dataloader_num_workers,
+            pin_memory=self.args.dataloader_pin_memory,
+        )
+        return accelerator.prepare(dl)
+    
 def compute_metrics(eval_pred):
     # preds, labels = eval_pred
     # # preds have the same shape as the labels, after the argmax(-1) has been calculated
@@ -467,11 +602,21 @@ def compute_metrics(eval_pred):
 
     #ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
 
-    print("\n===========predictions\n", pred_str)
+    accelerator.print("\n===========predictions\n", pred_str)
     # print()
     # for label in random.sample(list(label_str), 2):
     #     print("label=", label)
 
+    tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
+    output_sequences = last_eval_model.generate(tt["input_ids"], max_length=100)
+    generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
+    accelerator.print(generated)
+    
+    tt = tokenizer("봄이 왔어요. 이제 곧", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
+    output_sequences = last_eval_model.generate(tt["input_ids"], max_length=100)
+    generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
+    accelerator.print(generated)
+        
     return {
         "mean_perplexity": round(ppl["mean_perplexity"], 4)
     }
@@ -492,13 +637,13 @@ def huggingface_trainer():
     model, optimizer = init_model()
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
  
-    # num_training_steps = num_train_epochs * len(train_dataloader)
-    # lr_scheduler = transformers.get_linear_schedule_with_warmup(
-    #     optimizer, 500, num_training_steps
-    # )
+    num_training_steps = num_train_epochs * len(train_dataloader)
+    lr_scheduler = transformers.get_linear_schedule_with_warmup(
+        optimizer, 50, num_training_steps
+    )
 
-    lr_scheduler = AdafactorSchedule(optimizer)    
-    optimizer._get_lr = _get_lr
+    # lr_scheduler = AdafactorSchedule(optimizer)    
+    # optimizer._get_lr = _get_lr
 
     model, optimizer, lr_scheduler = accelerator.prepare(
         model, optimizer, lr_scheduler
@@ -517,7 +662,7 @@ def huggingface_trainer():
         logging_strategy="steps",
         logging_steps=50,
         save_strategy="steps",
-        save_steps=2000,
+        save_steps=1000,
         # learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,

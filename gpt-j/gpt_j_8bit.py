@@ -5,9 +5,6 @@ from torch import nn
 from torch.cuda.amp import custom_fwd, custom_bwd
 from bitsandbytes.functional import quantize_blockwise, dequantize_blockwise
 from datasets import load_dataset
-import bitsandbytes as bnb
-from bitsandbytes.nn import Linear8bitLt
-from accelerate import init_empty_weights
 
 # ---------------------> Converting the model to 8 bits <------------------- #
 """
@@ -115,10 +112,10 @@ def convert_to_int8(model):
     for module in list(model.modules()):
         for name, child in module.named_children():
             if isinstance(child, nn.Linear):
-                # if name == 'lm_head':
-                #     #child.out_features = 91238
-                #     print("\n********************\nchild.out_features=", child.out_features, child.in_features)
-                #     print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+                if name == 'lm_head':
+                    #child.out_features = 91238
+                    print("\n********************\nchild.out_features=", child.out_features, child.in_features)
+                    print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
                 setattr(
                     module,
                     name,
@@ -131,8 +128,8 @@ def convert_to_int8(model):
                 )
             elif isinstance(child, nn.Embedding):
                 #child.num_embeddings = 91238
-                # print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
-                # print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+                print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
+                print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
                 setattr(
                     module,
                     name,
@@ -142,30 +139,14 @@ def convert_to_int8(model):
                         code=torch.zeros(256),
                     )
                 )
-                
-def replace_8bit_linear(model, threshold=6.0, module_to_not_convert="lm_head"):
-    for name, module in model.named_children():
-        if len(list(module.children())) > 0:
-            replace_8bit_linear(module, threshold, module_to_not_convert)
 
-        if isinstance(module, nn.Linear) and name != module_to_not_convert:
-            with init_empty_weights():
-                model._modules[name] = bnb.nn.Linear8bitLt(
-                    module.in_features,
-                    module.out_features,
-                    module.bias is not None,
-                    has_fp16_weights=False,
-                    threshold=threshold,
-                )
-                
 class GPTJBlock8(transformers.models.gptj.modeling_gptj.GPTJBlock):
     def __init__(self, config):
         super().__init__(config)
 
         convert_to_int8(self.attn)
         convert_to_int8(self.mlp)
-        # replace_8bit_linear(self.attn)
-        # replace_8bit_linear(self.mlp)
+
 
 class GPTJModel8(transformers.models.gptj.modeling_gptj.GPTJModel):
     def __init__(self, config):
@@ -176,37 +157,9 @@ class GPTJModel8(transformers.models.gptj.modeling_gptj.GPTJModel):
 class GPTJForCausalLM8(transformers.models.gptj.modeling_gptj.GPTJForCausalLM):
     def __init__(self, config):
         super().__init__(config)
-        # convert_to_int8(self)
-        replace_8bit_linear(self)
+        convert_to_int8(self)
 
-def add_adapters(model, adapter_dim=4, p = 0.1):
-    assert adapter_dim > 0
-
-    for name, module in model.named_modules():
-      if isinstance(module, FrozenBNBLinear):
-          if "attn" in name or "mlp" in name or "head" in name:
-              print("Adding adapter to", name)
-              module.adapter = nn.Sequential(
-                nn.Linear(module.in_features, adapter_dim, bias=False),
-                nn.Dropout(p=p),
-                nn.Linear(adapter_dim, module.out_features, bias=False),
-            )
-              print("Initializing", name)
-              nn.init.zeros_(module.adapter[2].weight)
-
-          else:
-              print("Not adding adapter to", name)
-      elif isinstance(module, FrozenBNBEmbedding):
-          print("Adding adapter to", name)
-          module.adapter = nn.Sequential(
-                nn.Embedding(module.num_embeddings, adapter_dim),
-                nn.Dropout(p=p),
-                nn.Linear(adapter_dim, module.embedding_dim, bias=False),
-            )
-          print("Initializing", name)
-          nn.init.zeros_(module.adapter[2].weight)
-          
-def add_adapters_old(model, adapter_dim=16):
+def add_adapters(model, adapter_dim=16):
     assert adapter_dim > 0
 
     for module in model.modules():
