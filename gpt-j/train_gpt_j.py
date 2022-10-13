@@ -31,16 +31,19 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
     oom
 
 """
+fine_tune = True
+kor_voca_extention = True
 
-original_model = False
-if original_model:
-    tokenizer_name = "tokenizer-gpt-j-6B-org"
-    base_model_name = "gpt-j-6B-8bit-org"
+base_model_name = "gpt-j-6B"
+if kor_voca_extention:
+    base_model_name += "-kor-ext"
+    tokenizer_name = "tokenizer-gpt-j-plus-ko"
 else:
-    #tokenizer_name = "tokenizer-gpt-j-plus-ko"
     tokenizer_name = "tokenizer_wikipedia_gpt_j"
-    #base_model_name = "gpt-j-6B-ko-voc-to-8bit-conv"
-    base_model_name = "gpt-j-6B-fp16-ko-voc-saved-as-8bit"
+
+base_model_name += "-" + tokenizer_name
+if fine_tune:
+    base_model_name += "-fine-tune"
 
 num_train_epochs = 2
 dataset_source = "wiki"
@@ -49,9 +52,7 @@ continue_train = False
 training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
 validation_data_size = batch_size * 10
-#base_model_type = "int8"    # fp16, int8
-base_model_type = "fp16"    # fp16, int8
-load_in_8bit = True
+load_in_8bit = False
 
 model_name = None 
 model_save_dir = None
@@ -191,60 +192,43 @@ def set_require_grad(model):
                 child.requires_grad_(requires_grad=True)
                 
 def init_model():
-    if base_model_type == "fp16":
-        max_memory_mapping = {0: "10GB", 1: "10GB"}
-        gpt = GPTJForCausalLM.from_pretrained(
-            #"./StockModels/gpt-j-6B-fp16-ko-voc",
-            "EleutherAI/gpt-j-6B",
-            revision="float16",
-            #torch_dtype=torch.float16,
-            device_map='auto',
-            load_in_8bit=load_in_8bit,
-            #max_memory=max_memory_mapping,
-            #low_cpu_mem_usage=True,
-            use_cache=False,
-        )
-        
-        list_model_children(gpt)
-        
+    max_memory_mapping = {0: "10GB", 1: "10GB"}
+    gpt = GPTJForCausalLM.from_pretrained(
+        "EleutherAI/gpt-j-6B",
+        revision="float16",
+        #torch_dtype=torch.float16,
+        device_map='auto',
+        load_in_8bit=load_in_8bit,
+        #max_memory=max_memory_mapping,
+        #low_cpu_mem_usage=True,
+        use_cache=False,
+    )
+    
+    # list_model_children(gpt)
+    
+    if kor_voca_extention:
         tokenizer_len = len(tokenizer)
         print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
-        # gpt.resize_token_embeddings(tokenizer_len)
-        # print("resize done....")
-        
+        gpt.resize_token_embeddings(tokenizer_len)
+        print("resize done....")
+    
+    if not fine_tune:
         gpt.init_weights()  # from scarch
         set_require_grad(gpt)
+    else:            
         for param in gpt.base_model.parameters():
-            param.requires_grad = True        
-        gpt.gradient_checkpointing_enable()
-        
-        gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-fp16-kor-scratch"
-        gpt.config.__dict__["use_cache"] = False
-        # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
-        if True:
-            optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
-            #optimizer = build_adam8bit_optimizer(gpt)
-        else:
-            optimizer = torch.optim.AdamW(gpt.parameters(), lr=1e-5)
+            param.requires_grad = False         # freeze all parameter
+                
+    gpt.gradient_checkpointing_enable()
+    
+    gpt.config.__dict__["_name_or_path"] = f"lcw99/{base_model_name}"
+    gpt.config.__dict__["use_cache"] = False
+    # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
+    if True:
+        optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
+        #optimizer = build_adam8bit_optimizer(gpt)
     else:
-        #transformers.models.gptj.modeling_gptj.GPTJBlock = GPTJBlock8
-        M = GPTJForCausalLM
-        model_path = f"./StockModels/{base_model_name}"
-        if os.path.exists(model_path):
-            accelerator.print("base model path = ", model_path)
-            gpt =  M.from_pretrained(
-                model_path,
-                #torch_dtype=torch.float16,
-            )
-        else:
-            hf_model = "lcw99/gpt-j-6B-voc-ext-to-91238-8bit"
-            accelerator.print("downloading..", hf_model)
-            gpt = M.from_pretrained(hf_model)
-        # add_adapters(gpt)
-        gpt.gradient_checkpointing_enable()
-        gpt.config.__dict__["_name_or_path"] = "lcw99/gpt-j-6B-8bit-custom"
-
-        optimizer = Adam8bit(gpt.parameters(), lr=1e-5, weight_decay=0.01)
+        optimizer = torch.optim.AdamW(gpt.parameters(), lr=1e-5)
         
     gpt.config.__dict__["use_cache"] = False
 
@@ -609,13 +593,15 @@ def compute_metrics(eval_pred):
 
     tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
     output_sequences = last_eval_model.generate(tt["input_ids"], max_length=100)
-    generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
-    accelerator.print(generated)
+    generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)     
+    generated = generated.replace('\n', '/')   
+    accelerator.print(f"\n{generated}\n")
     
     tt = tokenizer("봄이 왔어요. 이제 곧", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
     output_sequences = last_eval_model.generate(tt["input_ids"], max_length=100)
     generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
-    accelerator.print(generated)
+    generated = generated.replace('\n', '/')   
+    accelerator.print(f"\n{generated}\n")
         
     return {
         "mean_perplexity": round(ppl["mean_perplexity"], 4)
@@ -734,7 +720,7 @@ def main():
     if args.batch_size:
         batch_size = int(args.batch_size)
      
-    model_name = f'{base_model_name}_{tokenizer_name}_{dataset_source}' 
+    model_name = f'{base_model_name}_{dataset_source}' 
     model_save_dir = f"./Models/{model_name}"
         
     tokenizer = build_tokenizer()
