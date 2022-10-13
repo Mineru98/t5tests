@@ -196,9 +196,9 @@ def init_model():
     gpt = GPTJForCausalLM.from_pretrained(
         "EleutherAI/gpt-j-6B",
         revision="float16",
-        #torch_dtype=torch.float16,
-        device_map='auto',
-        load_in_8bit=load_in_8bit,
+        torch_dtype=torch.float16,
+        #device_map='auto',
+        #load_in_8bit=load_in_8bit,
         #max_memory=max_memory_mapping,
         #low_cpu_mem_usage=True,
         use_cache=False,
@@ -631,8 +631,8 @@ def huggingface_trainer():
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
 
-    model, optimizer, lr_scheduler = accelerator.prepare(
-        model, optimizer, lr_scheduler
+    model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+        model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
     )
     
     if batch_size == 0:
@@ -725,8 +725,8 @@ def main():
         
     tokenizer = build_tokenizer()
     
-    # trainer()
-    huggingface_trainer()
+    trainer()
+    #huggingface_trainer()
     
 if __name__ == '__main__':
     sys.exit(main()) 
