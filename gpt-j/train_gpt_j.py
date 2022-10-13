@@ -33,6 +33,7 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 """
 fine_tune = True
 kor_voca_extention = True
+eval_sample = False
 
 base_model_name = "gpt-j-6B"
 if kor_voca_extention:
@@ -51,7 +52,7 @@ max_input_length = 128
 continue_train = False
 training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
-validation_data_size = batch_size * 10
+validation_data_size = batch_size * 100
 load_in_8bit = False
 
 model_name = None 
@@ -124,8 +125,8 @@ class TextDataset(Dataset):
 
 def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size):
     dataset = TextDataset(tokenize=tokenize)
-    train_dataset = dataset[validation_data_size:]
-    eval_dataset = dataset[:validation_data_size]
+    train_dataset = dataset[:-validation_data_size]
+    eval_dataset = dataset[-validation_data_size:]
     train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size, collate_fn=lambda x: x)
     eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size, collate_fn=lambda x: x)
     return train_dataloader, eval_dataloader
@@ -176,12 +177,12 @@ def list_model_children(model):
             if isinstance(child, nn.Linear):
                 if name == 'lm_head':
                     #child.out_features = 91238
-                    print("\n********************\nchild.out_features=", child.out_features, child.in_features)
-                    print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+                    accelerator.print("\n********************\nchild.out_features=", child.out_features, child.in_features)
+                    accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
             elif isinstance(child, nn.Embedding):
                 #child.num_embeddings = 91238
-                print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
-                print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+                accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
+                accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
 
 def set_require_grad(model):
     for module in list(model.modules()):
@@ -208,9 +209,9 @@ def init_model():
     
     if kor_voca_extention:
         tokenizer_len = len(tokenizer)
-        print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
+        accelerator.print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
         gpt.resize_token_embeddings(tokenizer_len)
-        print("resize done....")
+        accelerator.print("resize done....")
     
     if not fine_tune:
         gpt.init_weights()  # from scarch
@@ -292,7 +293,7 @@ def trainer():
                 'state_dict': model.state_dict(), 
                 'optimizer': optimizer.state_dict()
             }   
-            print(loss)
+            accelerator.print(loss)
             # torch.save(state, "./TestModel/model.pt")
 
 class MyTrainer(Trainer):    
@@ -591,17 +592,20 @@ def compute_metrics(eval_pred):
     # for label in random.sample(list(label_str), 2):
     #     print("label=", label)
 
-    tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
-    output_sequences = last_eval_model.generate(tt["input_ids"], max_length=100)
-    generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)     
-    generated = generated.replace('\n', '/')   
-    accelerator.print(f"\n{generated}\n")
-    
-    tt = tokenizer("봄이 왔어요. 이제 곧", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
-    output_sequences = last_eval_model.generate(tt["input_ids"], max_length=100)
-    generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
-    generated = generated.replace('\n', '/')   
-    accelerator.print(f"\n{generated}\n")
+    if eval_sample:
+        tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
+        output_sequences = last_eval_model(tt["input_ids"])
+        pred_ids = torch.argmax(output_sequences["logits"][0], dim=-1)
+        generated = tokenizer.decode(pred_ids, skip_special_tokens=True)     
+        generated = generated.replace('\n', '/')   
+        accelerator.print(f"\n{generated}\n")
+        
+        tt = tokenizer("봄이 왔어요. 이제 곧", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
+        output_sequences = last_eval_model(tt["input_ids"])
+        pred_ids = torch.argmax(output_sequences["logits"][0], dim=-1)
+        generated = tokenizer.decode(pred_ids, skip_special_tokens=True)     
+        generated = generated.replace('\n', '/')   
+        accelerator.print(f"\n{generated}\n")
         
     return {
         "mean_perplexity": round(ppl["mean_perplexity"], 4)
@@ -644,11 +648,11 @@ def huggingface_trainer():
     args = TrainingArguments(
         model_save_dir,
         evaluation_strategy="steps",
-        eval_steps=50,
+        eval_steps=200,
         logging_strategy="steps",
-        logging_steps=50,
+        logging_steps=200,
         save_strategy="steps",
-        save_steps=1000,
+        save_steps=2000,
         # learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
@@ -679,7 +683,7 @@ def huggingface_trainer():
     )
 
     trainer = accelerator.prepare(trainer)
-    print("start trainning -----------------------------")
+    accelerator.print("start trainning -----------------------------")
     if continue_train:
         trainer.train(True)
     else:
@@ -688,7 +692,8 @@ def huggingface_trainer():
     
                                     
 def main():
-    global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, training_size, batch_size, tokenizer
+    global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
+            training_size, batch_size, tokenizer, eval_sample
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -697,7 +702,8 @@ def main():
     parser.add_argument("-i", "--max_input_length", help = "max input length")
     parser.add_argument("-s", "--training_size", help = "training size, 0 for all")
     parser.add_argument("-b", "--batch_size", help = "batch size, 0 for auto")
-
+    parser.add_argument("--eval_sample", action='store_true', help = "eval sample")
+    
     args = parser.parse_args()
 
     if args.dataset:
@@ -710,7 +716,7 @@ def main():
         tokenizer_name = args.tokenizer
 
     if args.continue_train:
-        print("=== param continue trainning")
+        accelerator.print("=== param continue trainning")
         continue_train = True
 
     if args.max_input_length:
@@ -719,14 +725,16 @@ def main():
         training_size = int(args.training_size)
     if args.batch_size:
         batch_size = int(args.batch_size)
-     
+    if args.eval_sample:
+        eval_sample = True
+        
     model_name = f'{base_model_name}_{dataset_source}' 
     model_save_dir = f"./Models/{model_name}"
         
     tokenizer = build_tokenizer()
     
-    trainer()
-    #huggingface_trainer()
+    #trainer()
+    huggingface_trainer()
     
 if __name__ == '__main__':
     sys.exit(main()) 
