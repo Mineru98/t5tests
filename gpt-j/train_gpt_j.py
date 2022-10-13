@@ -35,17 +35,6 @@ fine_tune = True
 kor_voca_extention = True
 eval_sample = False
 
-base_model_name = "gpt-j-6B"
-if kor_voca_extention:
-    base_model_name += "-kor-ext"
-    tokenizer_name = "tokenizer-gpt-j-plus-ko"
-else:
-    tokenizer_name = "tokenizer_wikipedia_gpt_j"
-
-base_model_name += "-" + tokenizer_name
-if fine_tune:
-    base_model_name += "-fine-tune"
-
 num_train_epochs = 2
 dataset_source = "wiki"
 max_input_length = 128
@@ -70,6 +59,7 @@ device = accelerator.device
 tokenizer = None
 
 last_eval_model = None
+base_model_name = None
 
 class TextDataset(Dataset):
     def tokenizing_sample(self, s):
@@ -215,7 +205,9 @@ def init_model():
     
     if not fine_tune:
         gpt.init_weights()  # from scarch
-        set_require_grad(gpt)
+        # set_require_grad(gpt)
+        for param in gpt.base_model.parameters():
+            param.requires_grad = True         
     else:            
         for param in gpt.base_model.parameters():
             param.requires_grad = False         # freeze all parameter
@@ -693,7 +685,7 @@ def huggingface_trainer():
                                     
 def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
-            training_size, batch_size, tokenizer, eval_sample
+            training_size, batch_size, tokenizer, eval_sample, fine_tune
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -703,6 +695,7 @@ def main():
     parser.add_argument("-s", "--training_size", help = "training size, 0 for all")
     parser.add_argument("-b", "--batch_size", help = "batch size, 0 for auto")
     parser.add_argument("--eval_sample", action='store_true', help = "eval sample")
+    parser.add_argument("--scratch", action='store_true', help = "training from scratch")
     
     args = parser.parse_args()
 
@@ -727,6 +720,23 @@ def main():
         batch_size = int(args.batch_size)
     if args.eval_sample:
         eval_sample = True
+    if args.scratch:
+        fine_tune = False
+        
+    base_model_name = "gpt-j-6B"
+    if kor_voca_extention:
+        base_model_name += "_kor-ext"
+        tokenizer_name = "tokenizer-gpt-j-plus-ko"
+    else:
+        tokenizer_name = "tokenizer_wikipedia_gpt_j"
+
+    base_model_name += "_" + tokenizer_name
+    if fine_tune:
+        base_model_name += "_fine-tune"
+    else:
+        base_model_name += "_rebuild"
+
+    accelerator.print(f"\n---------\nmodel name: {base_model_name}")
         
     model_name = f'{base_model_name}_{dataset_source}' 
     model_save_dir = f"./Models/{model_name}"
