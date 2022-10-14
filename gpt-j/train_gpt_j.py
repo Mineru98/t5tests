@@ -1,3 +1,4 @@
+from pickle import TRUE
 import sys, os, argparse, transformers, torch, random
 from datasets import load_dataset, load_metric, load_from_disk, Dataset
 from accelerate import Accelerator, DistributedDataParallelKwargs
@@ -31,8 +32,10 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
     oom
 
 """
-fine_tune = True
-kor_voca_extention = True
+fast_loading_to_test = False      
+
+scratch = False
+kor_voca_extention = False
 eval_sample = False
 
 num_train_epochs = 10
@@ -61,64 +64,69 @@ tokenizer = None
 last_eval_model = None
 base_model_name = None
 
-class TextDataset(Dataset):
-    def tokenizing_sample(self, s):
-        tt = tokenizer(s[self.feature_name], max_length=max_input_length, truncation=True, padding=True)
-        return tt
-            
-    def __init__(self, tokenize: bool = False):
-        accelerator.print("reading dataset...", dataset_source)
-        if dataset_source == "sns":
-            ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
-            feature_name = "sample"
-        elif dataset_source == "wiki":
-            wiki_local = "/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr"
-            if os.path.exists(wiki_local):
-                ds = load_from_disk(wiki_local)
-            else:
-                ds = load_dataset("lcw99/wikipedia-korean-20221001")
-            feature_name = "text"
-        elif dataset_source == "cc100":
-            ds = load_dataset("cc100", lang="ko")
-            feature_name = "text"
-        elif dataset_source == "namu":
-            ds = load_dataset("heegyu/namuwiki-extracted")
-            feature_name = "text"
-        self.feature_name = feature_name
-        
-        ds = ds["train"]
-        if training_size > 0:
-            ds = ds.select(range(training_size))
-        accelerator.print("reading dataset done...", dataset_source)
+streaming = False
+def tokenizing_sample(s):
+    tt = tokenizer(s[feature_name], max_length=max_input_length, truncation=True, padding=True)
+    return tt
 
-        if tokenize:
-            ds = ds.map(self.tokenizing_sample, batched=True)
-            examples = ds['input_ids']
-            
-            # examples = []
-            # num_worker = 10
-            # chunk_size = int(len(ds) / (num_worker * 4))
-            # if chunk_size > 100000:
-            #     chunk_size = 100000
-            # accelerator.print("chunk_size=", chunk_size)
-            # for result in process_map(self.tokenizing_sample, ds, max_workers=num_worker, chunksize=chunk_size):
-            #     examples += result
-        else:
-            examples = ds[self.feature_name]
-        self.data_list = examples
-
-    def __len__(self):
-        return len(self.data_list)
+def get_dataset(tokenize):
+    global feature_name
+    accelerator.print("reading dataset...", dataset_source)
+    if dataset_source == "sns":
+        ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
+        feature_name = "sample"
+    elif dataset_source == "wiki":
+        ds = load_dataset("lcw99/wikipedia-korean-20221001", streaming=streaming)
+        feature_name = "text"
+    elif dataset_source == "cc100":
+        ds = load_dataset("cc100", lang="ko", streaming=streaming)
+        feature_name = "text"
+    elif dataset_source == "namu":
+        ds = load_dataset("heegyu/namuwiki-extracted", streaming=streaming)
+        feature_name = "text"
+    feature_name = feature_name
     
-    def __getitem__(self, idx):
-        return self.data_list[idx]
+    ds = ds["train"]
+    if streaming:
+        ds_eval = ds.take(validation_data_size)
+        ds_train = ds.skip(validation_data_size)
+    else:
+        ds = ds.train_test_split(validation_data_size)
+        ds_train = ds["train"]
+        ds_eval = ds["test"]
+    if training_size > 0:
+        if streaming:
+            ds_train = ds_train.take(training_size)
+        else:
+            ds_train = ds_train.select(range(training_size))
 
+    if tokenize:
+        cache_file = f"./cache/{dataset_source}_{training_size}_{max_input_length}.cache"
+        accelerator.print("tokninzing...", cache_file)
+        ds_eval = ds_eval.map(tokenizing_sample, batched=True, num_proc=10)
+        ds_train = ds_train.map(tokenizing_sample, batched=True, num_proc=10, cache_file_name=cache_file, load_from_cache_file=True)
+    return ds_eval, ds_train, feature_name
+    
+feature_name = None
+glo_tokenize = None
+def my_collate(batch):
+    data = [item[feature_name] for item in batch]
+    if glo_tokenize:
+        data = tokenizer(data, max_length=max_input_length, truncation=True, padding=True)
+    return [data]
+    
 def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size):
-    dataset = TextDataset(tokenize=tokenize)
-    train_dataset = dataset[:-validation_data_size]
-    eval_dataset = dataset[-validation_data_size:]
-    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size, collate_fn=lambda x: x)
-    eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size, collate_fn=lambda x: x)
+    global feature_name, glo_tokenize
+    glo_tokenize = tokenize
+    eval_dataset, train_dataset, feature_name = get_dataset(tokenize)
+    if streaming:
+        accelerator.print("train_dataset.dataset_size=", train_dataset.dataset_size)
+        accelerator.print("eval_dataset.dataset_size=", eval_dataset.dataset_size)
+    else:
+        accelerator.print(train_dataset)
+        accelerator.print(eval_dataset)
+    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size)
+    eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size)
     return train_dataloader, eval_dataloader
 
 def build_tokenizer():
@@ -181,18 +189,22 @@ def set_require_grad(model):
                 child.requires_grad_(requires_grad=True)
             elif isinstance(child, nn.Embedding):
                 child.requires_grad_(requires_grad=True)
-                
+          
 def init_model():
-    kwarg = {"revision": "float16", "use_cache" :False}
+    if fast_loading_to_test:
+        model = "rinna/japanese-gpt2-small"
+        kwarg = {"use_cache" :False}
+    else:
+        model = "EleutherAI/gpt-j-6B"
+        kwarg = {"revision": "float16", "use_cache" :False}
     if load_in_8bit:
         kwarg["device_map"] = 'auto'
         kwarg["load_in_8bit"] = True
     else:
         kwarg["torch_dtype"] = torch.float16
         
-    gpt = GPTJForCausalLM.from_pretrained(
-        "EleutherAI/gpt-j-6B", **kwarg
-    )
+    accelerator.print("loading model-", kwarg)
+    gpt = GPTJForCausalLM.from_pretrained(model, **kwarg)
     
     # list_model_children(gpt)
     
@@ -202,20 +214,24 @@ def init_model():
         gpt.resize_token_embeddings(tokenizer_len)
         accelerator.print("resize done....")
     
-    if not fine_tune:
+    if scratch:
         if not load_in_8bit:
             gpt.init_weights()  # from scarch
         # set_require_grad(gpt)
         for param in gpt.base_model.parameters():
             if param.dtype == torch.int8:
                 param.has_fp16_weight = True    # for training
-                # param.requires_grad = True      # not working   
+                param.memory_efficient_backward = True
+                # param.requires_grad = True      # not working now
+            else:
+                param.requires_grad = True         
     else:            
         for param in gpt.base_model.parameters():
             if param.dtype != torch.int8:
                 param.requires_grad = False         
             else:
                 param.has_fp16_weight = True    # for training
+                param.memory_efficient_backward = True
                 
     gpt.gradient_checkpointing_enable()
     
@@ -251,8 +267,9 @@ def trainer():
     global batch_size
     if batch_size == 0:
         batch_size = 4
-    model, optimizer = init_model()
+
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=False, loader_batch_size=batch_size)
+    model, optimizer = init_model()
  
     num_epochs = 5
     num_training_steps = num_epochs * len(train_dataloader)
@@ -621,14 +638,21 @@ def preprocess_logits_for_metrics(logits, labels):
 def huggingface_trainer():
     global batch_size, train_dataloader, eval_dataloader
 
-    model, optimizer = init_model()
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
- 
-    num_training_steps = num_train_epochs * len(train_dataloader)
+    if streaming:
+        total_dataset_size = train_dataloader.dataset.dataset_size
+        training_data_size = training_size if training_size > 0 else total_dataset_size - validation_data_size
+        num_training_steps = num_train_epochs * training_data_size
+        max_steps = num_training_steps
+    else:
+        num_training_steps = len(train_dataloader.dataset)
+        max_steps = -1
+
+    model, optimizer = init_model()
     lr_scheduler = transformers.get_linear_schedule_with_warmup(
         optimizer, 50, num_training_steps
     )
-
+ 
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
 
@@ -644,6 +668,7 @@ def huggingface_trainer():
     
     args = TrainingArguments(
         model_save_dir,
+        #max_steps=max_steps,
         evaluation_strategy="steps",
         eval_steps=100,
         logging_strategy="steps",
@@ -690,7 +715,7 @@ def huggingface_trainer():
                                     
 def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
-            training_size, batch_size, tokenizer, eval_sample, fine_tune, kor_voca_extention, load_in_8bit
+            training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -702,6 +727,7 @@ def main():
     parser.add_argument("--eval_sample", action='store_true', help = "eval sample")
     parser.add_argument("--scratch", action='store_true', help = "training from scratch")
     parser.add_argument("--load_in_8bit", action='store_true', help = "load in 8bit")
+    parser.add_argument("--kor_voca", action='store_true', help = "use extended kor tokenizer")
     
     args = parser.parse_args()
 
@@ -710,9 +736,6 @@ def main():
     else:
         parser.print_help(sys.stderr)
         return
-
-    if args.tokenizer:
-        tokenizer_name = args.tokenizer
 
     if args.continue_train:
         accelerator.print("=== param continue trainning")
@@ -727,11 +750,13 @@ def main():
     if args.eval_sample:
         eval_sample = True
     if args.scratch:
-        fine_tune = False
+        scratch = True
     if args.load_in_8bit:
         load_in_8bit = True
-      
-    if not fine_tune:
+    if args.kor_voca:
+        kor_voca_extention = True
+ 
+    if scratch:
         kor_voca_extention = False
         
     base_model_name = "gpt-j-6B"
@@ -741,15 +766,19 @@ def main():
     else:
         tokenizer_name = "tokenizer_wikipedia_gpt_j"
 
+    # if tokenizer name provided, override previous settings.
+    if args.tokenizer:
+        tokenizer_name = args.tokenizer
+
     base_model_name += "_" + tokenizer_name
-    if fine_tune:
-        base_model_name += "_fine-tune"
-    else:
+    if scratch:
         base_model_name += "_rebuild"
+    else:
+        base_model_name += "_fine-tune"
 
     accelerator.print(f"\n---------\nmodel name: {base_model_name}")
         
-    model_name = f'{base_model_name}_{dataset_source}' 
+    model_name = f'{base_model_name}'
     model_save_dir = f"./Models/{model_name}"
         
     tokenizer = build_tokenizer()

@@ -52,9 +52,9 @@ tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 gpt = GPTJForCausalLM.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-    device_map='auto',
-    load_in_8bit=True,
+    #low_cpu_mem_usage=True,
+    # device_map='auto',
+    # load_in_8bit=True,
 ).to(device)
 
 text_generation = pipeline(
