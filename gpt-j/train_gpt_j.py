@@ -4,7 +4,7 @@ from datasets import load_dataset, load_metric, load_from_disk, Dataset
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
 from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
-                            DataCollatorForLanguageModeling, pipeline
+                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM
 from transformers.optimization import AdafactorSchedule
 from transformers.trainer_pt_utils import get_parameter_names, nested_detach, IterableDatasetShard
 from transformers.trainer_utils import seed_worker
@@ -19,24 +19,22 @@ from collections.abc import Mapping
 from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 
 """
-# fp16 model, 8bit loading
-    State must contain either CBt or CB matrix for backward error
-
-# fp16 model, not load_in_8bit 
-    working.
-    
-# 8bit model, torch.float16 loading
-    workging?
-
-# 8bit model, no parameter loading= torch.float32 loading
-    oom
-
+# original tokenizer, not freeze, fine_tune or all
+    python train_gpt_j.py -d namu -i 256 --tokenizer tokenizer-gpt-j-6B-org --eval_sample 
+# original tokenizer, freeze except lm_head
+    python train_gpt_j.py -d namu -i 256 --tokenizer tokenizer-gpt-j-6B-org --eval_sample --tune_head_only
+# korean extended vocabulary
+    python train_gpt_j.py -d namu -i 256 -kor_voca --eval_sample --tune_head_only
+# korean extended vocabulary, reset all weight
+    python train_gpt_j.py -d namu -i 256 -kor_voca --eval_sample --scratch    
 """
-fast_loading_to_test = False      
+gpt_neo = None      
 
 scratch = False
 kor_voca_extention = False
 eval_sample = False
+tune_head_only = False
+partial_freeze = 0     # GPT-j-6B has total 27 transformer layer
 
 num_train_epochs = 10
 dataset_source = "wiki"
@@ -65,8 +63,12 @@ last_eval_model = None
 base_model_name = None
 
 streaming = False
+
+def name_to_filename(name):
+    return name.replace("/", "_").replace(".", "_")
 def tokenizing_sample(s):
     tt = tokenizer(s[feature_name], max_length=max_input_length, truncation=True, padding=True)
+    tt['labels'] = tt['input_ids']
     return tt
 
 def get_dataset(tokenize):
@@ -101,10 +103,11 @@ def get_dataset(tokenize):
             ds_train = ds_train.select(range(training_size))
 
     if tokenize:
-        cache_file = f"./cache/{tokenizer_name}_{dataset_source}_{training_size}_{max_input_length}.cache"
+        cache_file = f"./cache/{name_to_filename(tokenizer_name)}_{dataset_source}_{training_size}_{max_input_length}.cache"
         accelerator.print("tokninzing...", cache_file)
-        ds_eval = ds_eval.map(tokenizing_sample, batched=True)
-        ds_train = ds_train.map(tokenizing_sample, batched=True, num_proc=4, cache_file_name=cache_file, load_from_cache_file=True)
+        columns = ds_train.column_names
+        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
+        ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=4, cache_file_name=cache_file, load_from_cache_file=True)
     return ds_eval, ds_train, feature_name
     
 feature_name = None
@@ -130,13 +133,8 @@ def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size)
     return train_dataloader, eval_dataloader
 
 def build_tokenizer():
-    tokenizer_path = f"../train_tokenizer/{tokenizer_name}"
-    accelerator.print("\n-----------------------\ntokenizer path = ", tokenizer_path)
-    if os.path.exists(tokenizer_path):
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-    else:
-        accelerator.print("downloading tokenizer from hf")
-        tokenizer = AutoTokenizer.from_pretrained("lcw99/tokenizer-gpt-j-ext-ko")
+    accelerator.print("\n-----------------------\ntokenizer name = ", tokenizer_name)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     tokenizer.pad_token = tokenizer.eos_token
     return tokenizer
 
@@ -181,30 +179,44 @@ def list_model_children(model):
                 #child.num_embeddings = 91238
                 accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
+    
+def partial_freeze_transformer_layer(model, last_n_layer):
+    for parameter in model.parameters():
+        parameter.requires_grad = False
 
-def set_require_grad(model):
-    for module in list(model.modules()):
-        for name, child in module.named_children():
-            if isinstance(child, nn.Linear):
-                child.requires_grad_(requires_grad=True)
-            elif isinstance(child, nn.Embedding):
-                child.requires_grad_(requires_grad=True)
-          
+    total_layer = len(model.transformer.h)
+    accelerator.print("total transformer layers=", total_layer)
+    for i, m in enumerate(model.transformer.h):        
+        #Only un-freeze the last n transformer blocks
+        if i >= total_layer - last_n_layer:
+            for parameter in m.parameters():
+                accelerator.print("un-freeze layer=", i)
+                parameter.requires_grad = True 
+
+    for parameter in model.transformer.ln_f.parameters():        
+        parameter.requires_grad = True
+
+    for parameter in model.lm_head.parameters():        
+        parameter.requires_grad = True
+                                  
 def init_model():
-    if fast_loading_to_test:
-        model = "rinna/japanese-gpt2-small"
-        kwarg = {"use_cache" :False}
-    else:
-        model = "EleutherAI/gpt-j-6B"
-        kwarg = {"revision": "float16", "use_cache" :False}
+    kwarg = {}
     if load_in_8bit:
         kwarg["device_map"] = 'auto'
         kwarg["load_in_8bit"] = True
     else:
         kwarg["torch_dtype"] = torch.float16
         
-    accelerator.print("loading model-", kwarg)
-    gpt = GPTJForCausalLM.from_pretrained(model, **kwarg)
+    if gpt_neo is not None:
+        model = f"EleutherAI/{gpt_neo}"
+        accelerator.print("loading model-", model, kwarg)
+        gpt = GPTNeoForCausalLM.from_pretrained(model, **kwarg)
+        accelerator.print(gpt)
+    else:
+        model = "EleutherAI/gpt-j-6B"
+        kwarg["revision"] = "float16"
+        accelerator.print("loading model-", model, kwarg)
+        gpt = GPTJForCausalLM.from_pretrained(model, **kwarg)
     
     # list_model_children(gpt)
     
@@ -217,7 +229,6 @@ def init_model():
     if scratch:
         if not load_in_8bit:
             gpt.init_weights()  # from scarch
-        # set_require_grad(gpt)
         for param in gpt.base_model.parameters():
             if param.dtype == torch.int8:
                 param.has_fp16_weight = True    # for training
@@ -225,14 +236,9 @@ def init_model():
                 # param.requires_grad = True      # not working now
             else:
                 param.requires_grad = True         
-    else:            
-        for param in gpt.base_model.parameters():
-            if param.dtype != torch.int8:
-                param.requires_grad = False         
-            else:
-                param.has_fp16_weight = True    # for training
-                param.memory_efficient_backward = True
-                
+    else: 
+        partial_freeze_transformer_layer(gpt, partial_freeze)           
+
     gpt.gradient_checkpointing_enable()
     
     gpt.config.__dict__["_name_or_path"] = f"lcw99/{base_model_name}"
@@ -689,6 +695,7 @@ def huggingface_trainer():
         metric_for_best_model="eval_loss",
         report_to="tensorboard",
         ignore_data_skip=True,     # set true for ignore batch skip, fast
+        remove_unused_columns=False,
     )
 
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
@@ -715,7 +722,8 @@ def huggingface_trainer():
                                     
 def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
-            training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit
+            training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
+            tune_head_only, partial_freeze, gpt_neo
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -728,6 +736,9 @@ def main():
     parser.add_argument("--scratch", action='store_true', help = "training from scratch")
     parser.add_argument("--load_in_8bit", action='store_true', help = "load in 8bit")
     parser.add_argument("--kor_voca", action='store_true', help = "use extended kor tokenizer")
+    parser.add_argument("--tune_head_only", action='store_true', help = "freeze nn except head")
+    parser.add_argument("--partial_freeze", help = "set num layer to unfreeze")
+    parser.add_argument("--gpt_neo", help = "gpt-neo model")
     
     args = parser.parse_args()
 
@@ -755,26 +766,42 @@ def main():
         load_in_8bit = True
     if args.kor_voca:
         kor_voca_extention = True
- 
+    if args.tune_head_only:
+        tune_head_only = True
+    if args.partial_freeze:
+        partial_freeze = int(args.partial_freeze)
+    if args.gpt_neo:
+        gpt_neo = args.gpt_neo
+        
     if scratch:
         kor_voca_extention = False
+    if tune_head_only:
+        partial_freeze = 0   
         
-    base_model_name = "gpt-j-6B"
-    if kor_voca_extention:
-        base_model_name += "_kor-ext"
-        tokenizer_name = "tokenizer-gpt-j-plus-ko"
+    if gpt_neo is not None:
+        base_model_name = gpt_neo
+        tokenizer_name = f"EleutherAI/{gpt_neo}"
     else:
-        tokenizer_name = "tokenizer_wikipedia_gpt_j"
-
+        base_model_name = "gpt-j-6B"
+        tokenizer_name = f"EleutherAI/{base_model_name}"
+        
     # if tokenizer name provided, override previous settings.
     if args.tokenizer:
         tokenizer_name = args.tokenizer
 
-    base_model_name += "_" + tokenizer_name
+    base_model_name += "_" + name_to_filename(tokenizer_name)
     if scratch:
         base_model_name += "_rebuild"
     else:
         base_model_name += "_fine-tune"
+
+    if tune_head_only:
+        base_model_name += "_tune-head-only"
+    else:
+        if partial_freeze >= 0:
+            base_model_name += f"_freeze_{partial_freeze}"
+        else:
+            base_model_name += "_tune-all"
 
     accelerator.print(f"\n---------\nmodel name: {base_model_name}")
         

@@ -5,7 +5,7 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args":["--scratch", "--eval_sample", "-d", "wiki", "-i", "128", "-s", "10000"],
+            "args":["--eval_sample", "-d", "namu", "-i", "128", "-t", "tokenizer-gpt-j-6B-org"],
             "justMyCode": false
         }
     ]
