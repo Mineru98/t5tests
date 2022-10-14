@@ -101,7 +101,7 @@ def get_dataset(tokenize):
             ds_train = ds_train.select(range(training_size))
 
     if tokenize:
-        cache_file = f"./cache/{dataset_source}_{training_size}_{max_input_length}.cache"
+        cache_file = f"./cache/{tokenizer_name}_{dataset_source}_{training_size}_{max_input_length}.cache"
         accelerator.print("tokninzing...", cache_file)
         ds_eval = ds_eval.map(tokenizing_sample, batched=True)
         ds_train = ds_train.map(tokenizing_sample, batched=True, num_proc=4, cache_file_name=cache_file, load_from_cache_file=True)
