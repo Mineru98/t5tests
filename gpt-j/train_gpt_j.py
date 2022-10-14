@@ -103,8 +103,8 @@ def get_dataset(tokenize):
     if tokenize:
         cache_file = f"./cache/{dataset_source}_{training_size}_{max_input_length}.cache"
         accelerator.print("tokninzing...", cache_file)
-        ds_eval = ds_eval.map(tokenizing_sample, batched=True, num_proc=10)
-        ds_train = ds_train.map(tokenizing_sample, batched=True, num_proc=10, cache_file_name=cache_file, load_from_cache_file=True)
+        ds_eval = ds_eval.map(tokenizing_sample, batched=True)
+        ds_train = ds_train.map(tokenizing_sample, batched=True, num_proc=4, cache_file_name=cache_file, load_from_cache_file=True)
     return ds_eval, ds_train, feature_name
     
 feature_name = None
