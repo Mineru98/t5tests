@@ -1,7 +1,7 @@
 from transformers import AutoTokenizer
 from datasets import load_dataset, load_from_disk, concatenate_datasets
 
-old_tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-j-6B")
+old_tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
 ds_wiki = load_dataset("lcw99/wikipedia-korean-20221001")
 ds_namu = load_dataset("heegyu/namuwiki-extracted")
 medium_datasets = concatenate_datasets([ds_wiki['train'], ds_namu['train']])
@@ -30,7 +30,7 @@ len_new = len(tokens)
 print(len_new, tokens)
 print("rate=", len_new/len_old)
 
-tokenizer_name = "tokenizer-wiki-plus-namu-gpt-j-ko"
+tokenizer_name = "tokenizer-wiki-plus-namu-gpt-neo-ko"
 tokenizer.save_pretrained(f"./{tokenizer_name}")
 tokenizer = AutoTokenizer.from_pretrained(f"./{tokenizer_name}")
 

@@ -5,7 +5,11 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args":["--eval_sample", "-d", "wiki", "-i", "128", "-s", "10000", "--scratch", "--gpt_neo", "gpt-neo-125M"],
+            "args":[
+                "--eval_sample", "-d", "wiki", "-i", "128", "-s", "10000", "--scratch", 
+                "--gpt_neo", "gpt-neo-125M",
+                "-t", "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko"
+                ],
             "justMyCode": false
         }
     ]

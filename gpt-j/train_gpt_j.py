@@ -1,5 +1,5 @@
 from pickle import TRUE
-import sys, os, argparse, transformers, torch, random
+import sys, os, argparse, transformers, torch, random, evaluate, numpy
 from datasets import load_dataset, load_metric, load_from_disk, Dataset
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
@@ -180,7 +180,7 @@ def list_model_children(model):
                 accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
     
-def partial_freeze_transformer_layer(model, last_n_layer):
+def partial_unfreeze_transformer_layer(model, last_n_layer):
     for parameter in model.parameters():
         parameter.requires_grad = False
 
@@ -229,15 +229,16 @@ def init_model():
     if scratch:
         if not load_in_8bit:
             gpt.init_weights()  # from scarch
-        for param in gpt.base_model.parameters():
-            if param.dtype == torch.int8:
-                param.has_fp16_weight = True    # for training
-                param.memory_efficient_backward = True
-                # param.requires_grad = True      # not working now
-            else:
-                param.requires_grad = True         
+        # for param in gpt.base_model.parameters():
+        #     if param.dtype == torch.int8:
+        #         param.has_fp16_weight = True    # for training
+        #         param.memory_efficient_backward = True
+        #         # param.requires_grad = True      # not working now
+        #     else:
+        #         param.requires_grad = True    
+        partial_unfreeze_transformer_layer(gpt, 1000)     
     else: 
-        partial_freeze_transformer_layer(gpt, partial_freeze)           
+        partial_unfreeze_transformer_layer(gpt, partial_freeze)           
 
     gpt.gradient_checkpointing_enable()
     
@@ -583,6 +584,7 @@ class MyTrainer(Trainer):
         )
         return accelerator.prepare(dl)
     
+metric_accuracy = evaluate.load("accuracy")
 def compute_metrics(eval_pred):
     # preds, labels = eval_pred
     # # preds have the same shape as the labels, after the argmax(-1) has been calculated
@@ -594,32 +596,24 @@ def compute_metrics(eval_pred):
     # preds = preds[mask]
     # acc = metric_accuracy.compute(predictions=preds, references=labels)
     # return acc
-        
+   
     labels_ids = eval_pred.label_ids
-    pred_ids = eval_pred.predictions[0]
-    # if len(eval_pred.predictions) > 1:
-    #     p1 = eval_pred.predictions[1][0]
-    #     pred_str = tokenizer.batch_decode(p1, skip_special_tokens=False)
-    #     accelerator.print("\n======= predictions eval1\n", pred_str)
-    #     str1 = "".join([str(i) for i in pred_str])
-    #     accelerator.print(str1.replace("\n", "/"))
-        
+    pred_ids = eval_pred.predictions[0]     
+    
+    # pred_ids = numpy.array(pred_ids)
+    # labels = labels_ids.reshape(-1)
+    # preds = pred_ids.reshape(-1)
+    # mask = labels != -100
+    # labels = labels[mask]
+    # #preds = preds[mask]
+    # acc = metric_accuracy.compute(predictions=preds, references=labels)
+            
     pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
-    if labels_ids is not None:
-        labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-        label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=True)
-        accelerator.print("\n===========label\n", label_str[0].replace("\n", "/"))
-        # accelerator.print(label_str[1])
 
     ppl = {}
     ppl["mean_perplexity"] = 0.0
 
-    #ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
-
-    accelerator.print("\n===========predictions first token\n", pred_str[:100])
-    # print()
-    # for label in random.sample(list(label_str), 2):
-    #     print("label=", label)
+    accelerator.print("\n===========predictions first token\n", pred_str[0])
 
     if eval_sample:
         tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
@@ -645,12 +639,29 @@ def preprocess_logits_for_metrics(logits, labels):
     Original Trainer may have a memory leak. 
     This is a workaround to avoid storing too many tensors that are not needed.
     """
-    l0 = logits[0]
-    pred_ids = torch.argmax(l0, dim=-1)
-    pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
+    batch = len(logits)
+    ii = random.randint(0, batch-1)
+    pred_list = []
+    for logit in logits:
+        pred = torch.argmax(logit, dim=-1)
+        pred_list.append(pred)
+        
+    pred_str = tokenizer.batch_decode(pred_list[ii], skip_special_tokens=False)
     pred_str = "".join([str(i) for i in pred_str])
-    accelerator.print("* ", pred_str)
-    return pred_ids, labels
+    pred_str = pred_str.replace("\n", "/")
+    accelerator.print(f"\n**{ii} ", pred_str)
+
+    try:
+        labels_ids = labels[ii]
+        #labels_ids[labels_ids == -100] = tokenizer.pad_token_id
+        labels_ids = labels_ids[labels_ids != -100]
+        pred_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
+        label_str = "".join([str(i) for i in pred_str])
+        label_str = label_str.replace("\n", "/")
+        accelerator.print(f"\n=={ii} ", label_str)
+    except Exception as e:
+        accelerator.print("\n!! ", e, ii, len(labels))
+    return pred_list, labels
 
 def huggingface_trainer():
     global batch_size, train_dataloader, eval_dataloader
