@@ -456,7 +456,7 @@ class MyTrainer(Trainer):
             logits = logits[0]
             
         last_eval_model = model
-        return (loss, logits, [])
+        return (loss, logits, labels)
 
     def unwrap_model(self, model: nn.Module) -> nn.Module:
         if hasattr(model, "module"):
@@ -597,17 +597,26 @@ def compute_metrics(eval_pred):
         
     labels_ids = eval_pred.label_ids
     pred_ids = eval_pred.predictions[0]
-
+    # if len(eval_pred.predictions) > 1:
+    #     p1 = eval_pred.predictions[1][0]
+    #     pred_str = tokenizer.batch_decode(p1, skip_special_tokens=False)
+    #     accelerator.print("\n======= predictions eval1\n", pred_str)
+    #     str1 = "".join([str(i) for i in pred_str])
+    #     accelerator.print(str1.replace("\n", "/"))
+        
     pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
-    # labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-    # label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=True)
+    if labels_ids is not None:
+        labels_ids[labels_ids == -100] = tokenizer.pad_token_id
+        label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=True)
+        accelerator.print("\n===========label\n", label_str[0].replace("\n", "/"))
+        # accelerator.print(label_str[1])
 
     ppl = {}
     ppl["mean_perplexity"] = 0.0
 
     #ppl = perplexity.compute(predictions=pred_str_filterd, model_id='gpt2')
 
-    accelerator.print("\n===========predictions\n", pred_str)
+    accelerator.print("\n===========predictions first token\n", pred_str[:100])
     # print()
     # for label in random.sample(list(label_str), 2):
     #     print("label=", label)
@@ -638,7 +647,9 @@ def preprocess_logits_for_metrics(logits, labels):
     """
     l0 = logits[0]
     pred_ids = torch.argmax(l0, dim=-1)
-    #pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
+    pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
+    pred_str = "".join([str(i) for i in pred_str])
+    accelerator.print("* ", pred_str)
     return pred_ids, labels
 
 def huggingface_trainer():

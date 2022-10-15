@@ -1,8 +1,11 @@
 from transformers import AutoTokenizer
-from datasets import load_dataset, load_from_disk
+from datasets import load_dataset, load_from_disk, concatenate_datasets
 
 old_tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-j-6B")
-medium_datasets = load_from_disk("/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr/train")
+ds_wiki = load_dataset("lcw99/wikipedia-korean-20221001")
+ds_namu = load_dataset("heegyu/namuwiki-extracted")
+medium_datasets = concatenate_datasets([ds_wiki['train'], ds_namu['train']])
+
 print(medium_datasets)
 
 def get_training_corpus():
@@ -16,16 +19,21 @@ example = """
 """
 
 tokens = old_tokenizer.tokenize(example)
-print(tokens)
+len_old = len(tokens)
+print(len_old, tokens)
 
 training_corpus = get_training_corpus()
-tokenizer = old_tokenizer.train_new_from_iterator(training_corpus, 50400)
+tokenizer = old_tokenizer.train_new_from_iterator(training_corpus, len(old_tokenizer))
 
 tokens = tokenizer.tokenize(example)
-print(tokens)
+len_new = len(tokens)
+print(len_new, tokens)
+print("rate=", len_new/len_old)
 
-tokenizer.save_pretrained("./tokenizer_wikipedia_gpt_j")
-tokenizer = AutoTokenizer.from_pretrained("./tokenizer_wikipedia_gpt_j")
+tokenizer_name = "tokenizer_wiki_plus_namu_gpt_j"
+tokenizer.save_pretrained(f"./{tokenizer_name}")
+tokenizer = AutoTokenizer.from_pretrained(f"./{tokenizer_name}")
 
 tokens = tokenizer.tokenize(example)
-print(tokens)
+print(len(tokens), tokens)
+

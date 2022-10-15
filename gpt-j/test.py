@@ -71,7 +71,7 @@ while True:
     if pipe:
         generated = text_generation(
             text,
-            max_length=300,
+            max_length=500,
             do_sample=True,
             num_return_sequences=5,
             top_p=0.95,
@@ -81,7 +81,7 @@ while True:
     else:
         encoded_input = tokenizer(text, return_tensors='pt').to(device)
         print(encoded_input)
-        output_sequences = gpt.generate(encoded_input["input_ids"], max_length=200)
+        output_sequences = gpt.generate(encoded_input["input_ids"], max_length=500)
         print(output_sequences)
         generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
         print(generated)
