@@ -245,7 +245,7 @@ def init_model():
     gpt.config.__dict__["_name_or_path"] = f"lcw99/{base_model_name}"
     gpt.config.__dict__["use_cache"] = False
     # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
-    if True:
+    if False:
         optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
         #optimizer = build_adam8bit_optimizer(gpt)
     else:

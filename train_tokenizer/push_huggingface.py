@@ -7,7 +7,7 @@ from datasets import load_from_disk
 
 notebook_login()
 
-tokenizer_name = "tokenizer-wiki-plus-namu-gpt-neo-ko"
+tokenizer_name = "tokenizer-wiki-plus-namu-kogpt2-base-gpt-j"
 tokenizer_path = f"./{tokenizer_name}"
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
