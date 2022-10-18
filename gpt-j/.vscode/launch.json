@@ -6,10 +6,11 @@
             "request": "launch",
             "program": "${file}",
             "args":[
-                "--eval_sample", "-d", "wiki", "-i", "128", "-s", "10000", "--scratch", 
+                "--eval_sample", "-d", "wiki", "-i", "128", "--scratch", 
                 "--gpt_neo", "gpt-neo-125M",
-                "-t", "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko"
-                ],
+                "-t", "lcw99/tokenizer-wiki-plus-namu-gpt2-kogpt2",
+                //"-s", "10000", 
+            ],
             "justMyCode": false
         }
     ]

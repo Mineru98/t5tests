@@ -1,5 +1,5 @@
-from pickle import TRUE
-import sys, os, argparse, transformers, torch, random, evaluate, numpy
+from multiprocessing import Pool
+import sys, os, argparse, transformers, torch, random, evaluate, numpy, re
 from datasets import load_dataset, load_metric, load_from_disk, Dataset
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
@@ -29,14 +29,16 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
     python train_gpt_j.py -d namu -i 256 -kor_voca --eval_sample --scratch    
 """
 gpt_neo = None      
+model_file = None
+save_path = None
 
 scratch = False
 kor_voca_extention = False
 eval_sample = False
 tune_head_only = False
-partial_freeze = 0     # GPT-j-6B has total 27 transformer layer
+unfreeze = 0     # GPT-j-6B has total 27 transformer layer
 
-num_train_epochs = 10
+num_train_epochs = 2
 dataset_source = "wiki"
 max_input_length = 128
 continue_train = False
@@ -66,10 +68,90 @@ streaming = False
 
 def name_to_filename(name):
     return name.replace("/", "_").replace(".", "_")
-def tokenizing_sample(s):
-    tt = tokenizer(s[feature_name], max_length=max_input_length, truncation=True, padding=True)
-    tt['labels'] = tt['input_ids']
-    return tt
+
+def tokenize_chunk(s):
+    detok = wikitext_detokenizer(s)
+    # if len(detok) > 50000: 
+    #     accelerator.print("long text=", len(detok))
+
+    input_ids = []
+    attention_mask = []
+    while True: 
+        tt = tokenizer(detok[:max_input_length * 4], max_length=max_input_length, truncation=True, padding=True)
+        encoded_len = tt.encodings[0].offsets[-1][1]
+        #print(encoded_len, len(detok))
+        if encoded_len < len(detok):
+            while detok[encoded_len] != ' ' and encoded_len > 2 :
+                encoded_len -= 1
+            detok = detok[encoded_len:]
+            input_ids.append(tt['input_ids'])
+            attention_mask.append(tt['attention_mask'])
+        else:
+            #print(idx)
+            break
+    return input_ids, attention_mask
+    
+def tokenizing_sample(ss):
+    tokenized = {}
+    input_ids = []
+    attention_mask = []
+    
+    texts = ss[feature_name]
+    l = len(texts)
+    i = 0
+    while True:
+        s = texts[i]
+        while len(s) < max_input_length * 2 and i < l - 1:
+            i += 1
+            s += texts[i]
+        input_ids_sub, attention_mask_sub = tokenize_chunk(s)
+        input_ids += input_ids_sub
+        attention_mask += attention_mask_sub
+        i += 1
+        if i >= l:
+            break;
+        # with Pool(10) as pool:
+        #     for input_ids_sub, attention_mask_sub in pool.map(tokenize_chunk, s):
+        #         input_ids += input_ids_sub
+        #         attention_mask += attention_mask_sub
+                
+    tokenized['input_ids'] = input_ids
+    tokenized['attention_mask'] = attention_mask
+    #tokenized['labels'] = input_ids
+    return tokenized
+
+def wikitext_detokenizer(string):
+    # contractions
+    string = string.replace("s '", "s'")
+    string = re.sub(r"/' [0-9]/", r"/'[0-9]/", string)
+    # number separators
+    string = string.replace(" @-@ ", "-")
+    string = string.replace(" @,@ ", ",")
+    string = string.replace(" @.@ ", ".")
+    # punctuation
+    string = string.replace(" : ", ": ")
+    string = string.replace(" ; ", "; ")
+    string = string.replace(" . ", ". ")
+    string = string.replace(" ! ", "! ")
+    string = string.replace(" ? ", "? ")
+    string = string.replace(" , ", ", ")
+    # double brackets
+    string = re.sub(r"\(\s*([^\)]*?)\s*\)", r"(\1)", string)
+    string = re.sub(r"\[\s*([^\]]*?)\s*\]", r"[\1]", string)
+    string = re.sub(r"{\s*([^}]*?)\s*}", r"{\1}", string)
+    string = re.sub(r"\"\s*([^\"]*?)\s*\"", r'"\1"', string)
+    string = re.sub(r"'\s*([^']*?)\s*'", r"'\1'", string)
+    # miscellaneous
+    string = string.replace("= = = =", "====")
+    string = string.replace("= = =", "===")
+    string = string.replace("= =", "==")
+    string = string.replace(" " + chr(176) + " ", chr(176))
+    string = string.replace(" \n", "\n")
+    string = string.replace("\n ", "\n")
+    string = string.replace(" N ", " 1 ")
+    string = string.replace(" 's", "'s")
+
+    return string
 
 def get_dataset(tokenize):
     global feature_name
@@ -107,7 +189,7 @@ def get_dataset(tokenize):
         accelerator.print("tokninzing...", cache_file)
         columns = ds_train.column_names
         ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
-        ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=4, cache_file_name=cache_file, load_from_cache_file=True)
+        ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
     return ds_eval, ds_train, feature_name
     
 feature_name = None
@@ -141,12 +223,11 @@ def build_tokenizer():
 def build_adam8bit_optimizer(model):
     training_args = TrainingArguments(per_device_train_batch_size=batch_size, output_dir=".")
 
-    decay_parameters = get_parameter_names(model, [nn.LayerNorm])
-    decay_parameters = [name for name in decay_parameters if "bias" not in name]
+    decay_parameters = ["norm", "bias"]
     optimizer_grouped_parameters = [
         {
             "params": [p for n, p in model.named_parameters() if n in decay_parameters],
-            "weight_decay": training_args.weight_decay,
+            "weight_decay": 0.0,
         },
         {
             "params": [p for n, p in model.named_parameters() if n not in decay_parameters],
@@ -155,15 +236,13 @@ def build_adam8bit_optimizer(model):
     ]
 
     optimizer_kwargs = {
-        "betas": (training_args.adam_beta1, training_args.adam_beta2),
-        "eps": training_args.adam_epsilon,
+        "betas": (0.9, 0.95),
+        "eps": 1e-8,
     }
-    optimizer_kwargs["lr"] = training_args.learning_rate
+    optimizer_kwargs["lr"] = 0.0006
     adam_bnb_optim = Adam8bit(
         optimizer_grouped_parameters,
-        betas=(training_args.adam_beta1, training_args.adam_beta2),
-        eps=training_args.adam_epsilon,
-        lr=training_args.learning_rate,
+        **optimizer_kwargs
     )
     return adam_bnb_optim
         
@@ -180,7 +259,7 @@ def list_model_children(model):
                 accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
     
-def partial_unfreeze_transformer_layer(model, last_n_layer):
+def unfreeze_transformer_layer(model, last_n_layer):
     for parameter in model.parameters():
         parameter.requires_grad = False
 
@@ -204,16 +283,24 @@ def init_model():
     if load_in_8bit:
         kwarg["device_map"] = 'auto'
         kwarg["load_in_8bit"] = True
-    else:
-        kwarg["torch_dtype"] = torch.float16
+    # else:
+    #     kwarg["torch_dtype"] = torch.float16
         
     if gpt_neo is not None:
-        model = f"EleutherAI/{gpt_neo}"
+        if model_file is None:
+            model = f"EleutherAI/{gpt_neo}"
+        else:
+            accelerator.print("loading weight from file=", model_file)
+            model = model_file
         accelerator.print("loading model-", model, kwarg)
         gpt = GPTNeoForCausalLM.from_pretrained(model, **kwarg)
         accelerator.print(gpt)
     else:
-        model = "EleutherAI/gpt-j-6B"
+        if model_file is None:
+            model = "EleutherAI/gpt-j-6B"
+        else:
+            accelerator.print("loading weight from file=", model_file)
+            model = model_file
         kwarg["revision"] = "float16"
         accelerator.print("loading model-", model, kwarg)
         gpt = GPTJForCausalLM.from_pretrained(model, **kwarg)
@@ -236,9 +323,9 @@ def init_model():
         #         # param.requires_grad = True      # not working now
         #     else:
         #         param.requires_grad = True    
-        partial_unfreeze_transformer_layer(gpt, 1000)     
+        unfreeze_transformer_layer(gpt, 1000)     
     else: 
-        partial_unfreeze_transformer_layer(gpt, partial_freeze)           
+        unfreeze_transformer_layer(gpt, unfreeze)           
 
     gpt.gradient_checkpointing_enable()
     
@@ -246,10 +333,10 @@ def init_model():
     gpt.config.__dict__["use_cache"] = False
     # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
     if False:
-        optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
-        #optimizer = build_adam8bit_optimizer(gpt)
+        #optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
+        optimizer = build_adam8bit_optimizer(gpt)
     else:
-        optimizer = torch.optim.AdamW(gpt.parameters(), lr=1e-5)
+        optimizer = transformers.AdamW(gpt.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         
     gpt.config.__dict__["use_cache"] = False
 
@@ -613,7 +700,7 @@ def compute_metrics(eval_pred):
     ppl = {}
     ppl["mean_perplexity"] = 0.0
 
-    accelerator.print("\n===========predictions first token\n", pred_str[0])
+    accelerator.print("\n\n===========predictions first token\n", pred_str[0].replace('\n', '/'))
 
     if eval_sample:
         tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
@@ -647,7 +734,7 @@ def preprocess_logits_for_metrics(logits, labels):
         pred_list.append(pred)
         
     pred_str = tokenizer.batch_decode(pred_list[ii], skip_special_tokens=False)
-    pred_str = "".join([str(i) for i in pred_str])
+    pred_str = " ".join([str(i) for i in pred_str])
     pred_str = pred_str.replace("\n", "/")
     accelerator.print(f"\n**{ii} ", pred_str)
 
@@ -656,7 +743,7 @@ def preprocess_logits_for_metrics(logits, labels):
         #labels_ids[labels_ids == -100] = tokenizer.pad_token_id
         labels_ids = labels_ids[labels_ids != -100]
         pred_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
-        label_str = "".join([str(i) for i in pred_str])
+        label_str = " ".join([str(i) for i in pred_str])
         label_str = label_str.replace("\n", "/")
         accelerator.print(f"\n=={ii} ", label_str)
     except Exception as e:
@@ -678,7 +765,7 @@ def huggingface_trainer():
 
     model, optimizer = init_model()
     lr_scheduler = transformers.get_linear_schedule_with_warmup(
-        optimizer, 50, num_training_steps
+        optimizer, 3000, num_training_steps
     )
  
     # lr_scheduler = AdafactorSchedule(optimizer)    
@@ -698,17 +785,17 @@ def huggingface_trainer():
         model_save_dir,
         #max_steps=max_steps,
         evaluation_strategy="steps",
-        eval_steps=100,
+        eval_steps=10,
         logging_strategy="steps",
-        logging_steps=100,
+        logging_steps=1,
         save_strategy="steps",
-        save_steps=1000,
+        save_steps=10,
         # learning_rate=5e-5,
         per_device_train_batch_size=batch_size,
         per_device_eval_batch_size=batch_size,
         auto_find_batch_size=auto_find_batch_size,
-        gradient_accumulation_steps=1,
-        weight_decay=0.02,
+        gradient_accumulation_steps=gradient_acc,
+        weight_decay=0.0,
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
         #predict_with_generate=True,
@@ -745,7 +832,7 @@ def huggingface_trainer():
 def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
-            tune_head_only, partial_freeze, gpt_neo
+            tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
@@ -759,8 +846,12 @@ def main():
     parser.add_argument("--load_in_8bit", action='store_true', help = "load in 8bit")
     parser.add_argument("--kor_voca", action='store_true', help = "use extended kor tokenizer")
     parser.add_argument("--tune_head_only", action='store_true', help = "freeze nn except head")
-    parser.add_argument("--partial_freeze", help = "set num layer to unfreeze")
+    parser.add_argument("--unfreeze", help = "set num layer to unfreeze")
     parser.add_argument("--gpt_neo", help = "gpt-neo model")
+    parser.add_argument("--model_file", help = "local model file path")
+    parser.add_argument("--save_path", help = "model save path")
+    parser.add_argument("--num_epochs", help = "set num of epochs")
+    parser.add_argument("--gradient_acc", help = "gradient accumulation")
     
     args = parser.parse_args()
 
@@ -790,15 +881,23 @@ def main():
         kor_voca_extention = True
     if args.tune_head_only:
         tune_head_only = True
-    if args.partial_freeze:
-        partial_freeze = int(args.partial_freeze)
+    if args.unfreeze:
+        unfreeze = int(args.unfreeze)
     if args.gpt_neo:
         gpt_neo = args.gpt_neo
-        
+    if args.model_file:
+        model_file = args.model_file
+    if args.save_path:
+        save_path = args.save_path
+    if args.num_epochs:
+        num_train_epochs = int(args.num_epochs)
+    if args.gradient_acc:
+        gradient_acc = int(args.gradient_acc)
+                                        
     if scratch:
         kor_voca_extention = False
     if tune_head_only:
-        partial_freeze = 0   
+        unfreeze = 0   
         
     if gpt_neo is not None:
         base_model_name = gpt_neo
@@ -820,15 +919,19 @@ def main():
     if tune_head_only:
         base_model_name += "_tune-head-only"
     else:
-        if partial_freeze >= 0:
-            base_model_name += f"_freeze_{partial_freeze}"
+        if unfreeze >= 0:
+            base_model_name += f"_unfreeze_{unfreeze}"
         else:
             base_model_name += "_tune-all"
 
     accelerator.print(f"\n---------\nmodel name: {base_model_name}")
         
     model_name = f'{base_model_name}'
-    model_save_dir = f"./Models/{model_name}"
+    
+    if save_path is None:
+        model_save_dir = f"./Models/{model_name}"
+    else:
+        model_save_dir = save_path
         
     tokenizer = build_tokenizer()
     

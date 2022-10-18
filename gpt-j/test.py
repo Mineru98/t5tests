@@ -2,10 +2,10 @@ import os, glob
 import transformers
 import torch
 #from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
-from transformers import AutoTokenizer, logging, pipeline, GPTJForCausalLM
+from transformers import AutoTokenizer, logging, pipeline, AutoModel
 import argparse
 
-pipe = True
+pipe = False
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -49,7 +49,7 @@ print("---------------------------\n")
 logging.set_verbosity_error()
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-gpt = GPTJForCausalLM.from_pretrained(
+gpt = AutoModel.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
     #low_cpu_mem_usage=True,
