@@ -5,7 +5,7 @@ import torch
 from transformers import AutoTokenizer, logging, pipeline, AutoModel
 import argparse
 
-pipe = False
+pipe = True
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -59,7 +59,7 @@ gpt = AutoModel.from_pretrained(
 
 text_generation = pipeline(
     "text-generation",
-    model=gpt,
+    model=latest_model_dir,
     tokenizer=tokenizer,
     device=0
 )
@@ -71,11 +71,12 @@ while True:
     if pipe:
         generated = text_generation(
             text,
-            max_length=500,
+            max_length=300,
             do_sample=True,
-            num_return_sequences=5,
-            top_p=0.95,
-            top_k=50
+            min_length=100,
+            num_return_sequences=3,
+            # top_p=0.95,
+            # top_k=50
         )
         print(*generated, sep="\n\n")
     else:

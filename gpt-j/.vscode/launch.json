@@ -6,9 +6,8 @@
             "request": "launch",
             "program": "${file}",
             "args":[
-                "--eval_sample", "-d", "wiki", "-i", "128", "--scratch", 
-                "--gpt_neo", "gpt-neo-125M",
-                "-t", "lcw99/tokenizer-wiki-plus-namu-gpt2-kogpt2",
+                "--config_file", "./configs/gpt-neo-125M.json",
+                //"-i", "888",  
                 //"-s", "10000", 
             ],
             "justMyCode": false

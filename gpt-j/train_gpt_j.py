@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-import sys, os, argparse, transformers, torch, random, evaluate, numpy, re
+import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json
 from datasets import load_dataset, load_metric, load_from_disk, Dataset
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
@@ -834,7 +834,10 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc
     
-    parser = argparse.ArgumentParser()
+    parser_config = argparse.ArgumentParser()
+    parser_config.add_argument("--config_file", help = "loading config json file")
+    
+    parser = argparse.ArgumentParser(parents=[parser_config], add_help=False)
     parser.add_argument("-c", "--continue_train", action='store_true', help = "continue trainning")
     parser.add_argument("-d", "--dataset", help = "dataset source = [sns, wiki, cc100, namu]")
     parser.add_argument("-t", "--tokenizer", help = "tokenizer name")
@@ -853,8 +856,14 @@ def main():
     parser.add_argument("--num_epochs", help = "set num of epochs")
     parser.add_argument("--gradient_acc", help = "gradient accumulation")
     
-    args = parser.parse_args()
+    args_config, unknown = parser_config.parse_known_args()
 
+    if args_config.config_file:
+        config = json.load(open(args_config.config_file))
+        parser.set_defaults(**config)
+    
+    args = parser.parse_args()
+    
     if args.dataset:
         dataset_source = args.dataset
     else:
