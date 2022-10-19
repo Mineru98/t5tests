@@ -1,6 +1,6 @@
 from multiprocessing import Pool
-import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json
-from datasets import load_dataset, load_metric, load_from_disk, Dataset
+import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json, ftfy
+from datasets import load_dataset, load_metric, load_from_disk, Dataset, concatenate_datasets
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
 from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
@@ -64,13 +64,12 @@ tokenizer = None
 last_eval_model = None
 base_model_name = None
 
-streaming = False
-
 def name_to_filename(name):
     return name.replace("/", "_").replace(".", "_")
 
 def tokenize_chunk(s):
     detok = wikitext_detokenizer(s)
+    detok = ftfy.fix_text(detok, normalization='NFKC')
     # if len(detok) > 50000: 
     #     accelerator.print("long text=", len(detok))
 
@@ -81,9 +80,13 @@ def tokenize_chunk(s):
         encoded_len = tt.encodings[0].offsets[-1][1]
         #print(encoded_len, len(detok))
         if encoded_len < len(detok):
-            while detok[encoded_len] != ' ' and encoded_len > 2 :
-                encoded_len -= 1
-            detok = detok[encoded_len:]
+            cnt = encoded_len
+            while detok[cnt] not in ' .?,!/@:;-=\t\\\n':
+                cnt -= 1
+                if cnt <= encoded_len / 2:
+                    cnt = encoded_len
+                    break
+            detok = detok[cnt:]
             input_ids.append(tt['input_ids'])
             attention_mask.append(tt['attention_mask'])
         else:
@@ -155,42 +158,64 @@ def wikitext_detokenizer(string):
 
 def get_dataset(tokenize):
     global feature_name
+    dss = None
     accelerator.print("reading dataset...", dataset_source)
     if dataset_source == "sns":
         ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
         feature_name = "sample"
     elif dataset_source == "wiki":
-        ds = load_dataset("lcw99/wikipedia-korean-20221001", streaming=streaming)
+        ds = load_dataset("lcw99/wikipedia-korean-20221001")
         feature_name = "text"
     elif dataset_source == "cc100":
-        ds = load_dataset("cc100", lang="ko", streaming=streaming)
+        dss = load_dataset("cc100", lang="ko", split=[
+            f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)
+        ])
+        feature_name = "text"
+    elif dataset_source == "oscar":
+        dss = load_dataset("oscar", language="ko", split=[
+            f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)
+        ])
         feature_name = "text"
     elif dataset_source == "namu":
-        ds = load_dataset("heegyu/namuwiki-extracted", streaming=streaming)
+        ds = load_dataset("heegyu/namuwiki-extracted")
         feature_name = "text"
     feature_name = feature_name
     
-    ds = ds["train"]
-    if streaming:
-        ds_eval = ds.take(validation_data_size)
-        ds_train = ds.skip(validation_data_size)
+    if dss is not None:
+        ds = dss[0]
+        ds = ds.train_test_split(validation_data_size)
+        dss[0] = ds["train"]
+        ds_eval = ds["test"]
+        columns = ds_eval.column_names
+        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
+        if training_size > 0:
+            ds_train = ds[0].select(range(training_size))
+        else:
+            datasets = []
+            for i, ds in enumerate(dss):
+                cache_file = f"./cache/{dataset_source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+                accelerator.print("tokninzing...", cache_file)
+                if i == 5: 
+                    ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
+                else:
+                    ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
+                datasets.append(ds)
+            ds_train = concatenate_datasets(datasets)
+        return ds_eval, ds_train, feature_name
     else:
+        ds = ds["train"]
         ds = ds.train_test_split(validation_data_size)
         ds_train = ds["train"]
         ds_eval = ds["test"]
-    if training_size > 0:
-        if streaming:
-            ds_train = ds_train.take(training_size)
-        else:
+        if training_size > 0:
             ds_train = ds_train.select(range(training_size))
-
-    if tokenize:
-        cache_file = f"./cache/{name_to_filename(tokenizer_name)}_{dataset_source}_{training_size}_{max_input_length}.cache"
-        accelerator.print("tokninzing...", cache_file)
-        columns = ds_train.column_names
-        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
-        ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
-    return ds_eval, ds_train, feature_name
+        if tokenize:
+            cache_file = f"./cache/{dataset_source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+            accelerator.print("tokninzing...", cache_file)
+            columns = ds_train.column_names
+            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
+            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
+        return ds_eval, ds_train, feature_name
     
 feature_name = None
 glo_tokenize = None
@@ -204,12 +229,8 @@ def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size)
     global feature_name, glo_tokenize
     glo_tokenize = tokenize
     eval_dataset, train_dataset, feature_name = get_dataset(tokenize)
-    if streaming:
-        accelerator.print("train_dataset.dataset_size=", train_dataset.dataset_size)
-        accelerator.print("eval_dataset.dataset_size=", eval_dataset.dataset_size)
-    else:
-        accelerator.print(train_dataset)
-        accelerator.print(eval_dataset)
+    accelerator.print(train_dataset)
+    accelerator.print(eval_dataset)
     train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size)
     eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size)
     return train_dataloader, eval_dataloader
@@ -754,14 +775,8 @@ def huggingface_trainer():
     global batch_size, train_dataloader, eval_dataloader
 
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
-    if streaming:
-        total_dataset_size = train_dataloader.dataset.dataset_size
-        training_data_size = training_size if training_size > 0 else total_dataset_size - validation_data_size
-        num_training_steps = num_train_epochs * training_data_size
-        max_steps = num_training_steps
-    else:
-        num_training_steps = len(train_dataloader.dataset)
-        max_steps = -1
+    num_training_steps = len(train_dataloader.dataset)
+    max_steps = -1
 
     model, optimizer = init_model()
     lr_scheduler = transformers.get_linear_schedule_with_warmup(
