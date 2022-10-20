@@ -39,7 +39,7 @@ tune_head_only = False
 unfreeze = 0     # GPT-j-6B has total 27 transformer layer
 
 num_train_epochs = 2
-dataset_source = "wiki"
+dataset_source = ["wiki"]
 max_input_length = 128
 continue_train = False
 training_size = 0  # 0 means all
@@ -156,32 +156,8 @@ def wikitext_detokenizer(string):
 
     return string
 
-def get_dataset(tokenize):
-    global feature_name
-    dss = None
-    accelerator.print("reading dataset...", dataset_source)
-    if dataset_source == "sns":
-        ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
-        feature_name = "sample"
-    elif dataset_source == "wiki":
-        ds = load_dataset("lcw99/wikipedia-korean-20221001")
-        feature_name = "text"
-    elif dataset_source == "cc100":
-        dss = load_dataset("cc100", lang="ko", split=[
-            f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)
-        ])
-        feature_name = "text"
-    elif dataset_source == "oscar":
-        dss = load_dataset("oscar", language="ko", split=[
-            f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)
-        ])
-        feature_name = "text"
-    elif dataset_source == "namu":
-        ds = load_dataset("heegyu/namuwiki-extracted")
-        feature_name = "text"
-    feature_name = feature_name
-    
-    if dss is not None:
+def preprocess_dataset(source, rate, dss, tokenize: bool = True):
+    if len(dss) > 1:
         ds = dss[0]
         ds = ds.train_test_split(validation_data_size)
         dss[0] = ds["train"]
@@ -193,29 +169,84 @@ def get_dataset(tokenize):
         else:
             datasets = []
             for i, ds in enumerate(dss):
-                cache_file = f"./cache/{dataset_source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
-                accelerator.print("tokninzing...", cache_file)
-                if i == 5: 
-                    ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
-                else:
+                if tokenize:
+                    cache_file = f"./cache/{source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+                    accelerator.print("tokninzing...", cache_file)
                     ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
                 datasets.append(ds)
             ds_train = concatenate_datasets(datasets)
-        return ds_eval, ds_train, feature_name
     else:
-        ds = ds["train"]
+        ds = dss["train"]
         ds = ds.train_test_split(validation_data_size)
         ds_train = ds["train"]
         ds_eval = ds["test"]
         if training_size > 0:
             ds_train = ds_train.select(range(training_size))
         if tokenize:
-            cache_file = f"./cache/{dataset_source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+            cache_file = f"./cache/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
             accelerator.print("tokninzing...", cache_file)
             columns = ds_train.column_names
             ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
             ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
-        return ds_eval, ds_train, feature_name
+
+    if rate < 1.0:
+        ds_train = ds_train.shuffle().train_test_split(test_size=(1.0 - rate))["train"]
+    accelerator.print(f'train dataset len, {source}: ', len(ds_train))
+    accelerator.print(f'eval  dataset len, {source}: ', len(ds_eval))
+    return ds_eval, ds_train
+
+def get_dataset(tokenize):
+    global feature_name
+    accelerator.print("reading dataset...", dataset_source)
+    dss_eval = []
+    dss_train = []    
+    if "sns" in dataset_source.keys():
+        ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
+        feature_name = "sample"
+        source = "sns"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "wiki" in dataset_source.keys():
+        ds = load_dataset("lcw99/wikipedia-korean-20221001")
+        feature_name = "text"
+        source = "wiki"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "cc100" in dataset_source.keys():
+        ds = load_dataset("cc100", lang="ko", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        feature_name = "text"
+        source = "cc100"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "oscar" in dataset_source.keys():
+        ds = load_dataset("oscar", language="ko", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        feature_name = "text"
+        source = "oscar"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "namu" in dataset_source.keys():
+        ds = load_dataset("heegyu/namuwiki-extracted")
+        feature_name = "text"
+        source = "namu"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "nikl_news" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_NEWSPAPER_2021_v1.0.zip"})
+        feature_name = "text"
+        source = "nikl_news"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+           
+    ds_eval = concatenate_datasets(dss_eval).shuffle()
+    ds_train = concatenate_datasets(dss_train).shuffle()
+    accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
+    return ds_eval, ds_train, feature_name
     
 feature_name = None
 glo_tokenize = None

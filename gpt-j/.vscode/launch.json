@@ -6,7 +6,7 @@
             "request": "launch",
             "program": "${file}",
             "args":[
-                "--config_file", "./configs/gpt-neo-125M.json",
+                "--config_file", "./configs/gpt-neo-125M-test.json",
                 //"-i", "888",  
                 //"-s", "10000", 
             ],

@@ -67,6 +67,7 @@ text_generation = pipeline(
 #gpt.save_pretrained("./Models/gpt-j-6B-org-to-8bit-conv")
 
 while True:
+    print("\n")
     text = input("Input: ")
     if pipe:
         generated = text_generation(
@@ -78,6 +79,7 @@ while True:
             # top_p=0.95,
             # top_k=50
         )
+        print("\n")
         print(*generated, sep="\n\n")
     else:
         encoded_input = tokenizer(text, return_tensors='pt').to(device)
