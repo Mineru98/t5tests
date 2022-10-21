@@ -215,14 +215,17 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "cc100" in dataset_source.keys():
-        ds = load_dataset("cc100", lang="ko", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        ds = load_dataset("lcw99/cc100-ko-only", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
         feature_name = "text"
         source = "cc100"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "oscar" in dataset_source.keys():
-        ds = load_dataset("oscar", language="ko", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        # ds = load_dataset("oscar", language="ko", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        ds = load_dataset("lcw99/oscar-ko-only", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        # ds = load_dataset("oscar", language="ko")
+        # ds.push_to_hub("oscar-ko-only")
         feature_name = "text"
         source = "oscar"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)

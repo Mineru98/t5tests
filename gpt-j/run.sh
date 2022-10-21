@@ -1,1 +1,0 @@
-accelerate launch --config_file acc_single.yml train_gpt_j.py -d wiki -i 128 --tokenizer "../train_tokenizer/tokenizer-gpt-j-6B-org" --eval_sample --tune_head_only -s 10000
