@@ -214,14 +214,14 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
-    if "cc100" in dataset_source.keys():
+    if "cc100-1" in dataset_source.keys():
         ds = load_dataset(
             "lcw99/cc100-ko-only-1-of-5", 
             split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)],
             # download_mode='force_redownload'
         )
         feature_name = "text"
-        source = "cc100"
+        source = "cc100-1"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
