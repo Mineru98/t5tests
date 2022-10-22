@@ -4,7 +4,7 @@ from huggingface_hub import notebook_login
 from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 from transformers import AutoTokenizer
 from transformers import AutoModel, PreTrainedTokenizerFast, AutoModelWithLMHead, TFGPT2LMHeadModel, FlaxGPT2LMHeadModel
-from datasets import load_from_disk
+from datasets import load_from_disk, load_dataset
 
 notebook_login()
 
@@ -21,6 +21,6 @@ if False:
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     tokenizer.push_to_hub("tokenizer-gpt-j-ext-ko")
     
-wiki_local = "/home/chang/nas1/linux/dataset/text/wikipedia/20221001.kr"
-ds = load_from_disk(wiki_local)
-ds.push_to_hub("wikipedia-korean-20221001")
+local = "./cc100-ko-only-1-of-5.json"
+ds = load_dataset("json", data_files=local)
+ds.push_to_hub("cc100-ko-only-1-of-5")

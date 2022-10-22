@@ -44,7 +44,7 @@ max_input_length = 128
 continue_train = False
 training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
-validation_data_size = batch_size * 100
+validation_data_size = batch_size * 10
 load_in_8bit = False
 
 model_name = None 
@@ -215,7 +215,11 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "cc100" in dataset_source.keys():
-        ds = load_dataset("lcw99/cc100-ko-only", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
+        ds = load_dataset(
+            "lcw99/cc100-ko-only-1-of-5", 
+            split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)],
+            # download_mode='force_redownload'
+        )
         feature_name = "text"
         source = "cc100"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
@@ -607,16 +611,16 @@ class MyTrainer(Trainer):
         else:
             return model
 
+    loss_cross_entropy = nn.CrossEntropyLoss()
     def compute_loss(self, model, inputs, return_outputs=False):
         # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
         # Save past state if it exists
         # TODO: this needs to be fixed and made cleaner later.
         outputs = model(**inputs)
-        if "loss" in outputs:
-            loss = outputs["loss"]
-        else:
-            loss_cross_entropy = nn.CrossEntropyLoss()
-            loss = loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
+        # if "loss" in outputs:
+        #     loss = outputs["loss"]
+        # else:
+        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
             # loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
             #                    reduction='mean')
         #print("loss=", loss)
@@ -794,13 +798,14 @@ def preprocess_logits_for_metrics(logits, labels):
     accelerator.print(f"\n**{ii} ", pred_str)
 
     try:
-        labels_ids = labels[ii]
-        #labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-        labels_ids = labels_ids[labels_ids != -100]
-        pred_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
-        label_str = " ".join([str(i) for i in pred_str])
-        label_str = label_str.replace("\n", "/")
-        accelerator.print(f"\n=={ii} ", label_str)
+        if len(labels) > ii:
+            labels_ids = labels[ii]
+            #labels_ids[labels_ids == -100] = tokenizer.pad_token_id
+            labels_ids = labels_ids[labels_ids != -100]
+            pred_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
+            label_str = " ".join([str(i) for i in pred_str])
+            label_str = label_str.replace("\n", "/")
+            accelerator.print(f"\n=={ii} ", label_str)
     except Exception as e:
         accelerator.print("\n!! ", e, ii, len(labels))
     return pred_list, labels
@@ -820,9 +825,6 @@ def huggingface_trainer():
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
 
-    model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
-        model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
-    )
     
     if batch_size == 0:
         auto_find_batch_size = True
@@ -834,16 +836,17 @@ def huggingface_trainer():
         model_save_dir,
         #max_steps=max_steps,
         evaluation_strategy="steps",
-        eval_steps=10,
+        eval_steps=eval_step,
         logging_strategy="steps",
         logging_steps=1,
         save_strategy="steps",
-        save_steps=10,
+        save_steps=save_step,
         # learning_rate=5e-5,
-        per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
+        per_device_train_batch_size = batch_size,
+        per_device_eval_batch_size = batch_size,
         auto_find_batch_size=auto_find_batch_size,
         gradient_accumulation_steps=gradient_acc,
+        eval_accumulation_steps=gradient_acc,
         weight_decay=0.0,
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
@@ -869,7 +872,10 @@ def huggingface_trainer():
         optimizers=(optimizer, lr_scheduler)
     )
 
-    trainer = accelerator.prepare(trainer)
+    trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+        trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+    )
+
     accelerator.print("start trainning -----------------------------")
     if continue_train:
         trainer.train(True)
@@ -881,7 +887,8 @@ def huggingface_trainer():
 def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
-            tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc
+            tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
+            save_step, eval_step, validation_data_size
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -904,7 +911,10 @@ def main():
     parser.add_argument("--save_path", help = "model save path")
     parser.add_argument("--num_epochs", help = "set num of epochs")
     parser.add_argument("--gradient_acc", help = "gradient accumulation")
-    
+    parser.add_argument("--save_step", help = "step for checkpoint saving")
+    parser.add_argument("--eval_step", help = "step for evaluation")
+    parser.add_argument("--validation_data_size", help = "validation_data_size")
+
     args_config, unknown = parser_config.parse_known_args()
 
     if args_config.config_file:
@@ -951,7 +961,13 @@ def main():
         num_train_epochs = int(args.num_epochs)
     if args.gradient_acc:
         gradient_acc = int(args.gradient_acc)
-                                        
+    if args.save_step:
+        save_step = int(args.save_step)
+    if args.eval_step:
+        eval_step = int(args.eval_step)
+    if args.validation_data_size:
+        validation_data_size = int(args.validation_data_size)
+
     if scratch:
         kor_voca_extention = False
     if tune_head_only:
