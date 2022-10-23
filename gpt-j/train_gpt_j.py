@@ -968,6 +968,9 @@ def main():
     if args.validation_data_size:
         validation_data_size = int(args.validation_data_size)
 
+    if not os.path.exists("./cache"):
+        os.makedirs("./cache")
+
     if scratch:
         kor_voca_extention = False
     if tune_head_only:

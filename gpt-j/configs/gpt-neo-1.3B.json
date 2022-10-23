@@ -5,7 +5,8 @@
         "wiki":1.0, 
         "namu":1.0, 
         "oscar":1.0,
-        "nikl_news":1.0
+        "nikl_news":1.0,
+        "cc100-1":1.0
     },
     "scratch": true,
     "save_path": "./Models/gpt-neo-1.3B-512",
