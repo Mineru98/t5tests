@@ -15,6 +15,6 @@
     "gradient_acc": 32,
     "num_epochs": 10,
     "save_step": 40,
-    "eval_step": 10,
+    "eval_step": 40,
     "validation_data_size": 16    
 }

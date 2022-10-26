@@ -1,5 +1,5 @@
 from multiprocessing import Pool
-import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json, ftfy
+import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json, ftfy, glob
 from datasets import load_dataset, load_metric, load_from_disk, Dataset, concatenate_datasets
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
@@ -731,6 +731,16 @@ class MyTrainer(Trainer):
         return accelerator.prepare(dl)
     
 metric_accuracy = evaluate.load("accuracy")
+perplexity = evaluate.load("perplexity", module_type="metric")
+
+def get_perplexity():
+    data = load_from_disk("./test_data")['text']
+    input_texts = [s for s in data if s!='']
+    latest_model_dir = max(glob.glob(os.path.join(model_save_dir, 'checkpoint-*/')), key=os.path.getmtime)
+
+    result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
+    return result['mean_perplexity']
+
 def compute_metrics(eval_pred):
     # preds, labels = eval_pred
     # # preds have the same shape as the labels, after the argmax(-1) has been calculated
@@ -757,7 +767,7 @@ def compute_metrics(eval_pred):
     pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
 
     ppl = {}
-    ppl["mean_perplexity"] = 0.0
+    ppl["mean_perplexity"] = get_perplexity()
 
     accelerator.print("\n\n===========predictions first token\n", pred_str[0].replace('\n', '/'))
 

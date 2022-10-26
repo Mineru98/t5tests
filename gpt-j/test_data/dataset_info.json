@@ -1,0 +1,133 @@
+{
+  "builder_name": "oscar",
+  "citation": "@inproceedings{ortiz-suarez-etal-2020-monolingual,\n    title = \"A Monolingual Approach to Contextualized Word Embeddings for Mid-Resource Languages\",\n    author = \"Ortiz Su{'a}rez, Pedro Javier  and\n      Romary, Laurent  and\n      Sagot, Benoit\",\n    booktitle = \"Proceedings of the 58th Annual Meeting of the Association for Computational Linguistics\",\n    month = jul,\n    year = \"2020\",\n    address = \"Online\",\n    publisher = \"Association for Computational Linguistics\",\n    url = \"https://www.aclweb.org/anthology/2020.acl-main.156\",\n    pages = \"1703--1714\",\n    abstract = \"We use the multilingual OSCAR corpus, extracted from Common Crawl via language classification, filtering and cleaning, to train monolingual contextualized word embeddings (ELMo) for five mid-resource languages. We then compare the performance of OSCAR-based and Wikipedia-based ELMo embeddings for these languages on the part-of-speech tagging and parsing tasks. We show that, despite the noise in the Common-Crawl-based OSCAR data, embeddings trained on OSCAR perform much better than monolingual embeddings trained on Wikipedia. They actually equal or improve the current state of the art in tagging and parsing for all five languages. In particular, they also improve over multilingual Wikipedia-based contextual embeddings (multilingual BERT), which almost always constitutes the previous state of the art, thereby showing that the benefit of a larger, more diverse corpus surpasses the cross-lingual benefit of multilingual embedding architectures.\",\n}\n\n@inproceedings{OrtizSuarezSagotRomary2019,\n  author    = {Pedro Javier {Ortiz Su{'a}rez} and Benoit Sagot and Laurent Romary},\n  title     = {Asynchronous pipelines for processing huge corpora on medium to low resource infrastructures},\n  series = {Proceedings of the Workshop on Challenges in the Management of Large Corpora (CMLC-7) 2019. Cardiff, 22nd July 2019},\n  editor    = {Piotr Ba\u0144ski and Adrien Barbaresi and Hanno Biber and Evelyn Breiteneder and Simon Clematide and Marc Kupietz and Harald L{\"u}ngen and Caroline Iliadi},\n  publisher = {Leibniz-Institut f{\"u}r Deutsche Sprache},\n  address   = {Mannheim},\n  doi       = {10.14618/ids-pub-9021},\n  url       = {http://nbn-resolving.de/urn:nbn:de:bsz:mh39-90215},\n  pages     = {9 -- 16},\n  year      = {2019},\n  abstract  = {Common Crawl is a considerably large, heterogeneous multilingual corpus comprised of crawled documents from the internet, surpassing 20TB of data and distributed as a set of more than 50 thousand plain text files where each contains many documents written in a wide variety of languages. Even though each document has a metadata block associated to it, this data lacks any information about the language in which each document is written, making it extremely difficult to use Common Crawl for monolingual applications. We propose a general, highly parallel, multithreaded pipeline to clean and classify Common Crawl by language; we specifically design it so that it runs efficiently on medium to low resource infrastructures where I/O speeds are the main constraint. We develop the pipeline so that it can be easily reapplied to any kind of heterogeneous corpus and so that it can be parameterised to a wide range of infrastructures. We also distribute a 6.3TB version of Common Crawl, filtered, classified by language, shuffled at line level in order to avoid copyright issues, and ready to be used for NLP applications.},\n  language  = {en}\n}\n",
+  "config_name": "unshuffled_deduplicated_ko",
+  "dataset_size": 11956464493,
+  "description": "The Open Super-large Crawled ALMAnaCH coRpus is a huge multilingual corpus obtained by language classification and filtering of the Common Crawl corpus using the goclassy architecture.",
+  "download_checksums": {
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00000-of-00024-783b5985dce576e1.parquet": {
+      "num_bytes": 323358091,
+      "checksum": "e4b0ed4ca19ab3d35f6f01fe1deb1c5a0a6c72fe7a93b90869776b95a6957ecf"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00001-of-00024-5a271fb00e58cebc.parquet": {
+      "num_bytes": 306518959,
+      "checksum": "98713bed5af208bb9a2e142bd565fa30eb3e1f0f8f415f87955b38ec2913a9ea"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00002-of-00024-2b5139a581e46b90.parquet": {
+      "num_bytes": 300610105,
+      "checksum": "e63b7035490456671217a41b12528775c1c14421a3027291d1971e505e3d4a06"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00003-of-00024-514a82eb24ffaa85.parquet": {
+      "num_bytes": 305935652,
+      "checksum": "98bbdc921c9c079f8b3089edafc0786ccc444e3870c11e85437bb54f2171b533"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00004-of-00024-f2d65352381a2bfd.parquet": {
+      "num_bytes": 295363130,
+      "checksum": "c64089bd854944310da1ab9a92c4736845b41178faf930287ef14bc72c6a74f1"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00005-of-00024-7dbe3aaba8909368.parquet": {
+      "num_bytes": 296544014,
+      "checksum": "15bff3b105af0004e1071df44fcdee0c7a660ccced92ffb5fd7d599404e7f847"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00006-of-00024-5f8485004b74bcf1.parquet": {
+      "num_bytes": 294867455,
+      "checksum": "517a8d6350688469350978e662282aeef48ff1db9387b84d967ec49388414506"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00007-of-00024-43dc20bcf3430f08.parquet": {
+      "num_bytes": 292459688,
+      "checksum": "c5f0aff4e9164ed918a93f76d6786a5bab82c780a89ec0cedd5e3433f14bc0ed"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00008-of-00024-aafff16cd469ea55.parquet": {
+      "num_bytes": 284873040,
+      "checksum": "338e9f3550968e05ba57df435abdc5208064c2d4e766a64729a3217c1f2723a6"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00009-of-00024-fd3908b8d9e045d6.parquet": {
+      "num_bytes": 293689248,
+      "checksum": "1449c3f1938fa8575fa67aafd79d5297841d20769a4458d5d674937d8c580099"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00010-of-00024-baa84094003f0ec8.parquet": {
+      "num_bytes": 287702637,
+      "checksum": "ec985601496d5101ad765c348da6127d4894f90010e60b10fbf042eae152a3ae"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00011-of-00024-5cedb6962b56ee6f.parquet": {
+      "num_bytes": 286756789,
+      "checksum": "02878257040e1811cb24c5230d3ddd9dd20ef854816df4824ce43364ceccedb7"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00012-of-00024-70e3ddb616bebc40.parquet": {
+      "num_bytes": 287266758,
+      "checksum": "51ee9b80d076de3837a2285a22d48e03988b88e85513eaf7ab483b3e6db89299"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00013-of-00024-fc4fafde6b94e901.parquet": {
+      "num_bytes": 286538399,
+      "checksum": "770184394184efebc382292932a173f8f082f57114235cf60f83322de44a0bbe"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00014-of-00024-919c0f5e76692249.parquet": {
+      "num_bytes": 286418668,
+      "checksum": "60506439d4ca838e0f773030a279d18e89ddb6916655a4f333128b7044147a21"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00015-of-00024-f8b65e4a84b181bf.parquet": {
+      "num_bytes": 295331841,
+      "checksum": "da774e64a90296ab14a8848d671e134dfeda20b34874fb1c93533d4a018c380a"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00016-of-00024-e493ee70d7fcd8af.parquet": {
+      "num_bytes": 290862252,
+      "checksum": "0b998c6b98050f9ba0e8dfbcb1769fcd9ee8359f14c4e1932015580797d7959b"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00017-of-00024-6a00580363f695dd.parquet": {
+      "num_bytes": 276580417,
+      "checksum": "05ff4699d900658a5b3c96dea91a8c55ccb852ceb377593a70a8bf019530b331"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00018-of-00024-ada7b41f723d2797.parquet": {
+      "num_bytes": 283111882,
+      "checksum": "b73619ab0df9607f9b93697c8e67d8f90f165ae99d944126a9e22caa88c2a84b"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00019-of-00024-d954ca46301ab78e.parquet": {
+      "num_bytes": 285999715,
+      "checksum": "03c18d38dcfa42f95d6c720037d7fc2ee9b1ba0e2c9f4660876ed562bf4ad138"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00020-of-00024-c792f4f7ab8a4804.parquet": {
+      "num_bytes": 277598687,
+      "checksum": "cac1ea947ef1ba299b43e8570a938102c4eb4f30cd90f9f68dd060afee50f2b1"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00021-of-00024-5588d6ffad4371b7.parquet": {
+      "num_bytes": 279509314,
+      "checksum": "873989ba5baf3915a1ae47047adfa45336e1c4911a860777e82d8cca8d401b1d"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00022-of-00024-c8a043defbf8245c.parquet": {
+      "num_bytes": 279134235,
+      "checksum": "ad9f106198c03df7d94ba0e158e20975d1b76734c5da221ef28484be7f70c758"
+    },
+    "https://huggingface.co/datasets/lcw99/oscar-ko-only/resolve/18112c5f65fe4c2593104cbc0850e2a7737cc41f/data/train-00023-of-00024-1e9af00d727f00e3.parquet": {
+      "num_bytes": 270365784,
+      "checksum": "a8f111d45607b7f9bd045ce7606009834a249df1f969008ce596d66e2479b8de"
+    }
+  },
+  "download_size": 6967396760,
+  "features": {
+    "id": {
+      "dtype": "int64",
+      "_type": "Value"
+    },
+    "text": {
+      "dtype": "string",
+      "_type": "Value"
+    }
+  },
+  "homepage": "https://oscar-corpus.com",
+  "license": "\n    These data are released under this licensing scheme\n    We do not own any of the text from which these data has been extracted.\n    We license the actual packaging of these data under the Creative Commons CC0 license     (\"no rights reserved\") http://creativecommons.org/publicdomain/zero/1.0/\n    To the extent possible under law, Inria has waived all copyright     and related or neighboring rights to OSCAR\n    This work is published from: France.\n\n    Should you consider that our data contains material that is owned by you     and should therefore not be reproduced here, please:\n    * Clearly identify yourself, with detailed contact data such as an address,     telephone number or email address at which you can be contacted.\n    * Clearly identify the copyrighted work claimed to be infringed.\n    * Clearly identify the material that is claimed to be infringing and     information reasonably sufficient to allow us to locate the material.\n\n    We will comply to legitimate requests by removing the affected sources     from the next release of the corpus. ",
+  "size_in_bytes": 18923861253,
+  "splits": {
+    "train": {
+      "name": "train",
+      "num_bytes": 11956464493,
+      "num_examples": 3675420,
+      "dataset_name": "parquet"
+    }
+  },
+  "version": {
+    "version_str": "0.0.0",
+    "major": 0,
+    "minor": 0,
+    "patch": 0
+  }
+}

@@ -3,7 +3,8 @@ import transformers
 import torch
 #from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
 from transformers import AutoTokenizer, logging, pipeline, AutoModel
-import argparse
+import argparse, evaluate
+from datasets import load_dataset, load_from_disk 
 
 pipe = True
 
@@ -64,6 +65,16 @@ text_generation = pipeline(
     device=0
 )
 
+perplexity = evaluate.load("perplexity", module_type="metric")
+#data = load_dataset("lcw99/oscar-ko-only", split='train[:50]')
+#data.save_to_disk("./test_data")
+data = load_from_disk("./test_data")['text']
+
+#data = load_dataset("lcw99/oscar-ko-only")['train']['text'][:50]
+input_texts = [s for s in data if s!='']
+
+result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
+print(result)
 #gpt.save_pretrained("./Models/gpt-j-6B-org-to-8bit-conv")
 
 while True:

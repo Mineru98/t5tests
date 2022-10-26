@@ -1,12 +1,22 @@
 {
     "configurations": [
         {
+            "name": "Python: test",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["-l", "gpt-neo-125M-6260"],
+            "justMyCode": true
+        },
+        {
             "name": "Python: File",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args":[
-                "--config_file", "./configs/gpt-neo-125M-test.json",
+            "args": [
+                "--config_file",
+                "./configs/gpt-neo-125M-test.json",
                 //"-i", "888",  
                 //"-s", "10000", 
             ],
