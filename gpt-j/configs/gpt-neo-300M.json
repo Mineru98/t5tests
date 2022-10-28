@@ -1,0 +1,20 @@
+{
+    "gpt_neo": "gpt-neo-300M",
+    "model_file": "./StockModels/gpt-neo-300M/config.json",
+    "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
+    "dataset": {
+        "wiki":1.0, 
+        "namu":1.0, 
+        "oscar":1.0,
+        "nikl_news":1.0
+    },
+    "scratch": true,
+    "save_path": "./Models/gpt-neo-300M",
+    "max_input_length": 1024,
+    "batch_size": 8,
+    "gradient_acc": 32,
+    "num_epochs": 10,
+    "save_step": 50,
+    "eval_step": 50,
+    "validation_data_size": 64
+}

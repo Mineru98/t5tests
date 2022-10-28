@@ -197,6 +197,16 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
     accelerator.print(f'eval  dataset len, {source}: ', len(ds_eval))
     return ds_eval, ds_train
 
+def get_cc100(n):
+    ds = load_dataset(
+        f"lcw99/cc100-ko-only-{n}-of-5", 
+        split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)],
+        # download_mode='force_redownload'
+    )
+    feature_name = "text"
+    source = f"cc100-{n}"
+    return ds, source, feature_name
+
 def get_dataset(tokenize):
     global feature_name
     accelerator.print("reading dataset...", dataset_source)
@@ -217,13 +227,27 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "cc100-1" in dataset_source.keys():
-        ds = load_dataset(
-            "lcw99/cc100-ko-only-1-of-5", 
-            split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)],
-            # download_mode='force_redownload'
-        )
-        feature_name = "text"
-        source = "cc100-1"
+        ds, source, feature_name = get_cc100(1)
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "cc100-2" in dataset_source.keys():
+        ds, source, feature_name = get_cc100(2)
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "cc100-3" in dataset_source.keys():
+        ds, source, feature_name = get_cc100(3)
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "cc100-4" in dataset_source.keys():
+        ds, source, feature_name = get_cc100(4)
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "cc100-5" in dataset_source.keys():
+        ds, source, feature_name = get_cc100(5)
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
