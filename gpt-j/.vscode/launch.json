@@ -17,8 +17,6 @@
             "args": [
                 "--config_file",
                 "./configs/gpt-neo-125M-test.json",
-                //"-i", "888",  
-                //"-s", "10000", 
             ],
             "justMyCode": false
         }

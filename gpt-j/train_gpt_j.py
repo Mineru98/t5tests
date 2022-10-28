@@ -4,7 +4,7 @@ from datasets import load_dataset, load_metric, load_from_disk, Dataset, concate
 from accelerate import Accelerator, DistributedDataParallelKwargs
 from tqdm.contrib.concurrent import process_map
 from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
-                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM
+                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel
 from transformers.optimization import AdafactorSchedule
 from transformers.trainer_pt_utils import get_parameter_names, nested_detach, IterableDatasetShard
 from transformers.trainer_utils import seed_worker
@@ -351,8 +351,13 @@ def init_model():
         else:
             accelerator.print("loading weight from file=", model_file)
             model = model_file
-        accelerator.print("loading model-", model, kwarg)
-        gpt = GPTNeoForCausalLM.from_pretrained(model, **kwarg)
+        if ".json" in model_file:
+            accelerator.print("loading model-", model_file)
+            gpt_config = AutoConfig.from_pretrained(model_file)
+            gpt = GPTNeoForCausalLM(gpt_config)
+        else:
+            accelerator.print("loading model-", model, kwarg)
+            gpt = GPTNeoForCausalLM.from_pretrained(model, **kwarg)
         accelerator.print(gpt)
     else:
         if model_file is None:
