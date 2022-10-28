@@ -318,9 +318,9 @@ def list_model_children(model):
                 accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
     
-def unfreeze_transformer_layer(model, last_n_layer):
+def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
     for parameter in model.parameters():
-        parameter.requires_grad = False
+        parameter.requires_grad = all_parm
 
     total_layer = len(model.transformer.h)
     accelerator.print("total transformer layers=", total_layer)
@@ -387,24 +387,17 @@ def init_model():
         #         # param.requires_grad = True      # not working now
         #     else:
         #         param.requires_grad = True    
-        unfreeze_transformer_layer(gpt, 1000)     
+        unfreeze_transformer_layer(gpt, 1000, True)     
     else: 
-        unfreeze_transformer_layer(gpt, unfreeze)           
+        unfreeze_transformer_layer(gpt, unfreeze, False)           
 
     gpt.gradient_checkpointing_enable()
     
-    gpt.config.__dict__["_name_or_path"] = f"lcw99/{base_model_name}"
+    #gpt.config.__dict__["_name_or_path"] = f"lcw99/{base_model_name}"
     gpt.config.__dict__["use_cache"] = False
     # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
-    if False:
-        #optimizer = Adam8bit(gpt.parameters(), lr=5e-5)
-        optimizer = build_adam8bit_optimizer(gpt)
-    else:
-        optimizer = transformers.AdamW(gpt.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         
-    gpt.config.__dict__["use_cache"] = False
-
-    return gpt, optimizer
+    return gpt
               
 def _get_lr(param_group, param_state):
     step = param_state["step"]
@@ -489,12 +482,8 @@ class MyTrainer(Trainer):
                 kwargs.update(dict(dtype=self.args.hf_deepspeed_config.dtype()))
             return data.to(**kwargs)
         return data
-
+    
     def _prepare_inputs(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> Dict[str, Union[torch.Tensor, Any]]:
-        """
-        Prepare `inputs` before feeding them to the model, converting them to tensors if they are not already and
-        handling potential state.
-        """
         inputs = self._prepare_input(inputs)
         if len(inputs) == 0:
             raise ValueError(
@@ -505,6 +494,7 @@ class MyTrainer(Trainer):
             inputs["mems"] = self._past
 
         return inputs
+
     
     def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
         model.train()
@@ -549,29 +539,7 @@ class MyTrainer(Trainer):
         prediction_loss_only: bool,
         ignore_keys: Optional[List[str]] = None,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """
-        Perform an evaluation step on `model` using `inputs`.
 
-        Subclass and override to inject custom behavior.
-
-        Args:
-            model (`nn.Module`):
-                The model to evaluate.
-            inputs (`Dict[str, Union[torch.Tensor, Any]]`):
-                The inputs and targets of the model.
-
-                The dictionary will be unpacked before being fed to the model. Most models expect the targets under the
-                argument `labels`. Check your model's documentation for all accepted arguments.
-            prediction_loss_only (`bool`):
-                Whether or not to return the loss only.
-            ignore_keys (`Lst[str]`, *optional*):
-                A list of keys in the output of your model (if it is a dictionary) that should be ignored when
-                gathering predictions.
-
-        Return:
-            Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]: A tuple with the loss,
-            logits and labels (each being optional).
-        """
         global last_eval_model
         
         has_labels = all(inputs.get(k) is not None for k in self.label_names)
@@ -615,6 +583,7 @@ class MyTrainer(Trainer):
             return self.unwrap_model(model.module)
         else:
             return model
+    
 
     loss_cross_entropy = nn.CrossEntropyLoss()
     def compute_loss(self, model, inputs, return_outputs=False):
@@ -831,15 +800,20 @@ def preprocess_logits_for_metrics(logits, labels):
 def huggingface_trainer():
     global batch_size, train_dataloader, eval_dataloader
 
+    model = init_model()
+    # model = accelerator.prepare(
+    #     model
+    # )
+
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
 
-    model, optimizer = init_model()
+    optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
     lr_scheduler = transformers.get_linear_schedule_with_warmup(
         optimizer, 3000, num_training_steps
     )
- 
+
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
 

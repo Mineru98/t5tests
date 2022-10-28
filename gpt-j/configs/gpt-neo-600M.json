@@ -11,7 +11,7 @@
     "scratch": true,
     "save_path": "./Models/gpt-neo-600M",
     "max_input_length": 1024,
-    "batch_size": 8,
+    "batch_size": 4,
     "gradient_acc": 32,
     "num_epochs": 10,
     "save_step": 10,
