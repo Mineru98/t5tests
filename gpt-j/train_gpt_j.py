@@ -163,7 +163,8 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         dss[0] = ds["train"]
         ds_eval = ds["test"]
         columns = ds_eval.column_names
-        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
+        cache_file = f"./cache/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
+        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file, load_from_cache_file=True)
         if training_size > 0:
             ds_train = ds[0].select(range(training_size))
         else:
@@ -184,9 +185,10 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             ds_train = ds_train.select(range(training_size))
         if tokenize:
             cache_file = f"./cache/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+            cache_file_eval = f"./cache/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
             accelerator.print("tokninzing...", cache_file)
             columns = ds_train.column_names
-            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
+            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file_eval, load_from_cache_file=True)
             ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
 
     if rate < 1.0:
@@ -847,7 +849,7 @@ def huggingface_trainer():
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         report_to="tensorboard",
-        ignore_data_skip=True,     # set true for ignore batch skip, fast
+        ignore_data_skip=ignore_data_skip,     # set true for ignore batch skip, fast
         remove_unused_columns=False,
     )
 
@@ -880,7 +882,7 @@ def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
-            save_step, eval_step, validation_data_size
+            save_step, eval_step, validation_data_size, ignore_data_skip
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -906,6 +908,7 @@ def main():
     parser.add_argument("--save_step", help = "step for checkpoint saving")
     parser.add_argument("--eval_step", help = "step for evaluation")
     parser.add_argument("--validation_data_size", help = "validation_data_size")
+    parser.add_argument("--ignore_data_skip", action='store_true', help = "ignore data skip when continue training")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -959,6 +962,8 @@ def main():
         eval_step = int(args.eval_step)
     if args.validation_data_size:
         validation_data_size = int(args.validation_data_size)
+    if args.ignore_data_skip:
+        ignore_data_skip = True
 
     if not os.path.exists("./cache"):
         os.makedirs("./cache")
