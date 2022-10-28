@@ -14,7 +14,7 @@
     "batch_size": 8,
     "gradient_acc": 32,
     "num_epochs": 10,
-    "save_step": 6,
-    "eval_step": 3,
+    "save_step": 20,
+    "eval_step": 20,
     "validation_data_size": 256
 }
