@@ -47,6 +47,7 @@ training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
 validation_data_size = batch_size * 10
 load_in_8bit = False
+reset_weight = False
 
 model_name = None 
 model_save_dir = None
@@ -406,7 +407,8 @@ def init_model():
     
     if scratch:
         if not load_in_8bit:
-            gpt.init_weights()  # from scarch
+            if reset_weight:
+                gpt.init_weights()  # from scarch
         # for param in gpt.base_model.parameters():
         #     if param.dtype == torch.int8:
         #         param.has_fp16_weight = True    # for training
@@ -907,7 +909,7 @@ def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
-            save_step, eval_step, validation_data_size, ignore_data_skip
+            save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -934,6 +936,7 @@ def main():
     parser.add_argument("--eval_step", help = "step for evaluation")
     parser.add_argument("--validation_data_size", help = "validation_data_size")
     parser.add_argument("--ignore_data_skip", action='store_true', help = "ignore data skip when continue training")
+    parser.add_argument("--reset_weight", action='store_true', help = "rest all weight in model")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -989,7 +992,9 @@ def main():
         validation_data_size = int(args.validation_data_size)
     if args.ignore_data_skip:
         ignore_data_skip = True
-
+    if args.reset_weight:
+        reset_weight = True
+        
     if not os.path.exists("./cache"):
         os.makedirs("./cache")
 
