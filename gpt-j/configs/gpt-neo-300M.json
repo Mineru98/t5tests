@@ -16,5 +16,6 @@
     "num_epochs": 10,
     "save_step": 50,
     "eval_step": 50,
-    "validation_data_size": 64
+    "validation_data_size": 64,
+    "ignore_data_skip": true
 }

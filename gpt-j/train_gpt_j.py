@@ -31,6 +31,7 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 gpt_neo = None      
 model_file = None
 save_path = None
+ignore_data_skip = True
 
 scratch = False
 kor_voca_extention = False
@@ -251,7 +252,7 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
-    if "oscar" in dataset_source.keys():
+    if "oscar" in dataset_source.keys(): 
         # ds = load_dataset("oscar", language="ko", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
         ds = load_dataset("lcw99/oscar-ko-only", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
         # ds = load_dataset("oscar", language="ko")
