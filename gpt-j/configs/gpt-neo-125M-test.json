@@ -1,6 +1,5 @@
 {
-    "gpt_neo": "gpt-neo-300M",
-    "model_file": "./StockModels/gpt-neo-300M/config.json",
+    "gpt_neo": "gpt-neo-125M",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
         "wiki":1.0

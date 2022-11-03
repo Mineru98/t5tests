@@ -380,7 +380,7 @@ def init_model():
         else:
             accelerator.print("loading weight from file=", model_file)
             model = model_file
-        if ".json" in model_file:
+        if model_file != None and ".json" in model_file:
             accelerator.print("loading model-", model_file)
             gpt_config = AutoConfig.from_pretrained(model_file)
             gpt = GPTNeoForCausalLM(gpt_config)
