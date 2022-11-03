@@ -806,19 +806,18 @@ def preprocess_logits_for_metrics(logits, labels):
     Original Trainer may have a memory leak. 
     This is a workaround to avoid storing too many tensors that are not needed.
     """
-    batch = len(logits)
-    ii = random.randint(0, batch-1)
     pred_list = []
     for logit in logits:
         pred = torch.argmax(logit, dim=-1)
         pred_list.append(pred)
         
-    pred_str = tokenizer.batch_decode(pred_list[ii], skip_special_tokens=False)
-    pred_str = " ".join([str(i) for i in pred_str])
-    pred_str = pred_str.replace("\n", "/")
-    accelerator.print(f"\n**{ii} ", pred_str)
-
     try:
+        batch = len(logits)
+        ii = random.randint(0, batch-1)
+        pred_str = tokenizer.batch_decode(pred_list[ii], skip_special_tokens=False)
+        pred_str = " ".join([str(i) for i in pred_str])
+        pred_str = pred_str.replace("\n", "/")
+        accelerator.print(f"\n**{ii} ", pred_str)
         if len(labels) > ii:
             labels_ids = labels[ii]
             #labels_ids[labels_ids == -100] = tokenizer.pad_token_id
