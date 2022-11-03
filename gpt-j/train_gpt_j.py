@@ -739,12 +739,13 @@ perplexity = evaluate.load("perplexity", module_type="metric")
 def get_perplexity():
     try:
         data = load_from_disk("./test_data")['text']
-        input_texts = [s for s in data if s!='']
+        input_texts = [s[:1024] for s in data if s!='']
         latest_model_dir = max(glob.glob(os.path.join(model_save_dir, 'checkpoint-*/')), key=os.path.getmtime)
 
         result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
         return result['mean_perplexity']
-    except:
+    except Exception as e:
+        accelerator.print("\n!! get_perplexity error= ", e)
         return 0.0
 
 def compute_metrics(eval_pred):
