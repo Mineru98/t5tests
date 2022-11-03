@@ -37,6 +37,7 @@ scratch = False
 kor_voca_extention = False
 eval_sample = False
 tune_head_only = False
+skip_eval = False
 unfreeze = 0     # GPT-j-6B has total 27 transformer layer
 
 num_train_epochs = 2
@@ -569,6 +570,9 @@ class MyTrainer(Trainer):
         ignore_keys: Optional[List[str]] = None,
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
 
+        if not self.args.do_predict:
+            return (None, None, None)
+        
         global last_eval_model
         
         has_labels = all(inputs.get(k) is not None for k in self.label_names)
@@ -854,6 +858,7 @@ def huggingface_trainer():
     else:
         auto_find_batch_size = False
     
+    
     args = TrainingArguments(
         model_save_dir,
         #max_steps=max_steps,
@@ -875,11 +880,17 @@ def huggingface_trainer():
         #predict_with_generate=True,
         fp16=False,
         load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
         report_to="tensorboard",
         ignore_data_skip=ignore_data_skip,     # set true for ignore batch skip, fast
         remove_unused_columns=False,
+        do_predict=not skip_eval,
+        do_train=True,
     )
+    
+    if skip_eval:
+        args.metric_for_best_model = None
+    else:
+        args.metric_for_best_model = "eval_loss"
 
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
     trainer = MyTrainer(
@@ -889,10 +900,11 @@ def huggingface_trainer():
         eval_dataset = eval_dataloader.dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
-        compute_metrics=compute_metrics,
-        preprocess_logits_for_metrics=preprocess_logits_for_metrics,
         optimizers=(optimizer, lr_scheduler)
     )
+    if not skip_eval:
+        trainer.compute_metrics = compute_metrics
+    trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics
 
     trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
@@ -910,7 +922,7 @@ def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
-            save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight
+            save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -938,6 +950,7 @@ def main():
     parser.add_argument("--validation_data_size", help = "validation_data_size")
     parser.add_argument("--ignore_data_skip", action='store_true', help = "ignore data skip when continue training")
     parser.add_argument("--reset_weight", action='store_true', help = "rest all weight in model")
+    parser.add_argument("--skip_eval", action='store_true', help = "skip eval step")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -995,7 +1008,9 @@ def main():
         ignore_data_skip = True
     if args.reset_weight:
         reset_weight = True
-        
+    if args.skip_eval:
+        skip_eval = True
+                
     if not os.path.exists("./cache"):
         os.makedirs("./cache")
 
