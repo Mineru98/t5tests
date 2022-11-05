@@ -6,13 +6,13 @@ deepspeed_config:
   zero3_init_flag: false
   zero_stage: 2
 distributed_type: DEEPSPEED
-downcast_bf16: 'no'
+downcast_bf16: 'yes'
 fsdp_config: {}
 machine_rank: 0
 main_process_ip: null
 main_process_port: null
 main_training_function: main
-mixed_precision: 'no'
+mixed_precision: 'bf16'
 num_machines: 1
 num_processes: 2
 use_cpu: true
