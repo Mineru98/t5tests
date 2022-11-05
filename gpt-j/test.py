@@ -71,7 +71,7 @@ perplexity = evaluate.load("perplexity", module_type="metric")
 data = load_from_disk("./test_data")['text']
 
 #data = load_dataset("lcw99/oscar-ko-only")['train']['text'][:50]
-input_texts = [s for s in data if s!='']
+input_texts = [s[:1024] for s in data if s!='']
 
 result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
 print(result)
