@@ -1,6 +1,6 @@
 {
     "gpt_neo": "gpt-neo-300M",
-    "model_file": "./Models/gpt-neo-300M-copied-weight/checkpoint-660",
+    "model_file": "./Models/gpt-neo-300M-copied-weight/checkpoint-80",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
         "wiki":1.0, 
