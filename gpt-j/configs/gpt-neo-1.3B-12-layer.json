@@ -1,15 +1,16 @@
 {
     "gpt_neo": "gpt-neo-1.3B-6-layer",
-    "model_file": "./Models/gpt-neo-1.3B-12-layers-from-6-layers",
+    "model_file": "./Models/gpt-neo-1.3B-12-layers/checkpoint-1000",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
         "wiki":1.0, 
         "namu":1.0, 
         "nikl_news":1.0,
-        "oscar": 1.0
+        "oscar": 0.1
     },
-    "scratch": true,
+    "scratch": false,
     "reset_weight": false,
+    "unfreeze": 6,
     "save_path": "./Models/gpt-neo-1.3B-12-layers",
     "max_input_length": 1024,
     "batch_size": 8,
