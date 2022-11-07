@@ -1,1 +1,1 @@
-accelerate launch --config_file deepspeed.yml train_gpt_j.py --config_file configs/gpt-neo-600M.json -c
+accelerate launch --config_file deepspeed2.yml train_gpt_j.py --config_file configs/gpt-neo-1.3B-24-layer.json 

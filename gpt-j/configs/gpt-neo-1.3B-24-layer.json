@@ -1,0 +1,19 @@
+{
+    "gpt_neo": "gpt-neo-1.3B-24-layer",
+    "model_file": "./Models/gpt-neo-1.3B-24-layers-training/checkpoint-150-save",
+    "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
+    "dataset": {
+        "wiki":1.0
+    },
+    "scratch": true,
+    "reset_weight": false,
+    "unfreeze": 6,
+    "save_path": "./Models/gpt-neo-1.3B-24-layers-training",
+    "max_input_length": 2048,
+    "batch_size": 2,
+    "gradient_acc": 128,
+    "num_epochs": 10,
+    "save_step": 50,
+    "eval_step": 50,
+    "validation_data_size": 64
+}

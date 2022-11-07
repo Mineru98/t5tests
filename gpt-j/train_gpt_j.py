@@ -2,6 +2,7 @@ from multiprocessing import Pool
 import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json, ftfy, glob
 from datasets import load_dataset, load_metric, load_from_disk, Dataset, concatenate_datasets
 from accelerate import Accelerator, DistributedDataParallelKwargs
+import accelerate
 from tqdm.contrib.concurrent import process_map
 from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
                             DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel
@@ -32,6 +33,7 @@ gpt_neo = None
 model_file = None
 save_path = None
 ignore_data_skip = True
+deepspeed_config_json = False
 
 scratch = False
 kor_voca_extention = False
@@ -842,10 +844,14 @@ def huggingface_trainer():
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
 
-    optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
-    lr_scheduler = transformers.get_linear_schedule_with_warmup(
-        optimizer, 3000, num_training_steps
-    )
+    if deepspeed_config_json:
+        optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
+        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=3000)
+    else:
+        optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+        lr_scheduler = transformers.get_linear_schedule_with_warmup(
+            optimizer, 3000, num_training_steps
+        )
 
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
@@ -878,12 +884,15 @@ def huggingface_trainer():
         num_train_epochs=num_train_epochs,
         #predict_with_generate=True,
         fp16=False,
+        #fp16_backend="amp",
+        #fp16_full_eval=True,
         load_best_model_at_end=True,
         report_to="tensorboard",
         ignore_data_skip=ignore_data_skip,     # set true for ignore batch skip, fast
         remove_unused_columns=False,
         do_predict=not skip_eval,
         do_train=True,
+        #deepspeed='./deepspeed_config_stage2.json'
     )
     
     if skip_eval:
