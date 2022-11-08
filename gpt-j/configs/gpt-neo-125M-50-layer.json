@@ -1,13 +1,9 @@
 {
     "gpt_neo": "gpt-neo-125M-50-layer",
-    "model_file": "./Models/gpt-neo-125M-50-layer-training/last-save2",
+    "model_file": "./Models/gpt-neo-125M-50-layer-training/last-save3",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "nikl_written":1.0,
-        "wiki":0.1, 
-        "namu":0.1, 
-        "oscar":0.2,
-        "nikl_news":0.1
+        "nikl_written":1.0
     },
     "scratch": true,
     "reset_weight": false,
@@ -20,5 +16,6 @@
     "save_step": 10,
     "eval_step": 10,
     "validation_data_size": 64,
-    "ignore_data_skip": true
+    "ignore_data_skip": true,
+    "deepspeed_config_json": "./deepspeed_config_stage2.json"
 }

@@ -870,7 +870,7 @@ def huggingface_trainer():
     else:
         auto_find_batch_size = False
     
-    
+    is_ds = deepspeed_config_json is not None
     args = TrainingArguments(
         model_save_dir,
         #max_steps=max_steps,
@@ -880,7 +880,7 @@ def huggingface_trainer():
         logging_steps=1,
         save_strategy="steps",
         save_steps=save_step,
-        # warmup_steps=300,
+        warmup_steps=300 if is_ds else 0,
         # learning_rate=5e-5,
         per_device_train_batch_size = batch_size,
         per_device_eval_batch_size = batch_size,
@@ -891,29 +891,20 @@ def huggingface_trainer():
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
         # predict_with_generate=True,
-        fp16=False,
+        fp16=True if is_ds else False,
         #bf16=True,
         # fp16_backend="amp",
-        # fp16_full_eval=True,
+        fp16_full_eval=True if is_ds else False,
         load_best_model_at_end=True,
         report_to="tensorboard",
         ignore_data_skip=ignore_data_skip,     # set true for ignore batch skip, fast
         remove_unused_columns=False,
         do_predict=not skip_eval,
         do_train=True,
+        deepspeed=deepspeed_config_json if is_ds else None,
+        metric_for_best_model = None if skip_eval else "eval_loss"
     )
     
-    if deepspeed_config_json is not None:
-        args.warmup_steps=300
-        args.deepspeed=deepspeed_config_json
-        args.fp16=True
-        args.fp16_full_eval=True
-
-    if skip_eval:
-        args.metric_for_best_model = None
-    else:
-        args.metric_for_best_model = "eval_loss"
-
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
     trainer = MyTrainer(
         model=model,
@@ -922,10 +913,9 @@ def huggingface_trainer():
         eval_dataset = eval_dataloader.dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
+        compute_metrics=compute_metrics if not skip_eval else None,
+        preprocess_logits_for_metrics = preprocess_logits_for_metrics
     )
-    if not skip_eval:
-        trainer.compute_metrics = compute_metrics
-    trainer.preprocess_logits_for_metrics = preprocess_logits_for_metrics
 
     trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
