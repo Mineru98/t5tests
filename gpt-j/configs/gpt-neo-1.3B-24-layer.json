@@ -1,9 +1,13 @@
 {
     "gpt_neo": "gpt-neo-1.3B-24-layer",
-    "model_file": "./Models/gpt-neo-1.3B-24-layers-training/checkpoint-150-save",
+    "model_file": "./lhk/gpt-neo-1.3B-512/checkpoint-1040",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "wiki":1.0
+        "nikl_written":1.0,
+        "wiki":0.1, 
+        "namu":0.1, 
+        "oscar":0.2,
+        "nikl_news":0.1
     },
     "scratch": true,
     "reset_weight": false,
@@ -13,7 +17,7 @@
     "batch_size": 2,
     "gradient_acc": 128,
     "num_epochs": 10,
-    "save_step": 50,
-    "eval_step": 50,
+    "save_step": 10,
+    "eval_step": 10,
     "validation_data_size": 64
 }

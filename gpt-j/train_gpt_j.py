@@ -33,7 +33,7 @@ gpt_neo = None
 model_file = None
 save_path = None
 ignore_data_skip = True
-deepspeed_config_json = True
+deepspeed_config_json = None
 
 scratch = False
 kor_voca_extention = False
@@ -851,7 +851,7 @@ def huggingface_trainer():
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
 
-    if deepspeed_config_json:
+    if deepspeed_config_json is not None:
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
         lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
     else:
@@ -880,7 +880,7 @@ def huggingface_trainer():
         logging_steps=1,
         save_strategy="steps",
         save_steps=save_step,
-        warmup_steps=300,
+        # warmup_steps=300,
         # learning_rate=5e-5,
         per_device_train_batch_size = batch_size,
         per_device_eval_batch_size = batch_size,
@@ -890,20 +890,25 @@ def huggingface_trainer():
         weight_decay=0.0,
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
-        #predict_with_generate=True,
-        fp16=True,
+        # predict_with_generate=True,
+        fp16=False,
         #bf16=True,
-        #fp16_backend="amp",
-        fp16_full_eval=True,
+        # fp16_backend="amp",
+        # fp16_full_eval=True,
         load_best_model_at_end=True,
         report_to="tensorboard",
         ignore_data_skip=ignore_data_skip,     # set true for ignore batch skip, fast
         remove_unused_columns=False,
         do_predict=not skip_eval,
         do_train=True,
-        deepspeed='./deepspeed_config_stage2.json'
     )
     
+    if deepspeed_config_json is not None:
+        args.warmup_steps=300
+        args.deepspeed=deepspeed_config_json
+        args.fp16=True
+        args.fp16_full_eval=True
+
     if skip_eval:
         args.metric_for_best_model = None
     else:
@@ -939,7 +944,8 @@ def main():
     global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
-            save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval
+            save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
+            deepspeed_config_json
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -968,6 +974,7 @@ def main():
     parser.add_argument("--ignore_data_skip", action='store_true', help = "ignore data skip when continue training")
     parser.add_argument("--reset_weight", action='store_true', help = "rest all weight in model")
     parser.add_argument("--skip_eval", action='store_true', help = "skip eval step")
+    parser.add_argument("--deepspeed_config_json", help = "deepspeed_config_json file")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1027,6 +1034,8 @@ def main():
         reset_weight = True
     if args.skip_eval:
         skip_eval = True
+    if args.deepspeed_config_json:
+        deepspeed_config_json = args.deepspeed_config_json
                 
     if not os.path.exists("./cache"):
         os.makedirs("./cache")
