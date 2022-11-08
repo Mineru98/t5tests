@@ -33,7 +33,7 @@ gpt_neo = None
 model_file = None
 save_path = None
 ignore_data_skip = True
-deepspeed_config_json = False
+deepspeed_config_json = True
 
 scratch = False
 kor_voca_extention = False
@@ -280,6 +280,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
+    if "nikl_written" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_WRITTEN_v1.2.zip"})
+        feature_name = "text"
+        source = "nikl_written"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
            
     ds_eval = concatenate_datasets(dss_eval).shuffle()
     ds_train = concatenate_datasets(dss_train).shuffle()
@@ -846,7 +853,7 @@ def huggingface_trainer():
 
     if deepspeed_config_json:
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
-        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=3000)
+        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
     else:
         optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         lr_scheduler = transformers.get_linear_schedule_with_warmup(
@@ -873,6 +880,7 @@ def huggingface_trainer():
         logging_steps=1,
         save_strategy="steps",
         save_steps=save_step,
+        warmup_steps=300,
         # learning_rate=5e-5,
         per_device_train_batch_size = batch_size,
         per_device_eval_batch_size = batch_size,
@@ -883,16 +891,17 @@ def huggingface_trainer():
         save_total_limit=5,
         num_train_epochs=num_train_epochs,
         #predict_with_generate=True,
-        fp16=False,
+        fp16=True,
+        #bf16=True,
         #fp16_backend="amp",
-        #fp16_full_eval=True,
+        fp16_full_eval=True,
         load_best_model_at_end=True,
         report_to="tensorboard",
         ignore_data_skip=ignore_data_skip,     # set true for ignore batch skip, fast
         remove_unused_columns=False,
         do_predict=not skip_eval,
         do_train=True,
-        #deepspeed='./deepspeed_config_stage2.json'
+        deepspeed='./deepspeed_config_stage2.json'
     )
     
     if skip_eval:
@@ -908,7 +917,6 @@ def huggingface_trainer():
         eval_dataset = eval_dataloader.dataset,
         data_collator=data_collator,
         tokenizer=tokenizer,
-        optimizers=(optimizer, lr_scheduler)
     )
     if not skip_eval:
         trainer.compute_metrics = compute_metrics
@@ -917,6 +925,7 @@ def huggingface_trainer():
     trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
     )
+    trainer.optimizers=(optimizer, lr_scheduler)
 
     accelerator.print("start trainning -----------------------------")
     if continue_train:
