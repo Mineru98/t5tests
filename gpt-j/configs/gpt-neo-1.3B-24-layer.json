@@ -19,5 +19,6 @@
     "num_epochs": 10,
     "save_step": 10,
     "eval_step": 10,
-    "validation_data_size": 64
+    "validation_data_size": 64,
+    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json"
 }
