@@ -1,11 +1,12 @@
-from transformers import GPTJForCausalLM, AutoTokenizer, AutoModel, AutoConfig
+from transformers import GPTJForCausalLM, AutoTokenizer, AutoModel, AutoConfig, GPTNeoForCausalLM
 
-tokenizer = AutoTokenizer.from_pretrained("../train_tokenizer/tokenizer-wiki-plus-namu-gpt-neo-ko")
+tokenizer = AutoTokenizer.from_pretrained("./StockModels/gpt-neo-1.3B-ko-2860")
 
-gpt = AutoConfig.from_pretrained("EleutherAI/gpt-neo-1.3B")
+gpt = GPTNeoForCausalLM.from_pretrained("./StockModels/gpt-neo-1.3B-ko-2860")
+#gpt.config.__dict__["_name_or_path"] = f"lcw99/gpt-neo-1.3B-ko"
 
-# tokenizer_len = len(tokenizer)
-# print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
-# gpt.resize_token_embeddings(tokenizer_len)
+#gpt.save_pretrained("./StockModels/gpt-neo-1.3B-ko-2860")
+#tokenizer.save_pretrained("./StockModels/gpt-neo-1.3B-ko-2860")
 
-gpt.save_pretrained("./StockModels/gpt-neo-1.3B")
+gpt.push_to_hub("gpt-neo-1.3B-ko")
+tokenizer.push_to_hub("gpt-neo-1.3B-ko")

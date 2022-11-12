@@ -288,7 +288,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
            
-    ds_eval = concatenate_datasets(dss_eval).shuffle()
+    ds_eval = concatenate_datasets(dss_eval).shuffle().select(range(validation_data_size))
     ds_train = concatenate_datasets(dss_train).shuffle()
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
     return ds_eval, ds_train, feature_name

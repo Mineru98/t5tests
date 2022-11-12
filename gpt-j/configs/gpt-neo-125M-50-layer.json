@@ -3,7 +3,11 @@
     "model_file": "./Models/gpt-neo-125M-50-layer-training/last-save3",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "nikl_written":1.0
+        "nikl_written":0.05,
+        "wiki":0.05, 
+        "namu":0.02, 
+        "oscar":0.01,
+        "nikl_news":0.05
     },
     "scratch": true,
     "reset_weight": false,
