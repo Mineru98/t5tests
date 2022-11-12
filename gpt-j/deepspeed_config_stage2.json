@@ -42,7 +42,7 @@
         "reduce_bucket_size": 10e8,
         "contiguous_gradients": true
     },
-    "gradient_accumulation_steps": 32,
+    "gradient_accumulation_steps": 64,
     "gradient_clipping": "auto",
     "steps_per_print": 1,
     "train_batch_size": "auto",

@@ -357,6 +357,11 @@ def list_model_children(model):
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
     
 def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
+    params_source = dict(model.named_parameters());
+
+    for key in params_source.keys():
+        print(key, params_source[key].data.shape) 
+
     for parameter in model.parameters():
         parameter.requires_grad = all_parm
 
