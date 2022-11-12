@@ -905,6 +905,8 @@ def huggingface_trainer():
         metric_for_best_model = None if skip_eval else "eval_loss"
     )
     
+    print(args)
+    
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
     trainer = MyTrainer(
         model=model,
