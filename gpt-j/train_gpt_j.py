@@ -34,6 +34,7 @@ model_file = None
 save_path = None
 ignore_data_skip = True
 deepspeed_config_json = None
+start_model_path = None
 
 scratch = False
 kor_voca_extention = False
