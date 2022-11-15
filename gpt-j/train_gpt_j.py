@@ -280,6 +280,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
+    if "nikl_news_2020" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_NEWSPAPER_2020_v1.1.zip"})
+        feature_name = "text"
+        source = "nikl_news_2020"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
     if "nikl_written" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_WRITTEN_v1.2.zip"})
         feature_name = "text"
