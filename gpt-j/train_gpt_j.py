@@ -289,7 +289,7 @@ def get_dataset(tokenize):
         dss_train.append(ds_train)        
            
     ds_eval = concatenate_datasets(dss_eval).shuffle().select(range(validation_data_size))
-    ds_train = concatenate_datasets(dss_train).shuffle()
+    ds_train = concatenate_datasets(dss_train).shuffle().select(range(int(len(ds_train) / 1024) * 1024))
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
     return ds_eval, ds_train, feature_name
     
@@ -398,6 +398,7 @@ def init_model():
             accelerator.print("loading model-", model_file)
             gpt_config = AutoConfig.from_pretrained(model_file)
             gpt = GPTNeoForCausalLM(gpt_config)
+            model = None
         else:
             accelerator.print("loading model-", model, kwarg)
             gpt = GPTNeoForCausalLM.from_pretrained(model, **kwarg)
@@ -412,6 +413,7 @@ def init_model():
         accelerator.print("loading model-", model, kwarg)
         gpt = GPTJForCausalLM.from_pretrained(model, **kwarg)
     
+    start_model_path = model
     # list_model_children(gpt)
     
     if kor_voca_extention:
@@ -763,6 +765,13 @@ def get_perplexity():
         result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
         return result['mean_perplexity']
     except Exception as e:
+        if start_model_path is not None:
+            try:
+                result = perplexity.compute(model_id=start_model_path, predictions=input_texts)
+                return result['mean_perplexity']
+            except Exception as e:
+                accelerator.print("\n!! get_perplexity error2= ", e)
+                return 1000.0            
         accelerator.print("\n!! get_perplexity error= ", e)
         return 0.0
 
@@ -938,7 +947,7 @@ def huggingface_trainer():
     
                                     
 def main():
-    global model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
+    global start_model_path, model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
