@@ -389,6 +389,7 @@ def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
         parameter.requires_grad = True
                                   
 def init_model():
+    global start_model_path
     kwarg = {}
     if load_in_8bit:
         kwarg["device_map"] = 'auto'

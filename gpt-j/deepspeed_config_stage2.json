@@ -36,15 +36,15 @@
             "pin_memory": true
         },        
         "allgather_partitions": true,
-        "allgather_bucket_size":10e8,
+        "allgather_bucket_size":2e8,
         "overlap_comm": true,
         "reduce_scatter": true,
-        "reduce_bucket_size": 10e8,
+        "reduce_bucket_size": 2e8,
         "contiguous_gradients": true
     },
     "gradient_accumulation_steps": 64,
     "gradient_clipping": "auto",
-    "steps_per_print": 1,
+    "steps_per_print": 100000,
     "train_batch_size": "auto",
     "train_micro_batch_size_per_gpu": "auto",
     "wall_clock_breakdown": false
