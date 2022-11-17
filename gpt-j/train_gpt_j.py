@@ -214,7 +214,7 @@ def get_cc100(n):
     return ds, source, feature_name
 
 def get_dataset(tokenize):
-    global feature_name
+    global feature_name, validation_data_size
     accelerator.print("reading dataset...", dataset_source)
     dss_eval = []
     dss_train = []    
@@ -295,9 +295,23 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
-           
-    ds_eval = concatenate_datasets(dss_eval).shuffle().select(range(validation_data_size))
-    ds_train = concatenate_datasets(dss_train).shuffle().select(range(int(len(ds_train) / 1024) * 1024))
+    if "aihub_paper_summary" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/aihub_paper_summary.zip"})
+        feature_name = "entire_org"
+        source = "aihub_paper_summary"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+
+    ds_concat_eval = concatenate_datasets(dss_eval) 
+    ds_concat_train = concatenate_datasets(dss_train)
+         
+    accelerator.print(f'ds_concat_eval={ds_concat_eval}')
+    accelerator.print(f'ds_concat_train={ds_concat_train}')
+    if len(ds_concat_eval) < validation_data_size:
+        validation_data_size = len(ds_concat_eval) 
+    ds_eval = ds_concat_eval.shuffle().select(range(validation_data_size))
+    ds_train = ds_concat_train.shuffle().select(range(int(len(ds_train) / 1024) * 1024))
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
     return ds_eval, ds_train, feature_name
     

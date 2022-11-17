@@ -1,20 +1,14 @@
 {
     "gpt_neo": "gpt-neo-1.3B-ko",
-    "model_file": "./Models/gpt-neo-1.3B-ko-fine-tune/savepoing-520",
+    "model_file": "./StockModels/gpt-neo-1.3B-ko-2860",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "nikl_written":0.2,
-        "wiki":0.01, 
-        "namu":0.01, 
-        "oscar":0.01,
-        "nikl_news":0.01,
-        "nikl_news_2020":0.2,
-        "cc100-1":0.01
+        "aihub_paper_summary":1.0
     },
-    "scratch": false,
+    "scratch": true,
     "reset_weight": false,
     "unfreeze": 23,
-    "save_path": "./Models/gpt-neo-1.3B-ko-fine-tune",
+    "save_path": "./Models/gpt-neo-1.3B-ko-fine-tune-paper",
     "max_input_length": 2048,
     "batch_size": 4,
     "gradient_acc": 64,
