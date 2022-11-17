@@ -81,22 +81,24 @@ def tokenize_chunk(s):
 
     input_ids = []
     attention_mask = []
-    while True: 
+    while len(detok) > 0: 
         tt = tokenizer(detok[:max_input_length * 4], max_length=max_input_length, truncation=True, padding=True)
         encoded_len = tt.encodings[0].offsets[-1][1]
         #print(encoded_len, len(detok))
-        if encoded_len < len(detok):
-            cnt = encoded_len
+        if encoded_len <= len(detok):
+            cnt = encoded_len - 1
             while detok[cnt] not in ' .?,!/@:;-=\t\\\n':
                 cnt -= 1
                 if cnt <= encoded_len / 2:
                     cnt = encoded_len
                     break
-            detok = detok[cnt:]
+            detok = detok[cnt+1:]
             input_ids.append(tt['input_ids'])
             attention_mask.append(tt['attention_mask'])
         else:
-            #print(idx)
+            accelerator.print('!!!! encoded len is bigger than org')
+            input_ids.append(tt['input_ids'])
+            attention_mask.append(tt['attention_mask'])
             break
     return input_ids, attention_mask
     

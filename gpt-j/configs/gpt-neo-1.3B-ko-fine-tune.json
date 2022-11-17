@@ -3,13 +3,7 @@
     "model_file": "./Models/gpt-neo-1.3B-ko-fine-tune/savepoint-50",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "nikl_written":0.1,
-        "wiki":0.05, 
-        "namu":0.01, 
-        "oscar":0.01,
-        "nikl_news":0.2,
-        "nikl_news_2020":0.5,
-        "cc100-1":0.1
+        "aihub_paper_summary":1.0
     },
     "scratch": false,
     "reset_weight": false,
