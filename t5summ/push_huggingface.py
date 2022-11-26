@@ -7,8 +7,9 @@ notebook_login()
 from transformers import T5ForConditionalGeneration, TFT5ForConditionalGeneration, FlaxT5ForConditionalGeneration
 from transformers import AutoTokenizer, T5TokenizerFast
 
-model_name = "t5-large-korean-text-summary"
-model_dir = f"./Models/{model_name}/checkpoint-26000"
+#model_name = "t5-large-korean-text-summary"
+model_name = "t5-base-korean-paraphrase"
+model_dir = f"./Models/{model_name}/checkpoint-198000"
 
 tokenizer = AutoTokenizer.from_pretrained(model_dir)
 pt_model = T5ForConditionalGeneration.from_pretrained(model_dir)
