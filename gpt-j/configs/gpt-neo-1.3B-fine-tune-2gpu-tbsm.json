@@ -1,18 +1,18 @@
 {
     "gpt_neo": "gpt-neo-1.3B-ko",
-    "model_file": "/home/chang/hd3t/t5tests/gpt-j/Models/gpt-neo-1.3B-ko-fine-tune-paper",
+    "model_file": "./StockModels/gpt-neo-1.3B-ko-2860",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "aihub_patent_summary":1.0
+        "tbsm":1.0
     },
     "scratch": true,
     "reset_weight": false,
     "unfreeze": 23,
-    "save_path": "./Models/gpt-neo-1.3B-ko-fine-tune-patent",
+    "save_path": "./Models/gpt-neo-1.3B-ko-fine-tune-tbsm-2",
     "max_input_length": 2048,
     "batch_size": 4,
-    "gradient_acc": 64,
-    "num_epochs": 20,
+    "gradient_acc": 16,
+    "num_epochs": 100,
     "save_step": 10,
     "eval_step": 10,
     "validation_data_size": 64,
