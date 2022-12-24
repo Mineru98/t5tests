@@ -6,7 +6,7 @@ nltk.download('punkt')
 model_name = "t5-large-korean-paraphrase"
 model_dir = f"./Models/{model_name}"
 #latest_model_dir = max(glob.glob(os.path.join(model_dir, 'checkpoint-*/')), key=os.path.getmtime)
-latest_model_dir = "/home/chang/AI/llm/t5tests/t5summ/Models/t5-large-korean-paraphrase/checkpoint-233000"
+latest_model_dir = "/home/chang/AI/llm/t5tests/t5summ/Models/t5-large-korean-paraphrase/checkpoint-269000"
 print(f'loading model={latest_model_dir}')
 tokenizer = AutoTokenizer.from_pretrained(latest_model_dir)
 model = AutoModelForSeq2SeqLM.from_pretrained(latest_model_dir)
@@ -34,7 +34,7 @@ for i in range(3):
     inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, return_tensors="pt")
     output = model.generate(**inputs, num_beams=3, do_sample=True, min_length=100, max_length=200, num_return_sequences=3)
     for decoded_output in tokenizer.batch_decode(output, skip_special_tokens=True):
-        predicted_title = nltk.sent_tokenize(decoded_output.strip())[0]
+        predicted_title = nltk.sent_tokenize(decoded_output.strip())
         print(">>", predicted_title)
 
 while True:
@@ -44,5 +44,5 @@ while True:
     inputs = tokenizer(inputs, max_length=max_input_length, truncation=True, return_tensors="pt")
     output = model.generate(**inputs, num_beams=3, do_sample=True, min_length=100, max_length=200, num_return_sequences=3)
     for decoded_output in tokenizer.batch_decode(output, skip_special_tokens=True):
-        predicted_title = nltk.sent_tokenize(decoded_output.strip())[0]
+        predicted_title = nltk.sent_tokenize(decoded_output.strip())
         print(">>", predicted_title)
