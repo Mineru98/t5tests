@@ -3,9 +3,10 @@ from transformers import AutoTokenizer, T5TokenizerFast
 import nltk, os, glob
 nltk.download('punkt')
 
-model_name = "t5-base-korean-paraphrase"
+model_name = "t5-large-korean-paraphrase"
 model_dir = f"./Models/{model_name}"
-latest_model_dir = max(glob.glob(os.path.join(model_dir, 'checkpoint-*/')), key=os.path.getmtime)
+#latest_model_dir = max(glob.glob(os.path.join(model_dir, 'checkpoint-*/')), key=os.path.getmtime)
+latest_model_dir = "/home/chang/AI/llm/t5tests/t5summ/Models/t5-large-korean-paraphrase/checkpoint-233000"
 print(f'loading model={latest_model_dir}')
 tokenizer = AutoTokenizer.from_pretrained(latest_model_dir)
 model = AutoModelForSeq2SeqLM.from_pretrained(latest_model_dir)
