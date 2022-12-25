@@ -13,18 +13,18 @@ import evaluate
 model_checkpoint = "paust/pko-t5-base"
 #model_checkpoint = "paust/pko-t5-large"
 
-model_name = "t5-base-korean-todays-fortune-3000"
+model_name = "t5-base-korean-todays-fortune-sinbiun"
 
 model_dir = f"./Models/{model_name}"
 
-medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/todays_fortune/todays_fortune.json")
+medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/saju_data/sinbiun_data.json")
 
 print(medium_datasets)
 
 """## Dataset train/validation/test split"""
 
-datasets_train_test = medium_datasets["train"].train_test_split(test_size=3000)
-medium_datasets["train"] = datasets_train_test["test"]
+# datasets_train_test = medium_datasets["train"].train_test_split(test_size=3000)
+# medium_datasets["train"] = datasets_train_test["test"]
 
 datasets_train_test = medium_datasets["train"].train_test_split(test_size=300)
 datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=300)
@@ -64,7 +64,7 @@ prefix = "todaysfortune: "
 #prefix = "xxxfff: "
 
 max_input_length = 256
-max_target_length = 1024
+max_target_length = 2048
 
 tokenizer.model_max_length = max_target_length
 
@@ -102,7 +102,7 @@ from transformers import AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqT
 
 #!rm -r {model_dir}
 
-batch_size = 32
+batch_size = 8
 args = Seq2SeqTrainingArguments(
     model_dir,
     evaluation_strategy="steps",
@@ -117,7 +117,7 @@ args = Seq2SeqTrainingArguments(
     #auto_find_batch_size=True,
     weight_decay=0.01,
     save_total_limit=5,
-    num_train_epochs=20,
+    num_train_epochs=30,
     predict_with_generate=True,
     fp16=True,
     load_best_model_at_end=True,
