@@ -41,7 +41,7 @@ def get_todays_fortune(gender, birthday, target_date):
     return saju, target_date_samju, fortune
 
 
-model_name = "t5-base-korean-todays-fortune"
+model_name = "t5-base-korean-todays-fortune-sinbiun"
 model_dir = f"./Models/{model_name}"
 latest_model_dir = max(glob.glob(os.path.join(model_dir, 'checkpoint-*/')), key=os.path.getmtime)
 print(f'loading model={latest_model_dir}')

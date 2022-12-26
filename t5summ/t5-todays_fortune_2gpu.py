@@ -8,16 +8,20 @@ import string, random
 from transformers import AutoTokenizer, T5TokenizerFast
 import evaluate
 
+from accelerate import Accelerator
+
+accelerator = Accelerator()
+
 #model_checkpoint = "google/mt5-base"
 #model_checkpoint = "paust/pko-t5-small"
-model_checkpoint = "paust/pko-t5-base"
-#model_checkpoint = "paust/pko-t5-large"
+#model_checkpoint = "paust/pko-t5-base"
+model_checkpoint = "paust/pko-t5-large"
 
-model_name = "t5-base-korean-todays-fortune-sinbiun"
+model_name = "t5-large-korean-todays-fortune-sinbiun"
 
 model_dir = f"./Models/{model_name}"
 
-medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/saju_data/sinbiun_data.json")
+medium_datasets = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/saju_data/sinbiun_data_by_section.json")
 
 print(medium_datasets)
 
@@ -26,8 +30,8 @@ print(medium_datasets)
 # datasets_train_test = medium_datasets["train"].train_test_split(test_size=3000)
 # medium_datasets["train"] = datasets_train_test["test"]
 
-datasets_train_test = medium_datasets["train"].train_test_split(test_size=300)
-datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=300)
+datasets_train_test = medium_datasets["train"].train_test_split(test_size=100)
+datasets_train_validation = datasets_train_test["train"].train_test_split(test_size=100)
 
 medium_datasets["train"] = datasets_train_validation["train"]
 medium_datasets["validation"] = datasets_train_validation["test"]
@@ -47,8 +51,8 @@ print(f"- Test set: {n_samples_test*100/n_samples_total:.2f}%")
 # keep only a subsample of the datasets
 medium_datasets["train"] = medium_datasets["train"].shuffle()
 #medium_datasets["train"] = medium_datasets["train"].shuffle().select(range(10000))
-medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(100))
-medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(100))
+medium_datasets["validation"] = medium_datasets["validation"].shuffle().select(range(64))
+medium_datasets["test"] = medium_datasets["test"].shuffle().select(range(64))
 
 print(medium_datasets)
 
@@ -83,17 +87,27 @@ def preprocess_data(examples):
   inputs = [prefix + text for text in texts_cleaned]
   model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True)
 
+  target_texts = []
+  for idx, overall in enumerate(examples["overall"]):
+    love = examples["love"][idx]
+    money = examples["money"][idx]
+    health = examples["health"][idx]
+    t = f"[총론]\n{overall}\n"
+    t += f"[애정운]\n{love}\n"
+    t += f"[재물운]\n{money}\n"
+    t += f"[건강운]\n{health}"
+    target_texts.append(t)
   # Setup the tokenizer for targets
   with tokenizer.as_target_tokenizer():
-    labels = tokenizer(examples["target"], max_length=max_target_length, 
-                       truncation=True)
+    labels = tokenizer(target_texts, max_length=max_target_length, truncation=True)
 
   model_inputs["labels"] = labels["input_ids"]
   return model_inputs
 
+#medium_datasets_cleaned = medium_datasets.filter(lambda example: example['target'].find('재물운은 ') >= 0)
 medium_datasets_cleaned = medium_datasets
-cache_file = f"./cache/{model_name}_{max_input_length}.cache"
-tokenized_dataset_train = medium_datasets_cleaned["train"].map(preprocess_data, batched=True, cache_file_name=cache_file, load_from_cache_file=True)
+#cache_file = f"./cache/{model_name}_{max_input_length}.cache"
+tokenized_dataset_train = medium_datasets_cleaned["train"].map(preprocess_data, batched=True)
 tokenized_dataset_val = medium_datasets_cleaned["validation"].map(preprocess_data, batched=True)
 
 """## Fine-tune T5"""
@@ -106,7 +120,7 @@ batch_size = 1
 args = Seq2SeqTrainingArguments(
     model_dir,
     evaluation_strategy="steps",
-    eval_steps=500,
+    eval_steps=100,
     logging_strategy="steps",
     logging_steps=10,
     save_strategy="steps",
@@ -131,7 +145,7 @@ data_collator = DataCollatorForSeq2Seq(tokenizer)
 
 import numpy as np
 
-metric = load_metric("rouge")
+metric = evaluate.load("rouge")
 bleu = evaluate.load("bleu")
 
 def compute_metrics(eval_pred):
@@ -153,23 +167,18 @@ def compute_metrics(eval_pred):
                             use_stemmer=True)
 
     # Extract ROUGE f1 scores
-    result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
+    #result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
     
     # Add mean generated length to metrics
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id)
                       for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
     
-    try:
-      results_bleu = bleu.compute(predictions=decoded_preds, references=decoded_labels)
-      i = random.randrange(len(decoded_preds))
-      print('source=', decoded_labels[i])
-      print('predicion=', decoded_preds[i])
-    except:
-      print("bleu computation error")
-      results_bleu = {}
-      results_bleu['bleu'] = 0
-      results_bleu['length_ratio'] = 0
+    results_bleu = bleu.compute(predictions=decoded_preds, references=decoded_labels)
+    i = random.randrange(len(decoded_preds))
+    accelerator.print('\nsource=', decoded_labels[i])
+    accelerator.print('\npredicion=', decoded_preds[i])
+    
     result["bleu"] = results_bleu['bleu'] 
     result["length_ratio"] = results_bleu['length_ratio'] 
 
