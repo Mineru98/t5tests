@@ -3,16 +3,16 @@
     "model_file": "./StockModels/gpt-neo-1.3B-ko-2860",
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
-        "tbsm":1.0
+        "todays_fortune":1.0
     },
     "scratch": false,
     "reset_weight": false,
     "unfreeze": 0,
-    "save_path": "./Models/gpt-neo-1.3B-ko-fine-tune-tbsm-unfreeze0",
+    "save_path": "./Models/gpt-neo-1.3B-ko-fine-tune-todays_fortune-unfreeze0",
     "max_input_length": 2048,
     "batch_size": 4,
     "gradient_acc": 16,
-    "num_epochs": 200,
+    "num_epochs": 100,
     "save_step": 10,
     "eval_step": 10,
     "validation_data_size": 64,

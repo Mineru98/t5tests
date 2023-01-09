@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 from collections.abc import Mapping
 from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
+import hanja
 
 """
 # original tokenizer, not freeze, fine_tune or all
@@ -107,7 +108,16 @@ def tokenizing_sample(ss):
     input_ids = []
     attention_mask = []
     
-    texts = ss[feature_name]
+    if "+" in feature_name:
+        ff = feature_name.split("+")
+        texts = []
+        for idx, s1 in enumerate(ss[ff[0]]):
+            tt = f'{s1}\n{ss[ff[1]][idx]}\n'
+            tt = hanja.translate(tt, 'substitution')
+            #accelerator.print(tt)
+            texts.append(tt)
+    else:
+        texts = ss[feature_name]
     l = len(texts)
     i = 0
     while True:
@@ -318,7 +328,14 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
-        
+    if "todays_fortune" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/todays_fortune2.zip"})
+        feature_name = "source+target"
+        source = "todays_fortune"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+                
     ds_concat_eval = concatenate_datasets(dss_eval) 
     ds_concat_train = concatenate_datasets(dss_train)
          
@@ -337,11 +354,11 @@ def get_dataset(tokenize):
     
 feature_name = None
 glo_tokenize = None
-def my_collate(batch):
-    data = [item[feature_name] for item in batch]
-    if glo_tokenize:
-        data = tokenizer(data, max_length=max_input_length, truncation=True, padding=True)
-    return [data]
+# def my_collate(batch):
+#     data = [item[feature_name] for item in batch]
+#     if glo_tokenize:
+#         data = tokenizer(data, max_length=max_input_length, truncation=True, padding=True)
+#     return [data]
     
 def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size):
     global feature_name, glo_tokenize
