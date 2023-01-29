@@ -112,7 +112,7 @@ def tokenizing_sample(ss):
         ff = feature_name.split("+")
         texts = []
         for idx, s1 in enumerate(ss[ff[0]]):
-            tt = f'{s1}\n{ss[ff[1]][idx]}\n'
+            tt = f'{s1}\n[오늘의 운세]\n{ss[ff[1]][idx]}\n<|endoftext|>'
             tt = hanja.translate(tt, 'substitution')
             #accelerator.print(tt)
             texts.append(tt)
@@ -330,8 +330,15 @@ def get_dataset(tokenize):
         dss_train.append(ds_train)        
     if "todays_fortune" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/todays_fortune2.zip"})
-        feature_name = "source+target"
+        feature_name = "source2+target"
         source = "todays_fortune"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "wikiqna" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/aihub_wiki_qna.zip"})
+        feature_name = "decoder_feed"
+        source = "wikiqna"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
