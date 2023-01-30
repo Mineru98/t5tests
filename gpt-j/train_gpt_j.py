@@ -102,6 +102,11 @@ def tokenize_chunk(s):
             attention_mask.append(tt['attention_mask'])
             break
     return input_ids, attention_mask
+
+def tokenize_string(s):
+    tt = tokenizer(s, max_length=max_input_length, truncation=True, padding=True)
+    encoded_len = tt.encodings[0].offsets[-1][1]
+    return encoded_len, tt['input_ids'], tt['attention_mask']
     
 def tokenizing_sample(ss):
     tokenized = {}
@@ -120,21 +125,16 @@ def tokenizing_sample(ss):
         texts = ss[feature_name]
     l = len(texts)
     i = 0
-    while True:
-        s = texts[i]
-        while len(s) < max_input_length * 2 and i < l - 1:
-            i += 1
-            s += texts[i]
-        input_ids_sub, attention_mask_sub = tokenize_chunk(s)
-        input_ids += input_ids_sub
-        attention_mask += attention_mask_sub
-        i += 1
-        if i >= l:
-            break;
-        # with Pool(10) as pool:
-        #     for input_ids_sub, attention_mask_sub in pool.map(tokenize_chunk, s):
-        #         input_ids += input_ids_sub
-        #         attention_mask += attention_mask_sub
+    for s in texts:
+        pos = 0
+        s = wikitext_detokenizer(s)
+        s = ftfy.fix_text(s, normalization='NFKC')
+        while pos < len(s):
+            ss = s[pos:]
+            encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(ss)
+            pos += encoded_len
+            input_ids.append(input_ids_sub)
+            attention_mask.append(attention_mask_sub)
                 
     tokenized['input_ids'] = input_ids
     tokenized['attention_mask'] = attention_mask
@@ -227,6 +227,8 @@ def get_cc100(n):
 
 def get_dataset(tokenize):
     global feature_name, validation_data_size
+    data_server = "https://api.plan4.house/static/"
+    data_server = "/home/chang/hd3t/dataset/text/"
     accelerator.print("reading dataset...", dataset_source)
     dss_eval = []
     dss_train = []    
@@ -287,56 +289,56 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "nikl_news" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_NEWSPAPER_2021_v1.0.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2021_v1.0.zip"})
         feature_name = "text"
         source = "nikl_news"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "nikl_news_2020" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_NEWSPAPER_2020_v1.1.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2020_v1.1.zip"})
         feature_name = "text"
         source = "nikl_news_2020"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "nikl_written" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/NIKL_WRITTEN_v1.2.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_WRITTEN_v1.2.zip"})
         feature_name = "text"
         source = "nikl_written"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "aihub_paper_summary" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/aihub_paper_summary.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_paper_summary.zip"})
         feature_name = "entire_org"
         source = "aihub_paper_summary"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "aihub_patent_summary" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/aihub_patent_summary.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_patent_summary.zip"})
         feature_name = "entire_org"
         source = "aihub_patent_summary"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "tbsm" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/tbsm.json.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}tbsm.json.zip"})
         feature_name = "text"
         source = "tbsm"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "todays_fortune" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/todays_fortune2.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}todays_fortune2.zip"})
         feature_name = "source2+target"
         source = "todays_fortune"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "wikiqna" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': "https://api.plan4.house/static/aihub_wiki_qna.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_wiki_qna.zip"})
         feature_name = "decoder_feed"
         source = "wikiqna"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
@@ -351,10 +353,10 @@ def get_dataset(tokenize):
     if len(ds_concat_eval) < validation_data_size:
         validation_data_size = len(ds_concat_eval) 
     ds_eval = ds_concat_eval.shuffle().select(range(validation_data_size))
-    if len(ds_train) > 1024 * 10:
-        train_dataset_size = int(len(ds_train) / 1024) * 1024
+    if len(ds_concat_train) > 1024 * 10:
+        train_dataset_size = int(len(ds_concat_train) / 1024) * 1024
     else:
-        train_dataset_size = len(ds_train)
+        train_dataset_size = len(ds_concat_train)
     ds_train = ds_concat_train.shuffle().select(range(train_dataset_size))
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
     return ds_eval, ds_train, feature_name

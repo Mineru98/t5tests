@@ -16,7 +16,7 @@
             "program": "${file}",
             "args": [
                 "--config_file",
-                "configs/gpt-neo-1.3B-ko-fine-tune.json",
+                "configs/gpt-neo-1.3B-mix01.json",
             ],
             "justMyCode": false
         }
