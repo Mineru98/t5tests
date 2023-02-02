@@ -4,7 +4,7 @@ from datasets import load_dataset, load_metric, load_from_disk, Dataset, concate
 from accelerate import Accelerator, DistributedDataParallelKwargs
 import accelerate
 from tqdm.contrib.concurrent import process_map
-from transformers import  GPTJForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
+from transformers import  AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
                             DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel
 from transformers.optimization import AdafactorSchedule
 from transformers.trainer_pt_utils import get_parameter_names, nested_detach, IterableDatasetShard
@@ -228,7 +228,7 @@ def get_cc100(n):
 def get_dataset(tokenize):
     global feature_name, validation_data_size
     data_server = "https://api.plan4.house/static/"
-    data_server = "/home/chang/hd3t/dataset/text/"
+    # data_server = "/home/chang/hd3t/dataset/text/"
     accelerator.print("reading dataset...", dataset_source)
     dss_eval = []
     dss_train = []    
@@ -425,6 +425,11 @@ def list_model_children(model):
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
     
 def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
+    accelerator.print(model)
+    gpt_neox = False
+    if model.base_model_prefix == 'gpt_neox':
+        gpt_neox = True
+        
     params_source = dict(model.named_parameters());
 
     for key in params_source.keys():
@@ -433,20 +438,31 @@ def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
     for parameter in model.parameters():
         parameter.requires_grad = all_parm
 
-    total_layer = len(model.transformer.h)
-    accelerator.print("total transformer layers=", total_layer)
-    for i, m in enumerate(model.transformer.h):        
-        #Only un-freeze the last n transformer blocks
-        if i >= total_layer - last_n_layer:
-            for parameter in m.parameters():
-                accelerator.print("un-freeze layer=", i)
-                parameter.requires_grad = True 
+    if gpt_neox:
+        total_layer = len(model.gpt_neox.layers)
+        accelerator.print("total transformer layers=", total_layer)
+        for i, m in enumerate(model.gpt_neox.layers):        
+            #Only un-freeze the last n transformer blocks
+            if i >= total_layer - last_n_layer:
+                for parameter in m.parameters():
+                    accelerator.print("un-freeze layer=", i)
+                    parameter.requires_grad = True 
+    else:
+        total_layer = len(model.transformer.h)
+        accelerator.print("total transformer layers=", total_layer)
+        for i, m in enumerate(model.transformer.h):        
+            #Only un-freeze the last n transformer blocks
+            if i >= total_layer - last_n_layer:
+                for parameter in m.parameters():
+                    accelerator.print("un-freeze layer=", i)
+                    parameter.requires_grad = True 
 
-    for parameter in model.transformer.ln_f.parameters():        
-        parameter.requires_grad = True
+        for parameter in model.transformer.ln_f.parameters():        
+            parameter.requires_grad = True
 
-    for parameter in model.lm_head.parameters():        
-        parameter.requires_grad = True
+        for parameter in model.lm_head.parameters():        
+            parameter.requires_grad = True
+
                                   
 def init_model():
     global start_model_path
@@ -478,9 +494,9 @@ def init_model():
         else:
             accelerator.print("loading weight from file=", model_file)
             model = model_file
-        kwarg["revision"] = "float16"
+        # kwarg["revision"] = "float16"
         accelerator.print("loading model-", model, kwarg)
-        gpt = GPTJForCausalLM.from_pretrained(model, **kwarg)
+        gpt = AutoModelForCausalLM.from_pretrained(model, **kwarg)
     
     start_model_path = model
     # list_model_children(gpt)
@@ -1131,7 +1147,7 @@ def main():
     if args.tokenizer:
         tokenizer_name = args.tokenizer
 
-    base_model_name += "_" + name_to_filename(tokenizer_name)
+    base_model_name += name_to_filename(tokenizer_name)
     if scratch:
         base_model_name += "_rebuild"
     else:

@@ -2,15 +2,16 @@ import os, glob
 import transformers
 import torch
 #from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
-from transformers import AutoTokenizer, logging, pipeline, AutoModel
+from transformers import AutoTokenizer, logging, pipeline, AutoModel, AutoModelForCausalLM
 import argparse, evaluate
 from datasets import load_dataset, load_from_disk 
 
 pipe = True
+compute_perplexity = False
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
+print(f"device={device}")
 parser = argparse.ArgumentParser()
 parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
@@ -49,41 +50,56 @@ print("---------------------------\n")
 
 logging.set_verbosity_error()
 
+if compute_perplexity:
+    print('start perplexity compute.')
+    #data = load_dataset("lcw99/oscar-ko-only", split='train[:50]')
+    #data.save_to_disk("./test_data")
+    data = load_from_disk("./test_data")['text']
+
+    #data = load_dataset("lcw99/oscar-ko-only")['train']['text'][:50]
+    input_texts = [s[:1024] for s in data if s!='']
+
+    perplexity = evaluate.load("perplexity", module_type="metric")
+    result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts, device="cuda")
+    print(result)
+
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-gpt = AutoModel.from_pretrained(
+gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
-    #low_cpu_mem_usage=True,
+    low_cpu_mem_usage=True,
     # device_map='auto',
     # load_in_8bit=True,
-).to(device)
+).to(device, torch.float16)
 
 text_generation = pipeline(
     "text-generation",
-    model=latest_model_dir,
+    model=gpt,
     tokenizer=tokenizer,
     device=0
 )
 
-perplexity = evaluate.load("perplexity", module_type="metric")
-#data = load_dataset("lcw99/oscar-ko-only", split='train[:50]')
-#data.save_to_disk("./test_data")
-data = load_from_disk("./test_data")['text']
 
-#data = load_dataset("lcw99/oscar-ko-only")['train']['text'][:50]
-input_texts = [s[:1024] for s in data if s!='']
-
-result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
-print(result)
 #gpt.save_pretrained("./Models/gpt-j-6B-org-to-8bit-conv")
 
 while True:
     print("\n")
-    text = input("Input: ")
+    print("Input: ")
+    contents = ""
+    while True:
+        try:
+            line = input()
+        except EOFError:
+            break
+        contents += f"{line}\n"    
+    print("wait...")
+    contents = contents.strip()
+    encoded_input = tokenizer(contents, return_tensors='pt').to(device)
+    print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
     if pipe:
         generated = text_generation(
-            text,
-            max_length=300,
+            contents,
+            max_length=500,
             do_sample=True,
             min_length=100,
             num_return_sequences=3,
@@ -93,7 +109,7 @@ while True:
         print("\n")
         print(*generated, sep="\n\n")
     else:
-        encoded_input = tokenizer(text, return_tensors='pt').to(device)
+        encoded_input = tokenizer(contents, return_tensors='pt').to(device)
         print(encoded_input)
         output_sequences = gpt.generate(encoded_input["input_ids"], max_length=500)
         print(output_sequences)

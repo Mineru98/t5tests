@@ -1,6 +1,6 @@
 compute_environment: LOCAL_MACHINE
 deepspeed_config:
-  deepspeed_config_file: deepspeed_config_stage2_1gpu.json
+  deepspeed_config_file: aaa.yml
   zero3_init_flag: true
 distributed_type: DEEPSPEED
 downcast_bf16: 'no'
