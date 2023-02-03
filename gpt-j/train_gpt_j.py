@@ -74,35 +74,6 @@ base_model_name = None
 def name_to_filename(name):
     return name.replace("/", "_").replace(".", "_")
 
-def tokenize_chunk(s):
-    detok = wikitext_detokenizer(s)
-    detok = ftfy.fix_text(detok, normalization='NFKC')
-    # if len(detok) > 50000: 
-    #     accelerator.print("long text=", len(detok))
-
-    input_ids = []
-    attention_mask = []
-    while len(detok) > 0: 
-        tt = tokenizer(detok[:max_input_length * 4], max_length=max_input_length, truncation=True, padding=True)
-        encoded_len = tt.encodings[0].offsets[-1][1]
-        #print(encoded_len, len(detok))
-        if encoded_len <= len(detok):
-            cnt = encoded_len - 1
-            while detok[cnt] not in ' .?,!/@:;-=\t\\\n':
-                cnt -= 1
-                if cnt <= encoded_len / 2:
-                    cnt = encoded_len
-                    break
-            detok = detok[cnt+1:]
-            input_ids.append(tt['input_ids'])
-            attention_mask.append(tt['attention_mask'])
-        else:
-            accelerator.print('!!!! encoded len is bigger than org')
-            input_ids.append(tt['input_ids'])
-            attention_mask.append(tt['attention_mask'])
-            break
-    return input_ids, attention_mask
-
 def tokenize_string(s):
     tt = tokenizer(s, max_length=max_input_length, truncation=True, padding=True)
     encoded_len = tt.encodings[0].offsets[-1][1]
@@ -113,25 +84,19 @@ def tokenizing_sample(ss):
     input_ids = []
     attention_mask = []
     
-    if "+" in feature_name:
-        ff = feature_name.split("+")
-        texts = []
-        for idx, s1 in enumerate(ss[ff[0]]):
-            tt = f'{s1}\n[오늘의 운세]\n{ss[ff[1]][idx]}\n<|endoftext|>'
-            tt = hanja.translate(tt, 'substitution')
-            #accelerator.print(tt)
-            texts.append(tt)
-    else:
-        texts = ss[feature_name]
-    l = len(texts)
+    ss = ss.pa_table.to_pandas().transpose()
+    l = len(ss.columns)
     i = 0
-    for s in texts:
-        pos = 0
-        s = wikitext_detokenizer(s)
-        s = ftfy.fix_text(s, normalization='NFKC')
-        while pos < len(s):
-            ss = s[pos:]
-            encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(ss)
+    while i < l:
+        s = ss[i]
+        i += 1
+        text = eval(f'f"{feature_name}"')
+
+        pos = 0        
+        text = wikitext_detokenizer(text)
+        text = ftfy.fix_text(text, normalization='NFKC')
+        while pos < len(text):
+            encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text[pos:])
             pos += encoded_len
             input_ids.append(input_ids_sub)
             attention_mask.append(attention_mask_sub)
@@ -221,7 +186,7 @@ def get_cc100(n):
         split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)],
         # download_mode='force_redownload'
     )
-    feature_name = "text"
+    feature_name = "{s['text']}"
     source = f"cc100-{n}"
     return ds, source, feature_name
 
@@ -234,14 +199,14 @@ def get_dataset(tokenize):
     dss_train = []    
     if "sns" in dataset_source.keys():
         ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
-        feature_name = "sample"
+        feature_name = "{s['sample']}"
         source = "sns"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "wiki" in dataset_source.keys():
         ds = load_dataset("lcw99/wikipedia-korean-20221001")
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "wiki"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
@@ -276,71 +241,78 @@ def get_dataset(tokenize):
         ds = load_dataset("lcw99/oscar-ko-only", split=[f'train[{k}%:{k+10}%]' for k in range(0, 100, 10)])
         # ds = load_dataset("oscar", language="ko")
         # ds.push_to_hub("oscar-ko-only")
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "oscar"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "namu" in dataset_source.keys():
         ds = load_dataset("heegyu/namuwiki-extracted")
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "namu"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "nikl_news" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2021_v1.0.zip"})
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "nikl_news"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "nikl_news_2020" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2020_v1.1.zip"})
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "nikl_news_2020"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "nikl_written" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_WRITTEN_v1.2.zip"})
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "nikl_written"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "aihub_paper_summary" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}aihub_paper_summary.zip"})
-        feature_name = "entire_org"
+        feature_name = "{s['entire_org']}"
         source = "aihub_paper_summary"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "aihub_patent_summary" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}aihub_patent_summary.zip"})
-        feature_name = "entire_org"
+        feature_name = "{s['entire_org']}"
         source = "aihub_patent_summary"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "tbsm" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}tbsm.json.zip"})
-        feature_name = "text"
+        feature_name = "{s['text']}"
         source = "tbsm"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "todays_fortune" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}todays_fortune2.zip"})
-        feature_name = "source2+target"
+        ds = load_dataset("json", data_files={'train': f"{data_server}todays_fortune.zip"})
+        feature_name = "{s['source']}\\n오늘의 운세:{s['target']}"
         source = "todays_fortune"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "wikiqna" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}aihub_wiki_qna.zip"})
-        feature_name = "decoder_feed"
+        feature_name = "아래 지문을 보고 질문에 답 하시오.\\n지문:{s['context']}\\n질문:{s['question']}\\n답변:{s['answer']}<|endoftext|>"
         source = "wikiqna"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_summary" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}korean_text_summary.zip"})
+        feature_name = "아래 지문을 요약 하시오.\\n지문:{s['passage']}\\n요약:{s['summary1']}<|endoftext|>"
+        source = "aihub_summary"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        

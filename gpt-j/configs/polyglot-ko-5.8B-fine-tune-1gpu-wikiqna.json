@@ -2,18 +2,25 @@
     "model_file": "EleutherAI/polyglot-ko-1.3b",
     "tokenizer": "EleutherAI/polyglot-ko-1.3b",
     "dataset": {
-        "wikiqna":1.0
+        "wiki":0.004, 
+        "namu":0.002, 
+        "nikl_news":0.002,
+        "nikl_news_2020":0.002,
+        "aihub_patent_summary":0.002,
+        "aihub_paper_summary":0.01,
+        "wikiqna":1.0,
+        "aihub_summary":1.0
     },
     "scratch": true,
     "reset_weight": false,
     "unfreeze": 0,
-    "save_path": "./Models/polyglot-ko-5.8b-fine-tune-wikiqna-scratch",
+    "save_path": "./Models/polyglot-ko-1.3b-fine-tune-wikiqna-summary-scratch",
     "max_input_length": 2048,
     "batch_size": 4,
     "gradient_acc": 64,
     "num_epochs": 2,
-    "save_step": 10,
-    "eval_step": 10,
+    "save_step": 40,
+    "eval_step": 20,
     "validation_data_size": 64,
     "deepspeed_config_json": "./deepspeed_config_stage2_1gpu.json"
 }

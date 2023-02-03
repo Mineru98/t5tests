@@ -41,10 +41,10 @@
             "pin_memory": true
         },        
         "allgather_partitions": true,
-        "allgather_bucket_size":20e8,
+        "allgather_bucket_size":50e8,
         "overlap_comm": true,
         "reduce_scatter": true,
-        "reduce_bucket_size": 20e8,
+        "reduce_bucket_size": 50e8,
         "contiguous_gradients": true
     },
     "gradient_accumulation_steps": 64,
