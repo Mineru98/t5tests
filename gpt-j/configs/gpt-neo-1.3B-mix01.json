@@ -4,12 +4,13 @@
     "tokenizer": "lcw99/tokenizer-wiki-plus-namu-gpt-neo-ko",
     "dataset": {
         "wiki":1.0, 
-        "namu":0.2, 
+        "namu":0.4, 
         "nikl_news":1.0,
-        "wikiqna":1.0,
         "nikl_news_2020":1.0,
         "aihub_patent_summary":0.2,
-        "aihub_paper_summary":1.0
+        "aihub_paper_summary":1.0,
+        "wikiqna":1.0,
+        "aihub_summary":1.0
     },
     "scratch": true,
     "reset_weight": true,
