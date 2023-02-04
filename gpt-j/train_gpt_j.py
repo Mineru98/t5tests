@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
 from collections.abc import Mapping
 from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
+import pandas
 import hanja
 
 """
@@ -84,7 +85,8 @@ def tokenizing_sample(ss):
     input_ids = []
     attention_mask = []
     
-    ss = ss.pa_table.to_pandas().transpose()
+    ss_pd = pandas.DataFrame.from_dict(ss.data)
+    ss = ss_pd.transpose()
     l = len(ss.columns)
     i = 0
     while i < l:
