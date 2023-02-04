@@ -140,9 +140,12 @@ def wikitext_detokenizer(string):
     return string
 
 def preprocess_dataset(source, rate, dss, tokenize: bool = True):
+    val_size = int(validation_data_size * rate)
+    if val_size < 1:
+        val_size = 2
     if len(dss) > 1:
         ds = dss[0]
-        ds = ds.train_test_split(validation_data_size)
+        ds = ds.train_test_split(val_size)
         dss[0] = ds["train"]
         ds_eval = ds["test"]
         columns = ds_eval.column_names
@@ -161,7 +164,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             ds_train = concatenate_datasets(datasets)
     else:
         ds = dss["train"]
-        ds = ds.train_test_split(validation_data_size)
+        ds = ds.train_test_split(val_size)
         ds_train = ds["train"]
         ds_eval = ds["test"]
         if training_size > 0:
