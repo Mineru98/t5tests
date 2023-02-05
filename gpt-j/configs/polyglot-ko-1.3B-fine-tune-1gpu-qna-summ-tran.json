@@ -21,7 +21,7 @@
     "batch_size": 4,
     "gradient_acc": 64,
     "num_epochs": 2,
-    "save_step": 40,
+    "save_step": 20,
     "eval_step": 20,
     "validation_data_size": 64,
     "deepspeed_config_json": "./deepspeed_config_stage2_1gpu.json"
