@@ -851,10 +851,11 @@ def get_perplexity():
         data = load_from_disk("./test_data")['text']
         input_texts = [s[:1024] for s in data if s!='']
         latest_model_dir = max(glob.glob(os.path.join(model_save_dir, 'checkpoint-*/')), key=os.path.getmtime)
-
+        accelerator.print(f"latest_model_dir for perplexity={latest_model_dir}")
         result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts)
         return result['mean_perplexity']
     except Exception as e:
+        accelerator.print("\n!! get_perplexity error1= ", e)
         if start_model_path is not None:
             try:
                 result = perplexity.compute(model_id=start_model_path, predictions=input_texts)
