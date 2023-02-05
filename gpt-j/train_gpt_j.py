@@ -85,8 +85,11 @@ def tokenizing_sample(ss):
     input_ids = []
     attention_mask = []
     
-    ss_pd = pandas.DataFrame.from_dict(ss.data)
-    ss = ss_pd.transpose()
+    if type(ss).__name__ == "Batch":
+        ss_pd = pandas.DataFrame.from_dict(ss.data)
+        ss = ss_pd.transpose()
+    else:
+        ss = ss.pa_table.to_pandas().transpose()
     l = len(ss.columns)
     i = 0
     while i < l:
@@ -318,6 +321,20 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}korean_text_summary.zip"})
         feature_name = "아래 지문을 요약 하시오.\\n지문:{s['passage']}\\n요약:{s['summary1']}<|endoftext|>"
         source = "aihub_summary"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_translation_to_english" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_translation.zip"})
+        feature_name = "한글원문:{s['korean']}\\n영어번역:{s['english']}<|endoftext|>"
+        source = "aihub_translation_to_english"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_translation_to_korean" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_translation.zip"})
+        feature_name = "영어원문:{s['english']}\\n한글번역:{s['korean']}<|endoftext|>"
+        source = "aihub_translation_to_korean"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
