@@ -3,13 +3,15 @@ deepspeed_config:
  deepspeed_config_file: ./deepspeed_config_stage2_2gpu.json
  zero3_init_flag: true
 distributed_type: DEEPSPEED
+downcast_bf16: 'no'
+dynamo_backend: 'NO'
 fsdp_config: {}
 machine_rank: 0
-main_process_ip: null
-main_process_port: null
 main_training_function: main
-mixed_precision: fp16
+megatron_lm_config: {}
 num_machines: 1
 num_processes: 2
+rdzv_backend: static
+same_network: true
 use_cpu: false
 
