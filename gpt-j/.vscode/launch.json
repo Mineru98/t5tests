@@ -16,7 +16,7 @@
             "program": "${file}",
             "args": [
                 "--config_file",
-                "configs/gpt-neo-1.3B-mix01.json",
+                "configs/polyglot-ko-3.8B-fine-tune-2gpu-qna-summ-trans.json",
             ],
             "justMyCode": false
         }

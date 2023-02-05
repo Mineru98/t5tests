@@ -9,7 +9,9 @@
         "aihub_patent_summary":0.002,
         "aihub_paper_summary":0.01,
         "wikiqna":1.0,
-        "aihub_summary":1.0
+        "aihub_summary":1.0,
+        "aihub_translation_to_english":1.0,
+        "aihub_translation_to_korean":1.0
     },
     "scratch": true,
     "reset_weight": false,

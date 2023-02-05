@@ -92,6 +92,8 @@ def tokenizing_sample(ss):
         ss = ss.pa_table.to_pandas().transpose()
     l = len(ss.columns)
     i = 0
+    input_ids_concat = []
+    attention_mask_concat = []
     while i < l:
         s = ss[i]
         i += 1
@@ -103,9 +105,18 @@ def tokenizing_sample(ss):
         while pos < len(text):
             encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text[pos:])
             pos += encoded_len
-            input_ids.append(input_ids_sub)
-            attention_mask.append(attention_mask_sub)
-                
+            if len(input_ids_concat) + len(input_ids_sub) < max_input_length:
+                input_ids_concat += input_ids_sub
+                attention_mask_concat += attention_mask_sub
+            else:
+                input_ids.append(input_ids_concat)
+                attention_mask.append(attention_mask_concat)
+                input_ids_concat = input_ids_sub
+                attention_mask_concat = attention_mask_sub
+    if len(input_ids_concat) > 0:
+        input_ids.append(input_ids_concat)
+        attention_mask.append(attention_mask_concat)
+        
     tokenized['input_ids'] = input_ids
     tokenized['attention_mask'] = attention_mask
     #tokenized['labels'] = input_ids
