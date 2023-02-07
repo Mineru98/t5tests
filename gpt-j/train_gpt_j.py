@@ -1023,7 +1023,7 @@ def preprocess_logits_for_metrics(logits, labels):
             labels_ids = labels[ii]
             labels_ids[labels_ids == -100] = tokenizer.pad_token_id
             decoded_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
-            label_str = "+".join([str(i) for i in decoded_str])
+            label_str = "_".join([str(i) for i in decoded_str])
             label_str = label_str.replace("\n", "/")
             accelerator.print(f"\n=={ii} ", label_str)
     except Exception as e:
