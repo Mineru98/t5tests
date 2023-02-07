@@ -73,6 +73,7 @@ last_eval_model = None
 base_model_name = None
 
 cache_folder_name = "Cache2"
+new_model_name = "lcw99/no-name"
 
 def name_to_filename(name):
     return name.replace("/", "_").replace(".", "_")
@@ -334,9 +335,39 @@ def get_dataset(tokenize):
             "아래 지문을 보고 질문에 답 하시오.\\n지문:{s['context']}\\n질문:{s['question']}\\n답변:{s['answer']}",
             "아래 글을 보고 질문에 답 하시오.\\n{s['context']}\\n{s['question']}?\\n{s['answer']}",
             "{s['context']}\\n위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
+            "아래 글을 보고 질문에 답 하시오.\\n{s['context']}\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+            "{s['context']}\\n위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
             "{s['context']}\\n위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
         ]
         source = "wikiqna"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_news_qna" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_news_qna.zip"})
+        text_templates = [
+            "아래 지문을 보고 질문에 답 하시오.\\n지문:{s['context']}\\n질문:{s['question']}\\n답변:{s['answer']}",
+            "아래 글을 보고 질문에 답 하시오.\\n{s['context']}\\n{s['question']}?\\n{s['answer']}",
+            "{s['context']}\\n위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
+            "아래 글을 보고 질문에 답 하시오.\\n{s['context']}\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+            "{s['context']}\\n위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
+            "{s['context']}\\n위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+        ]
+        source = "aihub_news_qna"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_book_qna" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_book_qna.zip"})
+        text_templates = [
+            "아래 지문을 보고 질문에 답 하시오.\\n지문:{s['context']}\\n질문:{s['question']}\\n답변:{s['answer']}",
+            "아래 글을 보고 질문에 답 하시오.\\n{s['context']}\\n{s['question']}?\\n{s['answer']}",
+            "{s['context']}\\n위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
+            "아래 글을 보고 질문에 답 하시오.\\n{s['context']}\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+            "{s['context']}\\n위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
+            "{s['context']}\\n위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+        ]
+        source = "aihub_book_qna"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
@@ -376,6 +407,34 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "aihub_daily_conversation" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_daily_conversation.zip"})
+        text_templates = [
+            "아래 대화를 연결해 보시오.\\n{s['conversation']}",
+            "아래 대화를 잘 보고 다음 대화를 연결해 나가봐.\\n{s['conversation']}",
+            "아래 대화를 계속 진행 해봐..\\n{s['conversation']}",
+            "아래 대화를 보고 적절한 다음 응답을 하시오.\\n{s['conversation']}",
+            "대화를 계속 진행 하시오.\\n{s['conversation']}",
+            "아래 대화를 계속 진행 하시오.\\n{s['conversation']}",
+        ]
+        source = "aihub_daily_conversation"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_domain_conversation" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_domain_conversation.zip"})
+        text_templates = [
+            "아래 대화를 연결해 보시오.\\n{s['conversation']}",
+            "아래 대화를 잘 보고 다음 대화를 연결해 나가봐.\\n{s['conversation']}",
+            "아래 대화를 계속 진행 해봐..\\n{s['conversation']}",
+            "아래 대화를 보고 적절한 다음 응답을 하시오.\\n{s['conversation']}",
+            "대화를 계속 진행 하시오.\\n{s['conversation']}",
+            "아래 대화를 계속 진행 하시오.\\n{s['conversation']}",
+        ]
+        source = "aihub_domain_conversation"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
                 
     ds_concat_eval = concatenate_datasets(dss_eval) 
     ds_concat_train = concatenate_datasets(dss_train)
@@ -556,7 +615,7 @@ def init_model():
 
     gpt.gradient_checkpointing_enable()
     
-    #gpt.config.__dict__["_name_or_path"] = f"lcw99/{base_model_name}"
+    gpt.config.__dict__["_name_or_path"] = f"lcw99/{new_model_name}"
     gpt.config.__dict__["use_cache"] = False
     # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
         
@@ -1070,7 +1129,7 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
-            deepspeed_config_json
+            deepspeed_config_json, new_model_name
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1161,6 +1220,8 @@ def main():
         skip_eval = True
     if args.deepspeed_config_json:
         deepspeed_config_json = args.deepspeed_config_json
+    if args.new_model_name:
+        new_model_name = args.new_model_name
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")
@@ -1170,12 +1231,7 @@ def main():
     if tune_head_only:
         unfreeze = 0   
         
-    if gpt_neo is not None:
-        base_model_name = gpt_neo
-        tokenizer_name = f"EleutherAI/{gpt_neo}"
-    else:
-        base_model_name = "gpt-j-6B"
-        tokenizer_name = f"EleutherAI/{base_model_name}"
+    base_model_name = new_model_name
         
     # if tokenizer name provided, override previous settings.
     if args.tokenizer:

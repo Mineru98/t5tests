@@ -1,6 +1,7 @@
 {
     "model_file": "EleutherAI/polyglot-ko-1.3b",
     "tokenizer": "EleutherAI/polyglot-ko-1.3b",
+    "new_model_name": "lcw99/multi-function-polyglot-ko-1.3b",
     "dataset": {
         "wiki":0.004, 
         "namu":0.002, 
@@ -11,12 +12,16 @@
         "wikiqna":1.0,
         "aihub_summary":1.0,
         "aihub_translation_to_english":1.0,
-        "aihub_translation_to_korean":1.0
+        "aihub_translation_to_korean":1.0,
+        "aihub_news_qna":1.0,
+        "aihub_book_qna":1.0,
+        "aihub_daily_conversation":1.0,
+        "aihub_domain_conversation":1.0
     },
     "scratch": true,
     "reset_weight": false,
     "unfreeze": 0,
-    "save_path": "./Models/polyglot-ko-1.3b-fine-tune-qna-summ-tran-scratch",
+    "save_path": "./Models/polyglot-ko-1.3b-multi-func",
     "max_input_length": 1024,
     "batch_size": 4,
     "gradient_acc": 64,
