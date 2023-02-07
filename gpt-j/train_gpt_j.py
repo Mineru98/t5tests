@@ -615,7 +615,7 @@ def init_model():
 
     gpt.gradient_checkpointing_enable()
     
-    gpt.config.__dict__["_name_or_path"] = f"lcw99/{new_model_name}"
+    gpt.config.__dict__["_name_or_path"] = f"{new_model_name}"
     gpt.config.__dict__["use_cache"] = False
     # gpt.save_pretrained("./StockModels/gpt-j-6B-fp16-ko-voc-saved-as-8bit")
         
@@ -1021,10 +1021,9 @@ def preprocess_logits_for_metrics(logits, labels):
         accelerator.print(f"\n**{ii} ", pred_str)
         if len(labels) > ii:
             labels_ids = labels[ii]
-            # labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-            # labels_ids = labels_ids[labels_ids != -100]
+            labels_ids[labels_ids == -100] = tokenizer.pad_token_id
             decoded_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
-            label_str = "++".join([str(i) for i in decoded_str])
+            label_str = "+".join([str(i) for i in decoded_str])
             label_str = label_str.replace("\n", "/")
             accelerator.print(f"\n=={ii} ", label_str)
     except Exception as e:
