@@ -102,12 +102,14 @@ while True:
             max_length=700,
             do_sample=True,
             min_length=100,
-            num_return_sequences=3,
+            num_return_sequences=1,
+            early_stopping=True,
+            num_beams=3,
             # top_p=0.95,
             # top_k=50
         )
         print("\n")
-        print(*generated, sep="\n\n")
+        print(generated[0]['generated_text'])
     else:
         encoded_input = tokenizer(contents, return_tensors='pt').to(device)
         print(encoded_input)

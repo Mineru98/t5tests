@@ -10,13 +10,13 @@
             "justMyCode": true
         },
         {
-            "name": "Python: File",
+            "name": "Python: train llm",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "args": [
                 "--config_file",
-                "configs/polyglot-ko-3.8B-fine-tune-2gpu-qna-summ-trans.json",
+                "configs/test_config.json",
             ],
             "justMyCode": false
         }
