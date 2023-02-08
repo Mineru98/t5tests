@@ -31,6 +31,7 @@ import hanja
 # korean extended vocabulary, reset all weight
     python train_gpt_j.py -d namu -i 256 -kor_voca --eval_sample --scratch    
 """
+data_build_only = False
 gpt_neo = None      
 model_file = None
 save_path = None
@@ -658,6 +659,9 @@ def trainer():
         batch_size = 4
 
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=False, loader_batch_size=batch_size)
+    if data_build_only:
+        return
+
     model, optimizer = init_model()
  
     num_epochs = 5
@@ -1055,6 +1059,9 @@ def huggingface_trainer():
     # )
 
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
+    if data_build_only:
+        return
+    
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
 
@@ -1144,7 +1151,7 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
-            deepspeed_config_json, new_model_name, cache_folder_name
+            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1174,6 +1181,7 @@ def main():
     parser.add_argument("--reset_weight", action='store_true', help = "rest all weight in model")
     parser.add_argument("--skip_eval", action='store_true', help = "skip eval step")
     parser.add_argument("--deepspeed_config_json", help = "deepspeed_config_json file")
+    parser.add_argument("--data_build_only", action='store_true', help = "build dataset, no training")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1239,6 +1247,8 @@ def main():
         new_model_name = args.new_model_name
     if args.cache_folder_name:
         cache_folder_name = args.cache_folder_name
+    if args.data_build_only:
+        data_build_only = True
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")
