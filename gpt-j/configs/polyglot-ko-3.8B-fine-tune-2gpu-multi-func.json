@@ -1,7 +1,7 @@
 {
-    "model_file": "EleutherAI/polyglot-ko-1.3b",
+    "model_file": "EleutherAI/polyglot-ko-3.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
-    "new_model_name": "lcw99/multi-function-polyglot-ko-1.3b",
+    "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b",
     "cache_folder_name": "cache",
     "dataset": {
         "wiki":0.004, 
@@ -25,7 +25,7 @@
     "scratch": true,
     "reset_weight": false,
     "unfreeze": 0,
-    "save_path": "./Models/polyglot-ko-1.3b-multi-func",
+    "save_path": "./Models/polyglot-ko-3.8b-multi-func",
     "max_input_length": 1024,
     "batch_size": 4,
     "gradient_acc": 64,
