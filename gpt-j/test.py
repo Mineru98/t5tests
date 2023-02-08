@@ -6,8 +6,10 @@ from transformers import AutoTokenizer, logging, pipeline, AutoModel, AutoModelF
 import argparse, evaluate
 from datasets import load_dataset, load_from_disk 
 
-pipe = True
+pipe = False
 compute_perplexity = False
+max_output_length = 1024
+min_output_length = 256
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -96,10 +98,19 @@ while True:
     contents = contents.strip()
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
+    input_length = encoded_input['input_ids'].size()[1]
+    print(f'input_length={input_length}')
+    if input_length * 2 + 10 < max_output_length:
+        max_length = input_length * 2 + 10
+        if max_length < min_output_length:
+            max_length = min_output_length
+    else:
+        max_length = max_output_length
+    print(f'max_length={max_length}')
     if pipe:
         generated = text_generation(
             contents,
-            max_length=700,
+            max_length=max_length,
             do_sample=True,
             min_length=100,
             num_return_sequences=1,
@@ -111,9 +122,29 @@ while True:
         print("\n")
         print(generated[0]['generated_text'])
     else:
-        encoded_input = tokenizer(contents, return_tensors='pt').to(device)
-        print(encoded_input)
-        output_sequences = gpt.generate(encoded_input["input_ids"], max_length=700)
-        print(output_sequences)
-        generated = tokenizer.decode(output_sequences[0], skip_special_tokens=True)        
+        output_sequences = gpt.generate(
+            encoded_input["input_ids"], 
+            do_sample=True,
+            num_beams=3,
+            length_penalty=1.0,
+            temperature=1.0,
+            top_k=50,
+            top_p=0.95,
+            repetition_penalty=2.0,
+            max_length=max_length
+        )
+        # print(output_sequences)
+        output = output_sequences[0].tolist()
+        try:
+            stop = output.index(tokenizer.eos_token_id)
+        except:
+            stop = len(output)
+        # print(output, stop)
+        generated = tokenizer.decode(output[stop:], skip_special_tokens=False)        
+        print(generated)        
+        print("----")        
+        generated = tokenizer.decode(output[:input_length], skip_special_tokens=False)
+        print(generated)
+        print("----")        
+        generated = tokenizer.decode(output[input_length:stop], skip_special_tokens=False)        
         print(generated)

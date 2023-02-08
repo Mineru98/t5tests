@@ -161,7 +161,8 @@ cython_debug/
 Models/
 venv/
 wikipedia-tokenized*/
-cache/
+cache*/
+Cache*/
 dataset/
 lhk/
 StockModels/

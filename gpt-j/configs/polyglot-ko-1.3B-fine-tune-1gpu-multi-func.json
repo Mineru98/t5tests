@@ -2,6 +2,7 @@
     "model_file": "EleutherAI/polyglot-ko-1.3b",
     "tokenizer": "EleutherAI/polyglot-ko-1.3b",
     "new_model_name": "lcw99/multi-function-polyglot-ko-1.3b",
+    "cache_folder_name": "Cache2",
     "dataset": {
         "wiki":0.004, 
         "namu":0.002, 
@@ -10,11 +11,13 @@
         "aihub_patent_summary":0.002,
         "aihub_paper_summary":0.01,
         "wikiqna":1.0,
+        "aihub_news_qna":1.0,
+        "aihub_book_qna":1.0,
         "aihub_summary":1.0,
         "aihub_translation_to_english":1.0,
         "aihub_translation_to_korean":1.0,
-        "aihub_news_qna":1.0,
-        "aihub_book_qna":1.0,
+        "aihub_tech_domain_translation_to_english":1.0,
+        "aihub_tech_domain_translation_to_korean":1.0,
         "aihub_daily_conversation":1.0,
         "aihub_domain_conversation":1.0
     },
@@ -23,11 +26,11 @@
     "unfreeze": 0,
     "save_path": "./Models/polyglot-ko-1.3b-multi-func",
     "max_input_length": 1024,
-    "batch_size": 4,
+    "batch_size": 8,
     "gradient_acc": 64,
     "num_epochs": 1,
     "save_step": 20,
     "eval_step": 20,
     "validation_data_size": 64,
-    "deepspeed_config_json": "./deepspeed_config_stage2_1gpu.json"
+    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json"
 }

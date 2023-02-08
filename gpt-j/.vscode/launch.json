@@ -1,12 +1,12 @@
 {
     "configurations": [
         {
-            "name": "Python: test",
+            "name": "Python: test.py",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-l", "gpt-neo-125M-6260"],
+            "args": ["-l", "polyglot-ko-1.3b-multi-func"],
             "justMyCode": true
         },
         {
