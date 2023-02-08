@@ -19,6 +19,7 @@ parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer")
 parser.add_argument("-p", "--path", help = "model path with tokenizer")
+parser.add_argument("-c", "--chat_mode", help = "chatting mode")
 args = parser.parse_args()
 latest_model_dir = "none"
 if args.local_model:
@@ -44,6 +45,10 @@ if args.tokenizer:
 if args.path:
     latest_model_dir = args.path
     tokenizer_dir = latest_model_dir
+    
+num_chat_history = 0
+if args.chat_mode:
+    num_chat_history = int(args.chat_mode) 
 
 print("\n---------------------------")
 print("model dir =\t", latest_model_dir)
@@ -82,30 +87,45 @@ text_generation = pipeline(
 )
 
 
-#gpt.save_pretrained("./Models/gpt-j-6B-org-to-8bit-conv")
-
+chat_history = []
+chat_prompt = "아래 대화를 연결해 보시오.\n"
 while True:
-    print("\n")
-    print("Input: ")
-    contents = ""
-    while True:
-        try:
-            line = input()
-        except EOFError:
-            break
-        contents += f"{line}\n"    
-    print("wait...")
+    if num_chat_history == 0:
+        print("\n")
+        print("Input: ")
+        contents = ""
+        while True:
+            try:
+                line = input()
+            except EOFError:
+                break
+            contents += f"{line}\n"    
+        print("wait...")
+    else:
+        contents = chat_prompt
+        if len(chat_history) == 0:
+            contents += "A: 안녕하세요?\n"
+            print(contents)
+        else:
+            for ch in chat_history:
+                contents += f"B: {ch['user']}\nA: {ch['bot']}\n"
+        user_input = input("B: ")
+        user_input = user_input.strip()
+        contents += f"B: {user_input}\nA: "
     contents = contents.strip()
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
     input_length = encoded_input['input_ids'].size()[1]
     print(f'input_length={input_length}')
-    if input_length * 2 + 10 < max_output_length:
-        max_length = input_length * 2 + 10
-        if max_length < min_output_length:
-            max_length = min_output_length
+    if num_chat_history == 0:
+        if input_length * 2 + 10 < max_output_length:
+            max_length = input_length * 2 + 10
+            if max_length < min_output_length:
+                max_length = min_output_length
+        else:
+            max_length = max_output_length
     else:
-        max_length = max_output_length
+        max_length = input_length + 100
     print(f'max_length={max_length}')
     if pipe:
         generated = text_generation(
@@ -140,11 +160,23 @@ while True:
         except:
             stop = len(output)
         # print(output, stop)
-        generated = tokenizer.decode(output[stop:], skip_special_tokens=False)        
-        print(generated)        
+        garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
+        print(garbage)        
         print("----")        
-        generated = tokenizer.decode(output[:input_length], skip_special_tokens=False)
-        print(generated)
-        print("----")        
-        generated = tokenizer.decode(output[input_length:stop], skip_special_tokens=False)        
-        print(generated)
+        prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
+        generated = tokenizer.decode(output[input_length:stop], skip_special_tokens=False).strip()
+        if num_chat_history == 0:        
+            print(prompt)
+            print("----")        
+            print(generated)
+        else:
+            stop_index = generated.find("B:")
+            if stop_index < 0:
+                bot_message = generated
+            else:
+                bot_message = generated[:stop_index].strip()
+            chat_history.append({"user": user_input, "bot": bot_message})
+            while len(chat_history) > num_chat_history:
+                chat_history.pop(0)
+            print(f"{prompt} {bot_message}")
+            
