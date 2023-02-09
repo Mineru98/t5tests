@@ -33,5 +33,6 @@
     "save_step": 20,
     "eval_step": 20,
     "validation_data_size": 64,
+    "ignore_data_skip": false,
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json"
 }
