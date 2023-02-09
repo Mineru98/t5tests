@@ -245,16 +245,16 @@ def get_dataset(tokenize):
         "아래 대화를 계속 진행 하시오.\\n{s['conversation']}",
     ]
     text_templates_tran_ko_to_en = [
-        "한글원문:{s['korean']}\\n영어번역:{s['english']}",
-        "{s['korean']}\\n위글을 영어로 번역 하시오.\\n{s['english']}",
-        "{s['korean']}\\n영어로 번역 하시오.\\n{s['english']}",
-        "{s['korean']}\\n영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['english']}",
+        "한글원문:{eos}{s['korean']}\\n{eos}영어번역:{s['english']}",
+        "{s['korean']}\\n{eos}위글을 영어로 번역 하시오.\\n{s['english']}",
+        "{s['korean']}\\n{eos}영어로 번역 하시오.\\n{s['english']}",
+        "{s['korean']}\\n{eos}영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['english']}",
     ]
     text_templates_tran_en_to_ko = [
-        "영어원문:{s['english']}\\n한글번역:{s['korean']}",
-        "{s['english']}\\n위글을 한글로 번역 하시오.\\n{s['korean']}",
-        "{s['english']}\\n한글로 번역 하시오.\\n{s['korean']}",
-        "{s['english']}\\n한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['korean']}",
+        "영어원문:{s['english']}\\n{eos}한글번역:{s['korean']}",
+        "{s['english']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['korean']}",
+        "{s['english']}\\n{eos}한글로 번역 하시오.\\n{s['korean']}",
+        "{s['english']}\\n{eos}한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['korean']}",
     ]
     text_templates_summarize = [
         "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
