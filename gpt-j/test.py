@@ -9,7 +9,7 @@ from datasets import load_dataset, load_from_disk
 pipe = False
 compute_perplexity = False
 max_output_length = 1024
-min_output_length = 256
+min_output_length = 400
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -88,7 +88,7 @@ text_generation = pipeline(
 
 
 chat_history = []
-chat_prompt = "아래 대화를 연결해 보시오.\n"
+chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 대기업 다니는 직장인 입니다.\n아래 대화를 연결해 보시오.\n"
 while True:
     if num_chat_history == 0:
         print("\n")
