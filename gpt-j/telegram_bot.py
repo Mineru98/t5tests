@@ -45,6 +45,10 @@ gpt = AutoModelForCausalLM.from_pretrained(
     low_cpu_mem_usage=True,
 ).to(device, torch.float16)
 
+sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
+sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
+print(f'sep_token_id={sep_token_id}')
+
 def send_typing_action(func):
     """Sends typing action while processing func command."""
 
@@ -98,10 +102,10 @@ def generate(contents, chat_mode = False):
     else:
         max_length = input_length + 100
     print(f'max_length={max_length}')
-        
+    
     output_sequences = gpt.generate(
         encoded_input["input_ids"], 
-        do_sample=True,
+        do_sample=False,
         early_stopping=True,
         num_beams=3,
         length_penalty=1.0,
@@ -109,24 +113,27 @@ def generate(contents, chat_mode = False):
         top_k=50,
         top_p=0.95,
         repetition_penalty=2.0,
+        pad_token_id=tokenizer.eos_token_id,
+        eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+        begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id],
+        # forced_eos_token_id=tokenizer.eos_token_id,
         max_length=max_length
     )
     # print(output_sequences)
+    
     output = output_sequences[0].tolist()
     prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
     output = output[input_length:]
+    print(output)
     output = skip_eos_token(output)
     try:
         stop = output.index(tokenizer.eos_token_id)
     except:
         stop = len(output)
-    print(f'====\nstop={stop}\n{output}')
     generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
     garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
-    print("----")        
-    print(garbage)        
-    print("----")        
     print(f'prompt={prompt}\ngenerated={generated}')        
+    print(f'\n\ngarbage={garbage}')        
     
     return prompt, generated
     
@@ -151,7 +158,11 @@ def chat_query(context, user_input):
     prompt, generated = generate(contents, True)
 
     stop_index_user = generated.find(f"{user_prefix}:")
+    if stop_index_user < 0:
+        stop_index_user = len(generated)
     stop_index_bot = generated.find(f"{bot_prefix}:")
+    if stop_index_bot < 0:
+        stop_index_bot = len(generated)
     stop_index = min(stop_index_bot, stop_index_user)
     if stop_index < 0:
         bot_message = generated

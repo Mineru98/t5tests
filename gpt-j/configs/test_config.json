@@ -4,12 +4,6 @@
     "new_model_name": "lcw99/multi-function-polyglot-ko-1.3b",
     "cache_folder_name": "cache_temp",
     "dataset": {
-        "wikiqna":1.0,
-        "aihub_summary":1.0,
-        "aihub_translation_to_english":1.0,
-        "aihub_translation_to_korean":1.0,
-        "aihub_news_qna":1.0,
-        "aihub_book_qna":1.0,
         "aihub_daily_conversation":1.0,
         "aihub_domain_conversation":1.0
     },

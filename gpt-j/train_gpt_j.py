@@ -105,6 +105,11 @@ def tokenizing_sample(ss):
         s = ss[i]
         i += 1
         text = eval(f'f"{text_templates[tt]}"')
+        if "'conversation'" in text_templates[tt]:
+            if '<|sep|>' in tokenizer.additional_special_tokens:
+                sep = '<|sep|>'
+                text = text.replace("\nA:", f"\n{sep}A:")
+                text = text.replace("\nB:", f"\n{sep}B:")
         tt += 1
         if tt >= num_text_templates:
             tt = 0
