@@ -100,7 +100,7 @@ def generate(contents, chat_mode = False):
         else:
             max_length = max_output_length
     else:
-        max_length = input_length + 100
+        max_length = input_length + 20
     print(f'max_length={max_length}')
     
     output_sequences = gpt.generate(
