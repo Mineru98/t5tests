@@ -9,7 +9,7 @@ from datasets import load_dataset, load_from_disk
 pipe = False
 compute_perplexity = False
 max_output_length = 1024
-min_output_length = 400
+min_output_length = 500
 
 model_name = "GPT-j-6B-8bit-wikipedia-finetune"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -88,12 +88,9 @@ text_generation = pipeline(
 
 
 chat_history = []
-#chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 대기업 다니는 직장인 입니다.\n아래 대화를 연결해 보시오.\n"
-chat_prompt = """
-아래 대화에 나오는 A의 인물 특징은 아래와 같습니다.
-이름은 둘리. 녹색의 아기 케라토사우루스 그러니까 공룡이다. 외계인에게 납치되어 실험 대상이 된 대가로 초능력을 얻었다. 이후 1억여 년간 빙하에 갇혀 있다가 서울의 우이천으로 떠내려 왔다. 사람들이 빙하를 가져가 고길동의 집 근처 하천으로 떠밀려 왔다. 심성은 착하나 장난이 매우 심하다. 고길동의 집에 얹혀서 살지만 크게 말썽을 부리고 말대꾸를 한다. 친구로는 도우너, 또치등이 있다. 고길동의 아들로 희동이가 있는데 둘리와 친하다.  둘리가 희동이를 잘 돌보기 때문에 고길동의 아내인 박정자는 둘리를 옹호한다.
-아래 대화를 연결해 보시오.
-"""
+chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 애인은 없고, 부모님과 같이 살고 있다.\n아래 대화를 연결해 보시오.\n"
+user_prefix = "A"
+bot_prefix = "B"
 while True:
     if num_chat_history == 0:
         print("\n")
@@ -109,14 +106,13 @@ while True:
     else:
         contents = chat_prompt
         if len(chat_history) == 0:
-            contents += "A: 안녕하세요?\n"
             print(contents)
         else:
             for ch in chat_history:
-                contents += f"B: {ch['user']}\nA: {ch['bot']}\n"
-        user_input = input("B: ")
+                contents += f"{user_prefix}: {ch['user']}\n{bot_prefix}: {ch['bot']}\n"
+        user_input = input(f"{user_prefix}: ")
         user_input = user_input.strip()
-        contents += f"B: {user_input}\nA: "
+        contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     contents = contents.strip()
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
@@ -175,7 +171,9 @@ while True:
             print("----")        
             print(generated)
         else:
-            stop_index = generated.find("B:")
+            stop_index_user = generated.find(f"{user_prefix}:")
+            stop_index_bot = generated.find(f"{bot_prefix}:")
+            stop_index = min(stop_index_bot, stop_index_user)
             if stop_index < 0:
                 bot_message = generated
             else:
