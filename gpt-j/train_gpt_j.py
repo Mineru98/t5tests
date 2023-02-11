@@ -471,7 +471,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
     if "nikl_news_2020_writing" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2020_v1.1.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2020_v1.1.1.zip"})
         text_templates = text_templates_news_writing
         source = "nikl_news_2020_writing"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
