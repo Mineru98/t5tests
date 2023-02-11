@@ -172,7 +172,7 @@ def mqna_query(context, user_input):
     return bot_message
         
 def chat_query(context, user_input):
-    MAX_CHAT_HISTORY = 10
+    MAX_CHAT_HISTORY = 5
     user_prefix = "A"
     bot_prefix = "B"
 
