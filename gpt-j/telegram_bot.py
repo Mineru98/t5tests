@@ -13,16 +13,6 @@ from telegram import (ChatAction)
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
-chat_prompt = """
-A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 
-키는 175cm, 몸무게는 70kg 이다. 연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
-애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
-호기심이 많아서 질문도 잘 한다. 서울대에서 컴퓨터공학을 전공 했다.
-대화 내용을 최대한 참고하여, 아래 대화를 연결해 보시오.
-"""
-max_output_length = 1024
-min_output_length = 512
-
 HELP_TEXT = """
 언어모델 챗 봇 by Sempahore. 3.8B parameters language model, 1/46 of chatGPT.
 현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
@@ -37,6 +27,30 @@ HELP_TEXT = """
 
 /clear - 채팅 히스토리 삭제
 """
+
+chat_prompt_normal = """
+A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 
+키는 175cm, 몸무게는 70kg 이다. 연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
+애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
+호기심이 많아서 질문도 잘 한다. 서울대에서 컴퓨터공학을 전공 했다.
+정치적 성향은 중도이다.
+했던 말을 번복 하지 않도록 주의 하면서, 대화를 연결 하시오.
+"""
+
+chat_prompt_therapist = """
+A는 전문 심리 상담사이다. 상담사로서 고객의 심리 상태를 파악하는데 도움이 되는 대화를 유도한다.
+A는 전문 상담사로서 책임있는 발언만을 해야 한다.
+B가 고객으로 상담을 하러 왔다. 대화를 연결 하시오.
+"""
+
+chat_prompt_doctor = """
+A는 응급실 소속 의사이다. A는 환자의 상태를 진단하고 필요한 조치를 시행하며 적절한 의사 선생님에게 진찰 받을 수 있도록 조치한다.
+A는 의사로서 책임있는 발언만을 해야 한다.
+B는 의사를 만나러온 환자다. 대화를 연결 하시오.
+"""
+
+max_output_length = 1024
+min_output_length = 512
 
 latest_model_dir = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-000"
 tokenizer_dir = latest_model_dir
@@ -83,7 +97,11 @@ def clear_chat_history(context):
 def query(context, user_input):
     print(f"\n\n\nstart new query----\n{user_input}\n")
     if context.user_data['councelor_type'] == "chatting":
-        return chat_query(context, user_input)
+        return chat_query(context, user_input, chat_prompt_normal)
+    elif context.user_data['councelor_type'] == "therapist":
+        return chat_query(context, user_input, chat_prompt_therapist)
+    elif context.user_data['councelor_type'] == "doctor":
+        return chat_query(context, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "qna":
         return qna_query(context, user_input)
     elif context.user_data['councelor_type'] == "mqna":
@@ -116,41 +134,45 @@ def generate(contents, chat_mode = False):
         max_length = input_length + 50
     print(f'max_length={max_length}')
     
-    output_sequences = gpt.generate(
-        encoded_input["input_ids"], 
-        do_sample=False,
-        early_stopping=True,
-        num_beams=3,
-        length_penalty=1.0,
-        temperature=0.8,
-        top_k=50,
-        top_p=0.8,
-        no_repeat_ngram_size=3, 
-        repetition_penalty=1.2,
-        pad_token_id=tokenizer.eos_token_id,
-        eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-        begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id, 224],
-        # forced_eos_token_id=tokenizer.eos_token_id,
-        max_length=max_length
-    )
-    # print(output_sequences)
-    
-    output = output_sequences[0].tolist()
-    prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
-    output = output[input_length:]
-    print(output)
-    output = skip_eos_token(output)
     try:
-        stop = output.index(tokenizer.eos_token_id)
+        output_sequences = gpt.generate(
+            encoded_input["input_ids"], 
+            do_sample=False,
+            early_stopping=True,
+            num_beams=5,
+            length_penalty=1.0,
+            temperature=1.0,
+            top_k=50,
+            top_p=0.95,
+            no_repeat_ngram_size=3, 
+            repetition_penalty=1.2,
+            pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+            begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+            # forced_eos_token_id=tokenizer.eos_token_id,
+            max_length=max_length
+        )
+        output = output_sequences[0].tolist()
+        
+        prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
+        output = output[input_length:]
+        print(output)
+        output = skip_eos_token(output)
+        try:
+            stop = output.index(tokenizer.eos_token_id)
+        except:
+            stop = len(output)
+        generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
+        garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
+        print(f'prompt={prompt}\ngenerated={generated}')
+        generated = generated.replace("답은 아래와 같습니다.\n", "")        
+        generated = generated.replace("답변:\n", "").strip()
+        generated = generated.replace("키키", "ㅋㅋ")
+        print(f'\n\ngarbage={garbage}')        
     except:
-        stop = len(output)
-    generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
-    garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
-    print(f'prompt={prompt}\ngenerated={generated}')
-    generated = generated.replace("답은 아래와 같습니다.\n", "")        
-    generated = generated.replace("답변:\n", "").strip()        
+        prompt = ""
+        generated = "잘 이해 하지 못했습니다. 다시 말씀 해 주세요."
     print(f'final generation={generated}')
-    print(f'\n\ngarbage={garbage}')        
     
     return prompt, generated
     
@@ -185,7 +207,7 @@ def mqna_query(context, user_input):
     print(f"bot_message={bot_message}")
     return bot_message
         
-def chat_query(context, user_input):
+def chat_query(context, user_input, chat_prompt):
     MAX_CHAT_HISTORY = 7
     user_prefix = "A"
     bot_prefix = "B"
@@ -203,10 +225,10 @@ def chat_query(context, user_input):
 
     prompt, generated = generate(contents, True)
 
-    stop_index_user = generated.find(f"{user_prefix}:")
+    stop_index_user = generated.find(f"\n{user_prefix}")
     if stop_index_user < 0:
         stop_index_user = len(generated)
-    stop_index_bot = generated.find(f"{bot_prefix}:")
+    stop_index_bot = generated.find(f"\n{bot_prefix}")
     if stop_index_bot < 0:
         stop_index_bot = len(generated)
     stop_index = min(stop_index_bot, stop_index_user)
@@ -227,6 +249,16 @@ def chatting(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "chatting"  
     clear_chat_history(context)
     update.message.reply_text("일반 채팅 모드로 전환 되었습니다.")
+
+def therapist(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "therapist"  
+    clear_chat_history(context)
+    update.message.reply_text("심리 상담사 채팅 모드로 전환 되었습니다.")
+
+def doctor(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "doctor"  
+    clear_chat_history(context)
+    update.message.reply_text("응급 의사 채팅 모드로 전환 되었습니다.")
 
 def qna(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "qna"  
@@ -289,6 +321,8 @@ updater.dispatcher.add_handler(CommandHandler('clear', clear_chat_history_handle
 updater.dispatcher.add_handler(CommandHandler('qna', qna))
 updater.dispatcher.add_handler(CommandHandler('prompt', prompt))
 updater.dispatcher.add_handler(CommandHandler('chatting', chatting))
+updater.dispatcher.add_handler(CommandHandler('therapist', therapist))
+updater.dispatcher.add_handler(CommandHandler('doctor', doctor))
 updater.dispatcher.add_handler(CommandHandler('mqna', mqna))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
 

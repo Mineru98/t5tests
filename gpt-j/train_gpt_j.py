@@ -260,6 +260,18 @@ def get_dataset(tokenize):
         "{s['english']}\\n{eos}한글로 번역 하시오.\\n{s['korean']}",
         "{s['english']}\\n{eos}한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['korean']}",
     ]
+    text_templates_gsm8k_ko_to_en = [
+        "한글원문:{eos}{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어번역:{s['question']}\\n{s['reasoning']}",
+        "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}위글을 영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
+        "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
+        "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['question']}\\n{s['reasoning']}",
+    ]
+    text_templates_gsm8k_en_to_ko = [
+        "영어원문:{s['question']}\\n{s['reasoning']}\\n{eos}한글번역:{s['question_kr']}\\n{s['reasoning_kr']}",
+        "{s['question']}\\n{s['reasoning']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
+        "{s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
+        "{s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
+    ]
     text_templates_summarize = [
         "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
         "아래 글을 요약 해 줘.\\n{eos}{s['passage']}\\n{eos}위 글의 요약은 다음과 같습니다.\\n{s['summary1']}",
@@ -272,6 +284,13 @@ def get_dataset(tokenize):
         "질문에 답 하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
+    ]
+    text_templates_reasoning_en = [
+        "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "질문에 답 하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "{s['question']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning']}\\n그러므로 정답은 {s['answer']} 입니다.",
     ]
     text_templates_news_writing = [
         "{s['title']}\\n위 문장을 주제로 기사를 작성 하시오.\\n{eos}{s['text']}"
@@ -414,6 +433,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "gsm8k_train_en" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}gsm8k_train.zip"})
+        text_templates = text_templates_reasoning_en
+        source = "gsm8k_train_en"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
     if "aihub_summary" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}korean_text_summary.zip"})
         text_templates = text_templates_summarize
@@ -446,6 +472,20 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}aihub_tech_domain_translation.zip"})
         text_templates = text_templates_tran_en_to_ko
         source = "aihub_tech_domain_translation_to_korean"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "gsm8k_ko_to_en" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}gsm8k_train.zip"})
+        text_templates = text_templates_gsm8k_ko_to_en
+        source = "gsm8k_ko_to_en"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "gsm8k_en_to_ko" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}gsm8k_train.zip"})
+        text_templates = text_templates_gsm8k_en_to_ko
+        source = "gsm8k_en_to_ko"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
