@@ -15,7 +15,7 @@ import torch
 
 chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.\n아래 대화를 연결해 보시오.\n"
 max_output_length = 1024
-min_output_length = 256
+min_output_length = 512
 
 HELP_TEXT = """
 언어모델 챗 봇 by Sempahore.
@@ -46,7 +46,9 @@ gpt = AutoModelForCausalLM.from_pretrained(
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
 sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
 print(f'sep_token_id={sep_token_id}')
-
+tt = tokenizer("\n ")
+newline_token_id = tt['input_ids'][0]
+space_token_id = tt['input_ids'][1]
 def send_typing_action(func):
     """Sends typing action while processing func command."""
 
@@ -109,13 +111,13 @@ def generate(contents, chat_mode = False):
         early_stopping=True,
         num_beams=3,
         length_penalty=1.0,
-        temperature=1.1,
+        temperature=1.0,
         top_k=50,
         top_p=0.95,
         repetition_penalty=2.0,
         pad_token_id=tokenizer.eos_token_id,
         eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-        begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id],
+        begin_suppress_tokens=[newline_token_id, space_token_id, tokenizer.eos_token_id, sep_token_id],
         # forced_eos_token_id=tokenizer.eos_token_id,
         max_length=max_length
     )
@@ -160,7 +162,7 @@ def mqna_query(context, user_input):
     for ch in chat_history:
         contents += f"{user_prefix}: {ch['user']}\n{bot_prefix}: {ch['bot']}\n"
     user_input = user_input.strip()
-    contents += f"질문에 답하시오. 질문이 위 내용과 관련 없으면 위 내용은 무시하시오.\n{user_input}"
+    contents += f"질문에 답하시오. 질문이 위 내용과 관련 없으면 위 내용은 완전히 무시하고 답하시오.\n{user_input}"
     
     prompt, generated = generate(contents)
 
