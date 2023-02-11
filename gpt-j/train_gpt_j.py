@@ -101,15 +101,14 @@ def tokenizing_sample(ss):
     num_text_templates = len(text_templates)
     tt = 0
     eos = tokenizer.eos_token
+    sep = '<|sep|>'
     while i < l:
         s = ss[i]
         i += 1
         text = eval(f'f"{text_templates[tt]}"')
         if "'conversation'" in text_templates[tt]:
-            if '<|sep|>' in tokenizer.additional_special_tokens:
-                sep = '<|sep|>'
-                text = text.replace("\nA:", f"\n{sep}A:")
-                text = text.replace("\nB:", f"\n{sep}B:")
+            text = text.replace("\nA:", f"\n{sep}A:")
+            text = text.replace("\nB:", f"\n{sep}B:")
         tt += 1
         if tt >= num_text_templates:
             tt = 0
@@ -273,6 +272,13 @@ def get_dataset(tokenize):
         "질문에 답 하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
+    ]
+    text_templates_news_writing = [
+        "{s['title']}\\n위 문장을 주제로 기사를 작성 하시오.\\n{eos}{s['text']}"
+        "{s['title']}\\n위 내용을 제목으로 기사를 작성 하시오.\\n{eos}{s['text']}"
+        "{s['title']}에 관한 기사를 작성 하시오.\\n{eos}{s['text']}"
+        "아래 문장을 제목으로 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}"
+        "아래 문장을 주제로 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}"
     ]
     
     if "sns" in dataset_source.keys():
@@ -457,6 +463,20 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
+    if "nikl_news_writing" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2021_v1.0.zip"})
+        text_templates = text_templates_news_writing
+        source = "nikl_news_writing"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "nikl_news_2020_writing" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2020_v1.1.zip"})
+        text_templates = text_templates_news_writing
+        source = "nikl_news_2020_writing"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
                 
     ds_concat_eval = concatenate_datasets(dss_eval) 
     ds_concat_train = concatenate_datasets(dss_train)

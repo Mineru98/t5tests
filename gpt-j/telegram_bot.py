@@ -14,9 +14,6 @@ from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
 chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.\n아래 대화를 연결해 보시오.\n"
-user_prefix = "A"
-bot_prefix = "B"
-MAX_CHAT_HISTORY = 10
 max_output_length = 1024
 min_output_length = 256
 
@@ -25,8 +22,9 @@ HELP_TEXT = """
 현재 고물 컴퓨터에서 실행 중이므로 응답 속도가 10초 이상 걸립니다. 
 
 명령어.
-/chatting - 일반 잡담 채팅
-/qna - 질의 응답
+/chatting - 일반 잡담 채팅, 35세 직장인 남성을 상대로 하는 채팅임. 사람을 가정하고 하는 채팅. 주제는 제한 없음.
+/qna - 질의 응답, 질문에 대해 답을 하며, 이전 질문/답과 연결되지 않음.
+/mqna - 다중 질의 응답, 채팅식으로 문답을 이어 나갈 수 있음.
 /prompt - 기타 프롬프트 입력
 
 /clear - 채팅 히스토리 삭제
@@ -75,6 +73,8 @@ def query(context, user_input):
         return chat_query(context, user_input)
     elif context.user_data['councelor_type'] == "qna":
         return qna_query(context, user_input)
+    elif context.user_data['councelor_type'] == "mqna":
+        return mqna_query(context, user_input)
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, user_input)
         
@@ -100,7 +100,7 @@ def generate(contents, chat_mode = False):
         else:
             max_length = max_output_length
     else:
-        max_length = input_length + 20
+        max_length = input_length + 50
     print(f'max_length={max_length}')
     
     output_sequences = gpt.generate(
@@ -132,7 +132,10 @@ def generate(contents, chat_mode = False):
         stop = len(output)
     generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
     garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
-    print(f'prompt={prompt}\ngenerated={generated}')        
+    print(f'prompt={prompt}\ngenerated={generated}')
+    generated = generated.replace("답은 아래와 같습니다.\n", "")        
+    generated = generated.replace("답변:\n", "").strip()        
+    print(f'final generation={generated}')
     print(f'\n\ngarbage={garbage}')        
     
     return prompt, generated
@@ -146,8 +149,33 @@ def qna_query(context, user_input):
     content = f"다음 질문에 답하시오.\n{user_input}"
     prompt, generated = generate(content)
     return generated
+
+def mqna_query(context, user_input):
+    MAX_CHAT_HISTORY = 3
+    user_prefix = "Q"
+    bot_prefix = "A"
+
+    chat_history = context.user_data['chat_history']
+    contents = ""
+    for ch in chat_history:
+        contents += f"{user_prefix}: {ch['user']}\n{bot_prefix}: {ch['bot']}\n"
+    user_input = user_input.strip()
+    contents += f"질문에 답하시오. 질문이 위 내용과 관련 없으면 위 내용은 무시하시오.\n{user_input}"
+    
+    prompt, generated = generate(contents)
+
+    bot_message = generated.replace("\n", " ")
+    chat_history.append({"user": user_input, "bot": bot_message})
+    while len(chat_history) > MAX_CHAT_HISTORY:
+        chat_history.pop(0)
+    print(f"bot_message={bot_message}")
+    return bot_message
         
 def chat_query(context, user_input):
+    MAX_CHAT_HISTORY = 10
+    user_prefix = "A"
+    bot_prefix = "B"
+
     chat_history = context.user_data['chat_history']
     contents = chat_prompt
     for ch in chat_history:
@@ -189,10 +217,10 @@ def prompt(update: Update, context: CallbackContext):
     clear_chat_history(context)
     update.message.reply_text("prompt 모드로 전환 되었습니다.")
 
-def doctor(update: Update, context: CallbackContext):
-    context.user_data["councelor_type"] = "doctor"  
+def mqna(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "mqna"  
     clear_chat_history(context)
-    update.message.reply_text("의사 모드로 전환 되었습니다..")
+    update.message.reply_text("다중 Q&A 모드로 전환 되었습니다..")
 
 def mbti(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "mbti"  
@@ -240,7 +268,7 @@ updater.dispatcher.add_handler(CommandHandler('clear', clear_chat_history_handle
 updater.dispatcher.add_handler(CommandHandler('qna', qna))
 updater.dispatcher.add_handler(CommandHandler('prompt', prompt))
 updater.dispatcher.add_handler(CommandHandler('chatting', chatting))
-updater.dispatcher.add_handler(CommandHandler('doctor', doctor))
+updater.dispatcher.add_handler(CommandHandler('mqna', mqna))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
 
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown))
