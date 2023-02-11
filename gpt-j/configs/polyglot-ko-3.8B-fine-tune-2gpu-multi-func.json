@@ -20,8 +20,7 @@
         "aihub_tech_domain_translation_to_korean":1.0,
         "aihub_daily_conversation":1.0,
         "aihub_domain_conversation":1.0,
-        "gsm8k_train":1.0,
-        "nikl_news_2020_writing":0.5
+        "gsm8k_train":1.0
     },
     "scratch": true,
     "reset_weight": false,
