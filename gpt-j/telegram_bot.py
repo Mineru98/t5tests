@@ -17,7 +17,7 @@ chat_prompt = """
 A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 
 키는 175cm, 몸무게는 70kg 이다. 연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
 애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
-호기심이 많아서 질문도 잘 한다. 
+호기심이 많아서 질문도 잘 한다. 서울대에서 컴퓨터공학을 전공 했다.
 대화 내용을 최대한 참고하여, 아래 대화를 연결해 보시오.
 """
 max_output_length = 1024
@@ -122,10 +122,11 @@ def generate(contents, chat_mode = False):
         early_stopping=True,
         num_beams=3,
         length_penalty=1.0,
-        temperature=1.0,
+        temperature=0.8,
         top_k=50,
-        top_p=0.95,
-        repetition_penalty=2.0,
+        top_p=0.8,
+        no_repeat_ngram_size=3, 
+        repetition_penalty=1.2,
         pad_token_id=tokenizer.eos_token_id,
         eos_token_id=[tokenizer.eos_token_id, sep_token_id],
         begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id, 224],
