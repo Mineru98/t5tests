@@ -13,19 +13,27 @@ from telegram import (ChatAction)
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
-chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.\n아래 대화를 연결해 보시오.\n"
+chat_prompt = """
+A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 
+키는 175cm, 몸무게는 70kg 이다. 연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
+애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
+호기심이 많아서 질문도 잘 한다. 
+대화 내용을 최대한 참고하여, 아래 대화를 연결해 보시오.
+"""
 max_output_length = 1024
 min_output_length = 512
 
 HELP_TEXT = """
-언어모델 챗 봇 by Sempahore.
-현재 고물 컴퓨터에서 실행 중이므로 응답 속도가 10초 이상 걸립니다. 
+언어모델 챗 봇 by Sempahore. 3.8B parameters language model, 1/46 of chatGPT.
+현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
 
 명령어.
-/chatting - 일반 잡담 채팅, 35세 직장인 남성을 상대로 하는 채팅임. 사람을 가정하고 하는 채팅. 주제는 제한 없음.
+/chatting - 일반 잡담 채팅, 35세 직장인 남성을 가정하고 하는 채팅임. 사람을 가정하고 하는 채팅. 주제는 제한 없음.
 /qna - 질의 응답, 질문에 대해 답을 하며, 이전 질문/답과 연결되지 않음.
 /mqna - 다중 질의 응답, 채팅식으로 문답을 이어 나갈 수 있음.
-/prompt - 기타 프롬프트 입력
+/prompt - 기타 프롬프트 입력, 일반 문장 입력시 해당 문장을 시작으로 문장을 연속해서 만들어 냄.
+기능으로 동작하는 프롬프트도 있는데 채팅, qna등이 모두 기능 프롬프트로 구현된 것임.
+<한글문장> 영어로 번역 하시오. <영어문장> 한글로 번역하시오. 다음 문장을 주제로 기사를 작성 하시오. <기사제목> 등의 기능 프롬프트가 구현됨.
 
 /clear - 채팅 히스토리 삭제
 """
@@ -45,10 +53,13 @@ gpt = AutoModelForCausalLM.from_pretrained(
 
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
 sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
-print(f'sep_token_id={sep_token_id}')
-tt = tokenizer("\n ")
+tt = tokenizer("\n?.")
 newline_token_id = tt['input_ids'][0]
-space_token_id = tt['input_ids'][1]
+question_mark_token_id = tt['input_ids'][1]
+period_token_id = tt['input_ids'][2]
+print(f'sep_token_id={sep_token_id}\nnewline_token_id={newline_token_id}\nquestion_mark_token_id={question_mark_token_id}\nperiod_token_id={period_token_id}')
+print(tokenizer.decode([224]))
+
 def send_typing_action(func):
     """Sends typing action while processing func command."""
 
@@ -117,7 +128,7 @@ def generate(contents, chat_mode = False):
         repetition_penalty=2.0,
         pad_token_id=tokenizer.eos_token_id,
         eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-        begin_suppress_tokens=[newline_token_id, space_token_id, tokenizer.eos_token_id, sep_token_id],
+        begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id, 224],
         # forced_eos_token_id=tokenizer.eos_token_id,
         max_length=max_length
     )
@@ -174,14 +185,18 @@ def mqna_query(context, user_input):
     return bot_message
         
 def chat_query(context, user_input):
-    MAX_CHAT_HISTORY = 5
+    MAX_CHAT_HISTORY = 7
     user_prefix = "A"
     bot_prefix = "B"
 
     chat_history = context.user_data['chat_history']
     contents = chat_prompt
+    last_bot_message = None
     for ch in chat_history:
-        contents += f"{user_prefix}: {ch['user']}\n{bot_prefix}: {ch['bot']}\n"
+        contents += f"{user_prefix}: {ch['user']}\n"
+        last_bot_message = ch['bot']
+        if last_bot_message is not None:
+            contents += f"{bot_prefix}: {last_bot_message}\n"
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
@@ -198,7 +213,10 @@ def chat_query(context, user_input):
         bot_message = generated
     else:
         bot_message = generated[:stop_index].strip()
-    chat_history.append({"user": user_input, "bot": bot_message})
+    bot_message_in_history = bot_message
+    if bot_message == last_bot_message:
+        bot_message_in_history = None
+    chat_history.append({"user": user_input, "bot": bot_message_in_history})
     while len(chat_history) > MAX_CHAT_HISTORY:
         chat_history.pop(0)
     print(f"bot_message={bot_message}")
