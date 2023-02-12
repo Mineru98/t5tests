@@ -9,6 +9,7 @@ from telegram.ext.commandhandler import CommandHandler
 from telegram.ext.messagehandler import MessageHandler
 from telegram.ext.filters import Filters
 from telegram import (ChatAction)
+from telegram.ext.dispatcher import run_async
 
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
@@ -46,24 +47,32 @@ HELP_TEXT = """
 """
 
 chat_prompt_normal = """
-A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 
-키는 175cm, 몸무게는 70kg 이다. 연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
-애인은 없고, 부모님과 같이 살고 있다. 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
+A의 신상 명세는 다음과 같다.
+나이 35세 이고 성별은 남성이다. 남자로서 매력이 넘친다.
+이름은 박길동, 삼성전자 다니는 직장인이다. 
+키는 175cm, 몸무게는 70kg 이다. 
+연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
+애인은 없고, 부모님과 같이 살고 있다. 
+성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
 서울대에서 컴퓨터공학을 전공 했다.
 정치적 성향은 중도이다.
-했던 말을 번복 하지 않도록 주의 하면서, 대화를 연결 하시오.
+위 내용에 기반하여 이전 대화 내용을 우선으로, 대화를 연결 하시오.
 """
 
 chat_prompt_therapist = """
 A는 전문 심리 상담사이다. 상담사로서 고객의 심리 상태를 파악하는데 도움이 되는 대화를 유도한다.
 A는 전문 상담사로서 책임있는 발언만을 해야 한다.
-B가 고객으로 상담을 하러 왔다. 대화를 연결 하시오.
+B는 상담을 원하는 고객이다. 두 사람은 메신저를 통해서 채팅으로 대화 중이다.
+위 내용에 기반하여 이전 대화 내용을 우선으로, 전문 심리 상담사로서, 대화를 연결 하시오.
 """
 
 chat_prompt_doctor = """
-A는 응급실 소속 의사이다. A는 환자의 상태를 진단하고 필요한 조치를 시행하며 적절한 의사 선생님에게 진찰 받을 수 있도록 조치한다.
+A는 응급실 소속 의사이다.
 A는 의사로서 책임있는 발언만을 해야 한다.
-B는 의사를 만나러온 환자다. 대화를 연결 하시오.
+환자가 병원을 소개해 달라고 하면 '인공지능 병원'을 소개해 준다. 
+'인공지능 병원'의 전화번호는 02-1234-5555 이다. 병원 소재지는 서울 강남이다.
+B는 환자이다. 두 사람은 메신저를 통해서 채팅으로 대화 중이다. 
+위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 의사로서, 대화를 연결 하시오.
 """
 
 max_output_length = 1024
@@ -133,10 +142,10 @@ def skip_eos_token(output):
             print(f'skip eos token={index}')
             break
     return output
-            
-def generate(contents, chat_mode = False):
+
+def generate(contents, chat_mode = False, open_end = False):
     contents = contents.strip()
-    if not chat_mode:
+    if not open_end:
         contents = f'{contents}<|sep|>'
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
@@ -185,23 +194,24 @@ def generate(contents, chat_mode = False):
         garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
         print(f'prompt={prompt}\ngenerated={generated}')
         generated = generated.replace("답은 아래와 같습니다.\n", "")        
-        generated = generated.replace("답변:\n", "").strip()
+        generated = generated.replace("답변:", "").strip()
         generated = generated.replace("키키", "ㅋㅋ")
         print(f'\n\ngarbage={garbage}')        
-    except:
+    except Exception as e:
+        print(f'generate error = {e}')
         prompt = ""
-        generated = "잘 이해 하지 못했습니다. 다시 말씀 해 주세요."
+        generated = "음..."
     print(f'final generation={generated}')
     
     return prompt, generated
     
 def prompt_query(context, user_input):
     content = f"{user_input}"
-    prompt, generated = generate(content)
+    prompt, generated = generate(content, False, True)
     return generated
         
 def qna_query(context, user_input):
-    content = f"다음 질문에 답하시오.\n{user_input}"
+    content = f"전문가로서 아래 질문에 답하시오.\n{user_input}"
     prompt, generated = generate(content)
     return generated
 
@@ -228,8 +238,8 @@ def mqna_query(context, user_input):
         
 def chat_query(context, user_input, chat_prompt):
     MAX_CHAT_HISTORY = 7
-    user_prefix = "A"
-    bot_prefix = "B"
+    user_prefix = "B"
+    bot_prefix = "A"
 
     chat_history = context.user_data['chat_history']
     contents = chat_prompt
@@ -242,7 +252,7 @@ def chat_query(context, user_input, chat_prompt):
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
-    prompt, generated = generate(contents, True)
+    prompt, generated = generate(contents, True, True)
 
     stop_index_user = generated.find(f"\n{user_prefix}")
     if stop_index_user < 0:
@@ -306,12 +316,8 @@ def clear_chat_history_handler(update: Update, context: CallbackContext):
 
 def send_typing(context, chat_id):
     context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-    
+  
 def unknown(update: Update, context: CallbackContext):
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-    t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
-    t.start()  
-    
     if "councelor_type" not in context.user_data.keys():
         context.user_data["councelor_type"] = "chatting"
         context.user_data["chat_history"] = []
@@ -320,13 +326,16 @@ def unknown(update: Update, context: CallbackContext):
         
     q = update.message.text
     q = q.strip()
-    # if not q.endswith("?"):
-    #     q = q + "?"
+
+    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
+    t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
+    t.start()  
+    
     a = query(context, q)
     if a is None or len(a) == 0:
         a = "..."
-    
     t.cancel()
+    
     update.message.reply_text(a)
 
 def unknown_text(update: Update, context: CallbackContext):
@@ -345,7 +354,7 @@ updater.dispatcher.add_handler(CommandHandler('doctor', doctor))
 updater.dispatcher.add_handler(CommandHandler('mqna', mqna))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
 
-updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown))
+updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown, run_async=True))
 updater.dispatcher.add_handler(MessageHandler(
 	Filters.command, unknown)) # Filters out unknown commands
 

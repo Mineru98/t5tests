@@ -608,7 +608,7 @@ def list_model_children(model):
                 accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
     
-def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
+def unfreeze_transformer_layer(model, last_n_layer):
     accelerator.print(model)
     gpt_neox = False
     if model.base_model_prefix == 'gpt_neox':
@@ -620,13 +620,13 @@ def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
         print(key, params_source[key].data.shape) 
 
     for parameter in model.parameters():
-        parameter.requires_grad = all_parm
+        parameter.requires_grad = True
 
     if gpt_neox:
         total_layer = len(model.gpt_neox.layers)
         accelerator.print("total transformer layers=", total_layer)
         for i, m in enumerate(model.gpt_neox.layers):        
-            if i < last_n_layer:
+            if i < total_layer - last_n_layer:
                 for parameter in m.parameters():
                     accelerator.print("freeze layer=", i)
                     parameter.requires_grad = False 
@@ -634,11 +634,10 @@ def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
         total_layer = len(model.transformer.h)
         accelerator.print("total transformer layers=", total_layer)
         for i, m in enumerate(model.transformer.h):        
-            #Only un-freeze the last n transformer blocks
-            if i >= total_layer - last_n_layer:
+            if i < total_layer - last_n_layer:
                 for parameter in m.parameters():
-                    accelerator.print("un-freeze layer=", i)
-                    parameter.requires_grad = True 
+                    accelerator.print("freeze layer=", i)
+                    parameter.requires_grad = False 
 
         for parameter in model.transformer.ln_f.parameters():        
             parameter.requires_grad = True
@@ -710,9 +709,9 @@ def init_model():
             #         # param.requires_grad = True      # not working now
             #     else:
             #         param.requires_grad = True    
-            unfreeze_transformer_layer(gpt, 1000, True)     
+            unfreeze_transformer_layer(gpt, 1000)     
     else: 
-        unfreeze_transformer_layer(gpt, unfreeze, True)           
+        unfreeze_transformer_layer(gpt, unfreeze)           
 
     gpt.gradient_checkpointing_enable()
     
