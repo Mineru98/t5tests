@@ -36,15 +36,15 @@
             "pin_memory": true
         },
         "offload_param": {
-            "device": "cpu",
+            "device": "none",
             "nvme_path": "/home/chang/nvme/deepspeed_offload",
             "pin_memory": true
         },        
         "allgather_partitions": true,
-        "allgather_bucket_size":50e8,
+        "allgather_bucket_size":2e9,
         "overlap_comm": true,
         "reduce_scatter": true,
-        "reduce_bucket_size": 50e8,
+        "reduce_bucket_size": 2e9,
         "contiguous_gradients": true
     },
     "gradient_accumulation_steps": 64,

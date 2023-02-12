@@ -21,6 +21,8 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 import pandas
 import hanja
 
+from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+
 """
 # original tokenizer, not freeze, fine_tune or all
     python train_gpt_j.py -d namu -i 256 --tokenizer tokenizer-gpt-j-6B-org --eval_sample 
@@ -55,6 +57,7 @@ batch_size = 8    # 0 means auto
 validation_data_size = batch_size * 10
 load_in_8bit = False
 reset_weight = False
+LoRa = False
 
 model_name = None 
 model_save_dir = None
@@ -678,6 +681,13 @@ def init_model():
         # kwarg["revision"] = "float16"
         accelerator.print("loading model-", model, kwarg)
         gpt = AutoModelForCausalLM.from_pretrained(model, **kwarg)
+        
+        if LoRa:
+            accelerator.print("LoRa enabled.......")
+            peft_config = LoraConfig(
+                task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+            )        
+            gpt = get_peft_model(gpt, peft_config)
     
     start_model_path = model
     # list_model_children(gpt)
@@ -1224,7 +1234,7 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
-            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only
+            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1255,6 +1265,7 @@ def main():
     parser.add_argument("--skip_eval", action='store_true', help = "skip eval step")
     parser.add_argument("--deepspeed_config_json", help = "deepspeed_config_json file")
     parser.add_argument("--data_build_only", action='store_true', help = "build dataset, no training")
+    parser.add_argument("--lora", action='store_true', help = "using LoRa in training")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1322,6 +1333,8 @@ def main():
         cache_folder_name = args.cache_folder_name
     if args.data_build_only:
         data_build_only = True
+    if args.lora:
+        LoRa = True
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")
