@@ -30,7 +30,7 @@
     "lora": false,
     "scratch": false,
     "reset_weight": false,
-    "unfreeze": 16,
+    "unfreeze": 4,
     "save_path": "./Models/polyglot-ko-3.8b-multi-func-unfreeze16",
     "max_input_length": 1024,
     "batch_size": 4,
