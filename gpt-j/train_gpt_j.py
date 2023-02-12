@@ -299,6 +299,14 @@ def get_dataset(tokenize):
         "아래 문장을 제목으로 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}"
         "아래 문장을 주제로 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}"
     ]
+    text_templates_news_writing_from_news_qna = [
+        "{s['title']}\\n위 문장을 주제로 신문 기사를 작성 하시오.\\n{eos}{s['context']}"
+        "{s['title']}\\n위 내용을 제목으로 신문 기사를 작성 하시오.\\n{eos}{s['context']}"
+        "{s['title']}\\n위 내용을 포함하는 신문 기사를 작성 하시오.\\n{eos}{s['context']}"
+        "아래 문장을 제목으로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['context']}"
+        "아래 문장을 주제로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['context']}"
+        "아래 내용을 포함하는 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['context']}"
+    ]
     
     if "sns" in dataset_source.keys():
         ds = load_dataset("json", data_files="/home/chang/nas1/linux/dataset/text/한국어 SNS/korean_sns_training_gpt2_v2.json")
@@ -514,6 +522,13 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}NIKL_NEWSPAPER_2020_v1.1.1.zip"})
         text_templates = text_templates_news_writing
         source = "nikl_news_2020_writing"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_news_qna_writing" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_news_qna.zip"})
+        text_templates = text_templates_news_writing_from_news_qna
+        source = "aihub_news_qna_writing"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
