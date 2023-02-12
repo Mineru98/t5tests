@@ -626,11 +626,10 @@ def unfreeze_transformer_layer(model, last_n_layer, all_parm: bool = False):
         total_layer = len(model.gpt_neox.layers)
         accelerator.print("total transformer layers=", total_layer)
         for i, m in enumerate(model.gpt_neox.layers):        
-            #Only un-freeze the last n transformer blocks
-            if i >= total_layer - last_n_layer:
+            if i < last_n_layer:
                 for parameter in m.parameters():
-                    accelerator.print("un-freeze layer=", i)
-                    parameter.requires_grad = True 
+                    accelerator.print("freeze layer=", i)
+                    parameter.requires_grad = False 
     else:
         total_layer = len(model.transformer.h)
         accelerator.print("total transformer layers=", total_layer)
@@ -688,6 +687,7 @@ def init_model():
                 task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
             )        
             gpt = get_peft_model(gpt, peft_config)
+            gpt.print_trainable_parameters()
     
     start_model_path = model
     # list_model_children(gpt)
@@ -699,19 +699,20 @@ def init_model():
         accelerator.print("resize done....")
     
     if scratch:
-        if not load_in_8bit:
-            if reset_weight:
-                gpt.init_weights()  # from scarch
-        # for param in gpt.base_model.parameters():
-        #     if param.dtype == torch.int8:
-        #         param.has_fp16_weight = True    # for training
-        #         param.memory_efficient_backward = True
-        #         # param.requires_grad = True      # not working now
-        #     else:
-        #         param.requires_grad = True    
-        unfreeze_transformer_layer(gpt, 1000, True)     
+        if not LoRa:
+            if not load_in_8bit:
+                if reset_weight:
+                    gpt.init_weights()  # from scarch
+            # for param in gpt.base_model.parameters():
+            #     if param.dtype == torch.int8:
+            #         param.has_fp16_weight = True    # for training
+            #         param.memory_efficient_backward = True
+            #         # param.requires_grad = True      # not working now
+            #     else:
+            #         param.requires_grad = True    
+            unfreeze_transformer_layer(gpt, 1000, True)     
     else: 
-        unfreeze_transformer_layer(gpt, unfreeze, False)           
+        unfreeze_transformer_layer(gpt, unfreeze, True)           
 
     gpt.gradient_checkpointing_enable()
     
@@ -1183,6 +1184,7 @@ def huggingface_trainer():
         per_device_eval_batch_size = batch_size,
         auto_find_batch_size=auto_find_batch_size,
         gradient_accumulation_steps=gradient_acc,
+        gradient_checkpointing=True,
         eval_accumulation_steps=gradient_acc,
         weight_decay=0.0,
         save_total_limit=5,
