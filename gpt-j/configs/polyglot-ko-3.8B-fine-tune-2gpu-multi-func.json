@@ -21,6 +21,7 @@
         "aihub_daily_conversation":1.0,
         "aihub_domain_conversation":1.0,
         "aihub_news_qna_writing":1.0,
+        "nikl_news_2020_writing":0.2,
         "gsm8k_train":1.0,
         "gsm8k_train_en":1.0,
         "gsm8k_ko_to_en":1.0,

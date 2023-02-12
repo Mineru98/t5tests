@@ -4,7 +4,7 @@
     "new_model_name": "lcw99/multi-function-polyglot-ko-1.3b",
     "cache_folder_name": "cache_temp",
     "dataset": {
-        "nikl_news_2020_writing":1.0
+        "aihub_news_qna_writing":1.0
     },
     "scratch": true,
     "reset_weight": false,
