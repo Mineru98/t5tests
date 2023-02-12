@@ -293,11 +293,11 @@ def get_dataset(tokenize):
         "{s['question']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning']}\\n그러므로 정답은 {s['answer']} 입니다.",
     ]
     text_templates_news_writing = [
-        "{s['title']}\\n위 문장을 주제로 기사를 작성 하시오.\\n{eos}{s['text']}",
-        "{s['title']}\\n위 내용을 제목으로 기사를 작성 하시오.\\n{eos}{s['text']}",
+        "{s['title']}\\n위 문장을 주제로 신문 기사를 작성 하시오.\\n{eos}{s['text']}",
+        "{s['title']}\\n위 내용을 제목으로 신문 기사를 작성 하시오.\\n{eos}{s['text']}",
         "{s['title']}\\n위 내용을 포함하는 신문 기사를 작성 하시오.\\n{eos}{s['text']}",
-        "아래 문장을 제목으로 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
-        "아래 문장을 주제로 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
+        "아래 문장을 제목으로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
+        "아래 문장을 주제로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
         "아래 내용을 포함하는 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
     ]
     
