@@ -15,14 +15,13 @@ from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
 HELP_TEXT = """
-언어모델 챗 봇 by Sempahore. 3.8B parameters language model, 1/46 of chatGPT.
+언어모델 챗 봇 by Sempahore. 3.8B parameters language model, 1/46 of chatGPT in parameter size.
 현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
 
 명령어.
 /chatting - 일반 잡담 채팅, 35세 직장인 남성을 가정하고 하는 채팅임. 사람을 가정하고 하는 채팅. 주제는 제한 없음.
 /clear - 채팅 히스토리 삭제
-/qna - 질의 응답, 질문에 대해 답을 하며, 이전 질문/답과 연결되지 않음.
-/mqna - 다중 질의 응답, 채팅식으로 문답을 이어 나갈 수 있음.
+/expert - 백과 사전식 질의 응답.
 /doctor
 /therapist
 /prompt - 기타 프롬프트 입력, 일반 문장 입력시 해당 문장을 시작으로 문장을 연속해서 만들어 냄.
@@ -76,6 +75,12 @@ A는 의사로서 책임있는 발언만을 해야 한다.
 '인공지능 병원'의 전화번호는 02-1234-5555 이다. 병원 소재지는 서울 강남이다.
 B는 환자이다. 두 사람은 메신저를 통해서 채팅으로 대화 중이다. 
 위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 의사로서, 대화를 연결 하시오.
+"""
+
+chat_prompt_expert = """
+A는 검색전문가이다.
+A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
+위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 전문가로서, 질문에 답하시오.
 """
 
 max_output_length = 1024
@@ -144,6 +149,8 @@ def query(context, user_input):
         return qna_query(context, user_input)
     elif context.user_data['councelor_type'] == "mqna":
         return mqna_query(context, user_input)
+    elif context.user_data['councelor_type'] == "expert":
+        return chat_query(context, user_input, chat_prompt_expert)
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, user_input)
         
@@ -320,6 +327,11 @@ def mqna(update: Update, context: CallbackContext):
     clear_chat_history(context)
     update.message.reply_text("다중 Q&A 모드로 전환 되었습니다..")
 
+def expert(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "expert"  
+    clear_chat_history(context)
+    update.message.reply_text("expert 채팅 모드로 전환 되었습니다..")
+
 def mbti(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "mbti"  
     clear_chat_history(context)
@@ -365,11 +377,12 @@ def unknown(update: Update, context: CallbackContext):
     t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
     t.start()  
     
-    a = query(context, q)
-    if a is None or len(a) == 0:
+    a = query(context, q).strip()
+    if a is None or len(a) < 3:
         a = "..."
     t.cancel()
     
+    print(f'query result="{a}", len={len(a)}')
     update.message.reply_text(a)
 
 def unknown_text(update: Update, context: CallbackContext):
@@ -386,6 +399,7 @@ updater.dispatcher.add_handler(CommandHandler('chatting', chatting))
 updater.dispatcher.add_handler(CommandHandler('therapist', therapist))
 updater.dispatcher.add_handler(CommandHandler('doctor', doctor))
 updater.dispatcher.add_handler(CommandHandler('mqna', mqna))
+updater.dispatcher.add_handler(CommandHandler('expert', expert))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
 updater.dispatcher.add_handler(CommandHandler('testmode', testmode))
 updater.dispatcher.add_handler(CommandHandler('normalmode', normalmode))
