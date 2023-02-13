@@ -81,6 +81,8 @@ chat_prompt_expert = """
 A는 검색전문가이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
 위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 전문가로서, 질문에 답하시오.
+B: 하늘이 푸른 이유는?
+A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이지.
 """
 
 max_output_length = 1024
@@ -162,7 +164,7 @@ def skip_eos_token(output):
             break
     return output
 
-def generate(context, contents, chat_mode = False, open_end = False):
+def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0):
     contents = contents.strip()
     if not open_end:
         contents = f'{contents}<|sep|>'
@@ -170,15 +172,18 @@ def generate(context, contents, chat_mode = False, open_end = False):
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
     input_length = encoded_input['input_ids'].size()[1]
     print(f'input_length={input_length}')
-    if not chat_mode:
-        if input_length * 2 + 10 < max_output_length:
-            max_length = input_length * 2 + 10
-            if max_length < min_output_length:
-                max_length = min_output_length
-        else:
-            max_length = max_output_length
+    if gen_len > 0:
+        max_length = input_length + gen_len
     else:
-        max_length = input_length + 50
+        if not chat_mode:
+            if input_length * 2 + 10 < max_output_length:
+                max_length = input_length * 2 + 10
+                if max_length < min_output_length:
+                    max_length = min_output_length
+            else:
+                max_length = max_output_length
+        else:
+            max_length = input_length + 50
     print(f'max_length={max_length}')
     
     try:
@@ -275,7 +280,7 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
-    prompt, generated = generate(context, contents, True, True)
+    prompt, generated = generate(context, contents, True, True, 100)
 
     stop_index_user = generated.find(f"\n{user_prefix}")
     if stop_index_user < 0:
@@ -365,10 +370,10 @@ def send_typing(context, chat_id):
   
 def unknown(update: Update, context: CallbackContext):
     if "councelor_type" not in context.user_data.keys():
-        context.user_data["councelor_type"] = "chatting"
+        context.user_data["councelor_type"] = "expert"
         context.user_data["chat_history"] = []
-        update.message.reply_text("기본 채팅 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
-        update.message.reply_text(HELP_TEXT)
+        update.message.reply_text("전문가 질의 응답 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
+        # update.message.reply_text(HELP_TEXT)
         
     q = update.message.text
     q = q.strip()
