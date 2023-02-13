@@ -56,6 +56,7 @@ A의 신상 명세는 다음과 같다.
 성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
 서울대에서 컴퓨터공학을 전공 했다.
 정치적 성향은 중도이다.
+두 사람은 메신저를 통해서 채팅으로 대화 중이다. 
 위 내용에 기반하여 이전 대화 내용을 우선으로, 대화를 연결 하시오.
 """
 
@@ -78,7 +79,10 @@ B는 환자이다. 두 사람은 메신저를 통해서 채팅으로 대화 중�
 max_output_length = 1024
 min_output_length = 512
 
+#latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-000"
+latest_model_dir_on_test = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-reasoning/checkpoint-100"
+
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
@@ -87,6 +91,12 @@ updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True,
+).to(device, torch.float16)
+
+gpt_on_test = AutoModelForCausalLM.from_pretrained(
+    latest_model_dir_on_test,
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
 ).to(device, torch.float16)
@@ -143,7 +153,7 @@ def skip_eos_token(output):
             break
     return output
 
-def generate(contents, chat_mode = False, open_end = False):
+def generate(context, contents, chat_mode = False, open_end = False):
     contents = contents.strip()
     if not open_end:
         contents = f'{contents}<|sep|>'
@@ -163,7 +173,13 @@ def generate(contents, chat_mode = False, open_end = False):
     print(f'max_length={max_length}')
     
     try:
-        output_sequences = gpt.generate(
+        if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
+            model = gpt
+            print('running on normal model.')
+        else:
+            model = gpt_on_test
+            print('running on test model.')
+        output_sequences = model.generate(
             encoded_input["input_ids"], 
             do_sample=False,
             early_stopping=True,
@@ -207,12 +223,12 @@ def generate(contents, chat_mode = False, open_end = False):
     
 def prompt_query(context, user_input):
     content = f"{user_input}"
-    prompt, generated = generate(content, False, True)
+    prompt, generated = generate(context, content, False, True)
     return generated
         
 def qna_query(context, user_input):
     content = f"전문가로서 아래 질문에 답하시오.\n{user_input}"
-    prompt, generated = generate(content)
+    prompt, generated = generate(context, content)
     return generated
 
 def mqna_query(context, user_input):
@@ -227,7 +243,7 @@ def mqna_query(context, user_input):
     user_input = user_input.strip()
     contents += f"질문에 답하시오. 질문이 위 내용과 관련 없으면 위 내용은 완전히 무시하고 답하시오.\n{user_input}"
     
-    prompt, generated = generate(contents)
+    prompt, generated = generate(context, contents)
 
     bot_message = generated.replace("\n", " ")
     chat_history.append({"user": user_input, "bot": bot_message})
@@ -252,7 +268,7 @@ def chat_query(context, user_input, chat_prompt):
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
-    prompt, generated = generate(contents, True, True)
+    prompt, generated = generate(context, contents, True, True)
 
     stop_index_user = generated.find(f"\n{user_prefix}")
     if stop_index_user < 0:
@@ -307,9 +323,27 @@ def mqna(update: Update, context: CallbackContext):
 def mbti(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "mbti"  
     clear_chat_history(context)
-    update.message.reply_text("mbti 모드로 전환 되었습니다. 먼저 인사를 해보세요.")
+    update.message.reply_text("mbti 모드로 전환 되었습니다.")
 
-    
+def testmode(update: Update, context: CallbackContext):
+    context.user_data["mode"] = "testmode"  
+    clear_chat_history(context)
+    update.message.reply_text("test 모드로 전환 되었습니다")
+
+def normalmode(update: Update, context: CallbackContext):
+    context.user_data["mode"] = "normalmode"  
+    clear_chat_history(context)
+    update.message.reply_text("normal 모드로 전환 되었습니다")
+
+def status(update: Update, context: CallbackContext):
+    if 'mode' not in context.user_data:
+        context.user_data['mode'] = 'normalmode'
+    if 'councelor_type' not in context.user_data:
+        context.user_data['councelor_type'] = 'chatting'
+    s = f"runmode = {context.user_data['mode']}\nresponse type={context.user_data['councelor_type']}"  
+    clear_chat_history(context)
+    update.message.reply_text(s)
+
 def clear_chat_history_handler(update: Update, context: CallbackContext):
     clear_chat_history(context)
     update.message.reply_text("채팅 히스토리가 삭제 되었습니다.")
@@ -353,6 +387,9 @@ updater.dispatcher.add_handler(CommandHandler('therapist', therapist))
 updater.dispatcher.add_handler(CommandHandler('doctor', doctor))
 updater.dispatcher.add_handler(CommandHandler('mqna', mqna))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
+updater.dispatcher.add_handler(CommandHandler('testmode', testmode))
+updater.dispatcher.add_handler(CommandHandler('normalmode', normalmode))
+updater.dispatcher.add_handler(CommandHandler('status', status))
 
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown, run_async=True))
 updater.dispatcher.add_handler(MessageHandler(

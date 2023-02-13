@@ -58,6 +58,7 @@ validation_data_size = batch_size * 10
 load_in_8bit = False
 reset_weight = False
 LoRa = False
+softembeddings = False
 
 model_name = None 
 model_save_dir = None
@@ -84,6 +85,10 @@ def name_to_filename(name):
 
 def tokenize_string(s):
     tt = tokenizer(f"{s}\n{tokenizer.eos_token}{tokenizer.eos_token}", max_length=max_input_length, truncation=True, padding=True)
+    # if softembeddings:
+    #     n_tokens = 10
+    #     tt['input_ids'] = torch.cat((torch.full((1,n_tokens), 50256), tt['input_ids']), 1).tolist()
+    #     tt['attention_mask'] = torch.cat((torch.full((1,n_tokens), 1), tt['attention_mask']), 1).tolist()    
     encoded_len = tt.encodings[0].offsets[-1][1]
     return encoded_len, tt['input_ids'], tt['attention_mask']
     
@@ -119,17 +124,22 @@ def tokenizing_sample(ss):
         pos = 0        
         text = wikitext_detokenizer(text)
         text = ftfy.fix_text(text, normalization='NFKC')
-        while pos < len(text):
-            encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text[pos:])
-            pos += encoded_len
-            if len(input_ids_concat) + len(input_ids_sub) < max_input_length:
-                input_ids_concat += input_ids_sub
-                attention_mask_concat += attention_mask_sub
-            else:
-                input_ids.append(input_ids_concat)
-                attention_mask.append(attention_mask_concat)
-                input_ids_concat = input_ids_sub
-                attention_mask_concat = attention_mask_sub
+        if softembeddings:
+            encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text)
+            input_ids.append(input_ids_sub)
+            attention_mask.append(attention_mask_sub)
+        else:
+            while pos < len(text):
+                encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text[pos:])
+                pos += encoded_len
+                if len(input_ids_concat) + len(input_ids_sub) < max_input_length:
+                    input_ids_concat += input_ids_sub
+                    attention_mask_concat += attention_mask_sub
+                else:
+                    input_ids.append(input_ids_concat)
+                    attention_mask.append(attention_mask_concat)
+                    input_ids_concat = input_ids_sub
+                    attention_mask_concat = attention_mask_sub
     if len(input_ids_concat) > 0:
         input_ids.append(input_ids_concat)
         attention_mask.append(attention_mask_concat)
@@ -288,6 +298,9 @@ def get_dataset(tokenize):
         "{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
     ]
+    text_templates_reasoning_softembeddings = [
+        "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+    ]
     text_templates_reasoning_en = [
         "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
         "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
@@ -429,11 +442,18 @@ def get_dataset(tokenize):
         source = "aihub_book_qna"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
-        dss_train.append(ds_train)        
+        dss_train.append(ds_train)
     if "gsm8k_train" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}gsm8k_train.zip"})
         text_templates = text_templates_reasoning
         source = "gsm8k_train"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "gsm8k_train_softembeddings" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}gsm8k_train.zip"})
+        text_templates = text_templates_reasoning_softembeddings
+        source = "gsm8k_train_softembeddings"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
@@ -645,7 +665,7 @@ def unfreeze_transformer_layer(model, last_n_layer):
         for parameter in model.lm_head.parameters():        
             parameter.requires_grad = True
 
-                                  
+from megatron.model import SoftEmbedding, SoftEmbedding2                                 
 def init_model():
     global start_model_path
     kwarg = {}
@@ -696,22 +716,44 @@ def init_model():
         accelerator.print("\n\n\n=====\ntokenizer_len=", tokenizer_len)
         gpt.resize_token_embeddings(tokenizer_len)
         accelerator.print("resize done....")
-    
-    if scratch:
-        if not LoRa:
-            if not load_in_8bit:
-                if reset_weight:
-                    gpt.init_weights()  # from scarch
-            # for param in gpt.base_model.parameters():
-            #     if param.dtype == torch.int8:
-            #         param.has_fp16_weight = True    # for training
-            #         param.memory_efficient_backward = True
-            #         # param.requires_grad = True      # not working now
-            #     else:
-            #         param.requires_grad = True    
-            unfreeze_transformer_layer(gpt, 1000)     
-    else: 
-        unfreeze_transformer_layer(gpt, unfreeze)           
+
+    if softembeddings:
+        # soft_prompt = SoftEmbedding(
+        #     tokenizer,
+        #     gpt.gpt_neox.config.hidden_size,
+        #     2048, 
+        #     wte=gpt.embed_out.weight,
+        #     n_tokens = 10,
+        #     init_string = "",
+        #     init_range = 0.5 )
+        # gpt.insert_layers(
+        #     layers=soft_prompt, idx=1
+        # )  
+
+        # freeze everything but the soft prompt
+        s_wte = SoftEmbedding2(gpt.get_input_embeddings(), 
+                      n_tokens=10, 
+                      initialize_from_vocab=True)
+        gpt.set_input_embeddings(s_wte)
+        for name, param in gpt.named_parameters():
+            if not "soft_embedding" in name:
+                param.requires_grad = False
+    else:    
+        if scratch:
+            if not LoRa:
+                if not load_in_8bit:
+                    if reset_weight:
+                        gpt.init_weights()  # from scarch
+                # for param in gpt.base_model.parameters():
+                #     if param.dtype == torch.int8:
+                #         param.has_fp16_weight = True    # for training
+                #         param.memory_efficient_backward = True
+                #         # param.requires_grad = True      # not working now
+                #     else:
+                #         param.requires_grad = True    
+                unfreeze_transformer_layer(gpt, 1000)     
+        else: 
+            unfreeze_transformer_layer(gpt, unfreeze)           
 
     gpt.gradient_checkpointing_enable()
     
@@ -1235,7 +1277,7 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
-            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa
+            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, softembeddings
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1267,6 +1309,7 @@ def main():
     parser.add_argument("--deepspeed_config_json", help = "deepspeed_config_json file")
     parser.add_argument("--data_build_only", action='store_true', help = "build dataset, no training")
     parser.add_argument("--lora", action='store_true', help = "using LoRa in training")
+    parser.add_argument("--softembeddings", action='store_true', help = "using softembeddings")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1336,6 +1379,8 @@ def main():
         data_build_only = True
     if args.lora:
         LoRa = True
+    if args.softembeddings:
+        softembeddings = True
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")

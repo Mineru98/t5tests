@@ -4,18 +4,19 @@
     "new_model_name": "lcw99/multi-function-polyglot-ko-1.3b",
     "cache_folder_name": "cache_temp",
     "dataset": {
-        "aihub_news_qna_writing":1.0
+        "gsm8k_train_softembeddings":1.0
     },
+    "softembeddings": true,
     "scratch": true,
     "reset_weight": false,
     "unfreeze": 0,
-    "save_path": "./Models/polyglot-ko-1.3b-lora-multi-func",
+    "save_path": "./Models/polyglot-ko-1.3b-multi-func-test",
     "max_input_length": 1024,
     "batch_size": 4,
-    "gradient_acc": 64,
-    "num_epochs": 1,
-    "save_step": 20,
+    "gradient_acc": 4,
+    "num_epochs": 5,
+    "save_step": 100,
     "eval_step": 20,
-    "validation_data_size": 64,
+    "validation_data_size": 8,
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json"
 }
