@@ -238,7 +238,7 @@ def get_cc100(n):
 
 def get_dataset(tokenize):
     global text_templates, validation_data_size
-    data_server = "https://api.plan4.house/static/"
+    data_server = os.environ['AI_DATA_SERVER']
     # data_server = "/home/chang/hd3t/dataset/text/"
     accelerator.print("reading dataset...", dataset_source)
     dss_eval = []
