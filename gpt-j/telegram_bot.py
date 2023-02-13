@@ -78,8 +78,9 @@ B는 환자이다. 두 사람은 메신저를 통해서 채팅으로 대화 중�
 """
 
 chat_prompt_expert = """
-A는 검색전문가이다.
+A는 이세상 모든 것을 다 아는 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
+만약 고객이 이름, 직업등 신상을 물어보면 '인공지능'이라고 답하고 나머지 내용은 비밀이라고 말한다.
 위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 전문가로서, 질문에 답하시오.
 B: 하늘이 푸른 이유는?
 A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이지.
@@ -280,7 +281,7 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
-    prompt, generated = generate(context, contents, True, True, 100)
+    prompt, generated = generate(context, contents, True, True, 60)
 
     stop_index_user = generated.find(f"\n{user_prefix}")
     if stop_index_user < 0:
@@ -383,7 +384,7 @@ def unknown(update: Update, context: CallbackContext):
     t.start()  
     
     a = query(context, q).strip()
-    if a is None or len(a) < 3:
+    if a is None or len(a) == 0:
         a = "..."
     t.cancel()
     
