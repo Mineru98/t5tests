@@ -23,6 +23,8 @@ HELP_TEXT = """
 /clear - 채팅 히스토리 삭제
 /qna - 질의 응답, 질문에 대해 답을 하며, 이전 질문/답과 연결되지 않음.
 /mqna - 다중 질의 응답, 채팅식으로 문답을 이어 나갈 수 있음.
+/doctor
+/therapist
 /prompt - 기타 프롬프트 입력, 일반 문장 입력시 해당 문장을 시작으로 문장을 연속해서 만들어 냄.
 기능으로 동작하는 프롬프트도 있는데 채팅, qna등이 모두 기능 프롬프트로 구현된 것임. 아래는 프롬프터 예제.
 
@@ -80,8 +82,8 @@ max_output_length = 1024
 min_output_length = 512
 
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
-latest_model_dir = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-000"
-latest_model_dir_on_test = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-reasoning/checkpoint-100"
+latest_model_dir = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-1060"
+latest_model_dir_on_test = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-unfreeze16/checkpoint-000"
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -252,10 +254,8 @@ def mqna_query(context, user_input):
     print(f"bot_message={bot_message}")
     return bot_message
         
-def chat_query(context, user_input, chat_prompt):
+def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"):
     MAX_CHAT_HISTORY = 7
-    user_prefix = "B"
-    bot_prefix = "A"
 
     chat_history = context.user_data['chat_history']
     contents = chat_prompt

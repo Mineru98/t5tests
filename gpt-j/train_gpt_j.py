@@ -292,9 +292,9 @@ def get_dataset(tokenize):
         "{s['passage']}\\n{eos}위 글을 요약하면?\\n{s['summary1']}",
     ]
     text_templates_reasoning = [
-        "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
-        "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
-        "질문에 답 하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+        "질문에 답 하고 이유를 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+        "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+        "질문에 답 하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "{s['question_kr']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
     ]
@@ -302,9 +302,9 @@ def get_dataset(tokenize):
         "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
     ]
     text_templates_reasoning_en = [
-        "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
-        "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
-        "질문에 답 하시오.\\n{eos}{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "질문에 답 하고 이유를 설명하시오.\\n{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "질문에 답 하시오.\\n{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
         "{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
         "{s['question']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning']}\\n그러므로 정답은 {s['answer']} 입니다.",
     ]
