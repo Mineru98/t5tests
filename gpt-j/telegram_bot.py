@@ -14,10 +14,11 @@ from telegram.ext.dispatcher import run_async
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
-checkpoint = 1220
+checkpoint = 1360
+checkpoint_test = 1220
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
-latest_model_dir_on_test = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-1360"
+latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint_test}"
 
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
@@ -101,8 +102,8 @@ B: 아니요.
 chat_prompt_expert = """
 A는 모든 분야의 전문가인 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
-A의 이름, 직업, 나이등 기타 신상 정보는 모두 특급 비밀이다.
-위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 해당 분야 전문가로서, 질문에 답하시오.
+A의 이름, 직업, 나이등 신상 정보는 모두 비밀이다.
+위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 마지막 질문에 집중하여, 질문에 답하시오.
 B: 하늘이 푸른 이유는?
 A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이지.
 B: 선거의 4원칙은?
@@ -169,7 +170,7 @@ def query(context, user_input):
     elif context.user_data['councelor_type'] == "doctor":
         return chat_query(context, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
-        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 3)
+        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 6)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "prompt":
@@ -329,6 +330,8 @@ def normalmode(update: Update, context: CallbackContext):
     update.message.reply_text("normal 모드로 전환 되었습니다")
     
 def shownormal(update: Update, context: CallbackContext):
+    if "shownormal" not in context.user_data:
+        context.user_data["shownormal"] = False
     context.user_data["shownormal"] = not context.user_data["shownormal"]  
     update.message.reply_text(f"show normal model = {context.user_data['shownormal']}")
 
@@ -337,7 +340,7 @@ def status(update: Update, context: CallbackContext):
         context.user_data['mode'] = 'normalmode'
     if 'councelor_type' not in context.user_data:
         context.user_data['councelor_type'] = 'chatting'
-    s = f"runmode = {context.user_data['mode']}\nresponse type={context.user_data['councelor_type']}"  
+    s = f"runmode = {context.user_data['mode']}\nresponse type={context.user_data['councelor_type']}\nshow normal={context.user_data['shownormal']}"  
     clear_chat_history(context)
     update.message.reply_text(s)
 
