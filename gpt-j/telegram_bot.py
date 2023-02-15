@@ -1,5 +1,6 @@
 from functools import wraps
 import os, re
+from datetime import datetime
 from threading import Timer   
 
 from telegram.ext.updater import Updater
@@ -14,8 +15,8 @@ from telegram.ext.dispatcher import run_async
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
-checkpoint = 1360
-checkpoint_test = 1220
+checkpoint = 1500
+checkpoint_test = 1840
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
 latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint_test}"
@@ -98,21 +99,20 @@ A: 계획을 세우는 것을 좋아 하나요?
 B: 아니요.
 """
 
-
 chat_prompt_expert = """
 A는 모든 분야의 전문가인 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
 A의 이름, 직업, 나이등 신상 정보는 모두 비밀이다.
-위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 마지막 질문에 집중하여, 질문에 답하시오.
+위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
+"""
+chat_prompt_expert_few_shot = """
 B: 하늘이 푸른 이유는?
 A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이지.
-B: 선거의 4원칙은?
-A: 보통선거, 평등선거, 직접선거, 비밀선거가 있어.
 """
 
 max_output_length = 1024
 min_output_length = 512
-CHAT_RESPONSE_LEN = 120
+
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -162,7 +162,6 @@ def clear_chat_history(context):
     return
 
 def query(context, user_input):
-    print(f"\n\n\nstart new query----\n{user_input}\n")
     if context.user_data['councelor_type'] == "chatting":
         return chat_query(context, user_input, chat_prompt_normal)
     elif context.user_data['councelor_type'] == "therapist":
@@ -170,7 +169,9 @@ def query(context, user_input):
     elif context.user_data['councelor_type'] == "doctor":
         return chat_query(context, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
-        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 6)
+        if not user_input.endswith(('?', ".", "!")):
+            user_input = user_input + "?"
+        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 7, 120)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "prompt":
@@ -260,21 +261,28 @@ def prompt_query(context, user_input):
     prompt, generated = generate(context, content, False, True)
     return prompt, generated
         
-def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7):
+def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=120):
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
     contents = chat_prompt
     last_bot_message = None
+    now = datetime.today().timestamp()
+    if len(chat_history) == 0:
+        contents += chat_prompt_expert_few_shot
+    duplicated = next((item for item in chat_history if item["user"] == user_input), None)
+    if duplicated is not None:
+        chat_history.remove(duplicated)
     for ch in chat_history:
+        ch_time = int(now - ch['time'])
         contents += f"{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
         if last_bot_message is not None:
-            contents += f"{bot_prefix}: {last_bot_message}\n"
+            contents += f'{bot_prefix}: {last_bot_message}\n'
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
     prompt, generated = generate(context, contents, True, True, CHAT_RESPONSE_LEN)
 
-    match = re.search('\n[A-Z][:;]', generated)
+    match = re.search('\n[A-Z](?:[:;-]|$)', generated)
     if match is None:
         bot_message = generated
     else:
@@ -283,7 +291,9 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
         bot_message_in_history = None
-    chat_history.append({"user": user_input, "bot": bot_message_in_history})
+    timestamp = datetime.today().timestamp()
+            
+    chat_history.append({"user": user_input, "bot": bot_message_in_history, "time": timestamp})
     while len(chat_history) > MAX_CHAT_HISTORY:
         chat_history.pop(0)
     print(f"bot_message={bot_message}")
@@ -352,6 +362,14 @@ def send_typing(context, chat_id):
     context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
   
 def unknown(update: Update, context: CallbackContext):
+    # print(update.message)
+    now = datetime.today()
+    username = update.message.chat['username']
+    first_name = update.message.chat['first_name']
+    q = update.message.text
+    q = q.strip()
+
+    print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
     if "councelor_type" not in context.user_data.keys():
         context.user_data["councelor_type"] = "expert"
         context.user_data["mode"] = "normalmode"
@@ -362,27 +380,35 @@ def unknown(update: Update, context: CallbackContext):
         update.message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
         update.message.reply_text("Language model restarted.")
         # update.message.reply_text(HELP_TEXT)
-        
-    q = update.message.text
-    q = q.strip()
 
+    if username == 'ninedra9ons':
+        context.user_data["mode"] = "testmode"
+        context.user_data["shownormal"] = True
+        
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
     t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
     t.start()  
     
     prompt, a = query(context, q)
     a = a.strip()
-    if a is None or len(a) == 0 or prompt=='error!':
+    print(f'query result="{a}", len={len(a)}')
+    if len(a) == 0 or prompt=='error!':
         a = "음..."
         clear_chat_history(context)
         print('no generation, retry with clear chat history.')
+        update.message.reply_text("잠깐만...")
         prompt, a = query(context, q)
         a = a.strip()
     t.cancel()
 
     print(f'query result="{a}", len={len(a)}')
-    update.message.reply_text(a)
+    if len(a) > 0 and prompt!='error!':
+        update.message.reply_text(a)
     
+    if "mode" not in context.user_data.keys():
+        context.user_data['mode'] = "normalmode" 
+    if "shownormal" not in context.user_data.keys():
+        context.user_data['shownormal'] = False 
     if context.user_data['mode'] == "testmode" and context.user_data["shownormal"]:
         context.user_data['mode'] = "normalmode"
         prompt, a2 = query(context, q)
