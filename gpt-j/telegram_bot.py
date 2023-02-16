@@ -181,70 +181,70 @@ places_to_meet = [
 
 asian_man_looks = [
      {'height': 170, 'weight': 65,
-      'appearance': '키가 크고 날씬하며 각진 특징'},
+      'appearance': '키가 크고 날씬하며 각진 얼굴을 가진 사람'},
      {'height': 165, 'weight': 70,
-      'appearance': '짧은 머리와 네모진 턱을 가진 근육질'},
+      'appearance': '짧은 머리와 네모진 턱을 가진 근육질의 모습을 가진 사람'},
      {'height': 175, 'weight': 75,
-      'appearance': '날씬하고 날렵한 이목구비와 안경'},
+      'appearance': '날씬하고 날렵한 이목구비와 안경 쓴 모습'},
      {'height': 168, 'weight': 60,
-      'appearance': '동그란 얼굴에 안경을 쓴 젊음'},
+      'appearance': '동그란 얼굴에 안경을 쓴 젊은 모습'},
      {'height': 180, 'weight': 80,
-      'appearance': '키가 크고 날렵한 턱선이 잘 생긴'},
+      'appearance': '키가 크고 날렵한 턱선이 잘 생긴 얼굴'},
      {'height': 173, 'weight': 68,
-      'appearance': '단정한 머리와 잘 다듬어진 수염으로 스타일리시함'},
+      'appearance': '단정한 머리와 잘 다듬어진 수염으로 스타일리시한 사람'},
      {'height': 178, 'weight': 73,
-      'appearance': '날씬한 몸매와 튀어나온 광대뼈가 잘 어울림'},
+      'appearance': '날씬한 몸매와 튀어나온 광대뼈가 잘 어울리는 사람'},
      {'height': 171, 'weight': 67,
-      'appearance': '깨끗하고 따뜻한 미소와 차분한 태도'},
+      'appearance': '깨끗하고 따뜻한 미소와 차분한 태도를 가진 사람'},
      {'height': 176, 'weight': 72,
-      'appearance': '날렵한 드레스 센스와 깔끔한 면도로 자신감'
+      'appearance': '날렵한 드레스 센스와 깔끔한 면도로 자신감이 있는 사람'
       },
      {'height': 179, 'weight': 78,
-      'appearance': '강한 근육질 체격과 날카로운 이목구비'},
+      'appearance': '강한 근육질 체격과 날카로운 이목구비를 갖춘 사람'},
      {'height': 167, 'weight': 63,
-      'appearance': '친절한 미소와 친근한 분위기의 발랄함'
+      'appearance': '친절한 미소와 친근한 분위기의 발랄한 사람'
       },
      {'height': 172, 'weight': 69,
-      'appearance': '그루터기로 튼튼하고 캐주얼하고 여유로운 스타일'
+      'appearance': '그루터기로 튼튼하고 캐주얼하고 여유로운 스타일을 가진 사람'
       },
      ]
 
 asian_women_looks = [
      {'height': 160, 'weight': 50,
-      'appearance': '가늘고 섬세한 이목구비와 긴 흑발'
+      'appearance': '가늘고 섬세한 이목구비와 긴 흑발을 가진 사람'
       },
      {'height': 165, 'weight': 55,
-      'appearance': '키가 크고 날씬하며 하트 모양의 얼굴과 큰 눈'
+      'appearance': '키가 크고 날씬하며 하트 모양의 얼굴과 큰 눈을 가진 사람'
       },
      {'height': 155, 'weight': 45,
-      'appearance': '뽀얀 피부, 장밋빛 볼, 작은 코'
+      'appearance': '뽀얀 피부, 장밋빛 볼, 작은 코를 가진 사람'
       },
      {'height': 162, 'weight': 50,
-      'appearance': '잘록한 허리와 높은 광대뼈, V자 턱선으로 우아함'
+      'appearance': '잘록한 허리와 높은 광대뼈, V자 턱선으로 우아한 모습'
       },
      {'height': 158, 'weight': 52,
-      'appearance': '가느다란 목과 가느다란 손가락, 부드러운 미소로 우아함'
+      'appearance': '가느다란 목과 가느다란 손가락, 부드러운 미소로 우아한 모습'
       },
      {'height': 163, 'weight': 53,
-      'appearance': '작은 코, 긴 속눈썹, 부드러운 목소리로 여성스러움'
+      'appearance': '작은 코, 긴 속눈썹, 부드러운 목소리로 여성스러운 모습'
       },
      {'height': 166, 'weight': 57,
-      'appearance': '긴 다리, 도톰한 입술, 당당한 걸음걸이를 가진 조각상 같은'
+      'appearance': '긴 다리, 도톰한 입술, 당당한 걸음걸이를 가진 조각상 같은 모습'
       },
      {'height': 159, 'weight': 49,
-      'appearance': '동그란 볼살에 발랄한 성격에 귀여운 외모'
+      'appearance': '동그란 볼살에 발랄한 성격에 귀여운 외모를 가진 사람'
       },
      {'height': 161, 'weight': 51,
-      'appearance': '잘록한 허리, 가느다란 팔, 조용한 태도'
+      'appearance': '잘록한 허리, 가느다란 팔, 조용한 태도를 가진 사람'
       },
      {'height': 167, 'weight': 60,
-      'appearance': '장엄한 태도, 강한 이목구비, 압도적인 존재감을 지닌 장엄함'
+      'appearance': '장엄한 태도, 강한 이목구비, 압도적인 존재감을 지닌 장엄한 모습'
       },
      {'height': 154, 'weight': 48,
-      'appearance': '달콤한 미소와 작은 귀, 다정한 성품이 사랑스러운'
+      'appearance': '달콤한 미소와 작은 귀, 다정한 성품이 사랑스러운 사람'
       },
      {'height': 164, 'weight': 54,
-      'appearance': '세련된 외모, 예리한 위트, 예리한 스타일 감각으로 세련됨'
+      'appearance': '세련된 외모, 예리한 위트, 예리한 스타일 감각으로 세련된 사람'
       },
      ]
 
@@ -262,6 +262,7 @@ wealth = [
      {"properties": "부동산 9억 5천만 원, 보증금 2억 5천만 원, 주식 1억 5천만 원, 요트 6천만 원"},
      {"properties": "부동산 10억원, 예금 3억원, 주식 2억원, 미술품 1억원"},
 ]
+
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -495,7 +496,7 @@ def build_fortune_text(birtyday: datetime, sex):
     meet_where_index = int(birtyday.day * birtyday.month) % 10
     meet_where = places_to_meet[meet_where_index]
     meet_where = ",".join(meet_where)
-    meet_where = f"{meet_where}등이 될 가능성이 있다."
+    meet_where = f"{meet_where} 중 하나가 될 가능성이 있다."
     appearance_index = int(birtyday.month * birtyday.hour) % 12
     if sex == 'male':
         looks = asian_women_looks 
@@ -510,12 +511,11 @@ def build_fortune_text(birtyday: datetime, sex):
     money = f"{wealth[money_index]['properties']} 정도로 예상된다."
     fortune_prompt = f"""
 A는 점을 봐주는 점쟁이이다. 
-B는 점을 보러온 고객이다.
-B의 성별은 {sex_str} 이다.
+B는 점을 보러온 고객이고 남자인데 앞으로 만날 여자에 대해서 궁금해서 점을 보러 왔다.
 B의 모든 질문은 미래 애인에 대한 것이다.
 B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람의 정보는 다음과 같다.
 성별은 {sex_partner_str} 이다.
-직업은 {job}등일 가능성이 높다.
+직업은 {job} 중 하나일 가능성이 높다.
 성격은 {personality} 이다.
 만나는 시기는 {meet_when}.
 만나는 장소는 {meet_where}.
