@@ -2,6 +2,7 @@ from functools import wraps
 import os, re
 from datetime import datetime
 from threading import Timer   
+from dateutil.parser import parse
 
 from telegram.ext.updater import Updater
 from telegram.update import Update
@@ -11,6 +12,8 @@ from telegram.ext.messagehandler import MessageHandler
 from telegram.ext.filters import Filters
 from telegram import (ChatAction)
 from telegram.ext.dispatcher import run_async
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler
 
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
@@ -125,21 +128,140 @@ B: 연말정산이란?
 A: 과세 대상인 소득과 세액을 정확하게 계산하기 위하여, 납세자의 신고에 의하여, 세금을 계산하는 것을 말해.
 """
 
-chat_prompt_fortune = """
-A는 점을 봐주는 점쟁이이다. 
-B는 점을 보러온 고객이다.
-B의 모든 질문은 미래 애인에 대한 것이다.
-B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람의 정보는 다음과 같다.
-직업은 디자이너, 가이드, 자기를 PR해야하는 직종, 연예인, 창의적인 일 종사자. 아이디어적인 일의 종사자 
-성격은 여린 감정의 소유자로 보여. 예술적인 감성, 부드러운 이미지를 가진 사람일 것 같네. 상상력, 감수성이 풍부해서 이야기할 때 즐거움을 주는 사람이지. 다만 결정장애가 있고, 실수도 많은 데다 상처를 잘 받는 여린 사람이라 주변으로부터 상처를 받지 않도록 멘탈 관리를 잘해줄 필요가 있어.
-만나는 시기는 올해 여름이다.
-B의 주변에 있는 사람이다.
-인물은 준주한 편이고 키는 180 정도다.
-재산은 적당히 있다. 저축도 좀 해놨다.
-위 내용에 기반하여 점쟁이로서 성실한 자세로 고객의 질문에 답하시오.
-B: 그 사람의 성격은 어때?
-A: 당신이 만날 미래 애인은 감수성이 풍부하고 다른 사람에게 즐거움을 주는 사람이야.
-"""
+
+job_list = [ 
+    ["소프트웨어 엔지니어", "마케팅 매니저", "투자 은행원", "의료 보조원", "교사"],
+    ["데이터 분석가", "소셜 미디어 전문가", "IT 지원 전문가", "약사", "지도 상담사"],
+    ["제품 관리자", "SEO 전문가", "사이버 보안 분석가", "치과 위생사", "사서"],
+    ["재무 분석가", "브랜드 매니저", "의사", "간호사", "커리큘럼 개발자"],
+    ["회계사", "광고 임원", "위험 관리자", "교수", "수의사"],
+    ["그래픽 디자이너", "프로젝트 매니저", "물리 치료사", "인사 전문가", "패션 디자이너"],
+    ["웹 개발자", "건축가", "셰프", "기계 엔지니어", "부동산 중개인"]
+]
+Personality_types = [
+    {"type": "모험적인", "description": "새로운 경험을 추구하고 위험을 감수하는 사람"},
+    {"type": "분석적인", "description": "깊은 생각과 논리적, 문제해결 능력이 있는 사람"},
+    {"type": "야심찬", "description": "목표와 결과에 중점을 두고 성공과 성취를 추구하는 사람"},
+    {"type": "카리스마 있는", "description": "다른 사람에게 영향을 미치고 영감을 주는 재능이 있는 매력적이고 호감 가는 사람"},
+    {"type": "자비로운", "description": "공감하고 배려하며 다른 사람을 돕고 지원하려는 강한 열망을 가진 사람"},
+    {"type": "창의적인", "description": "혁신적이고 독창적이며, 새롭고 독창적인 아이디어를 내는 재능이 있는 사람"},
+    {"type": "호기심이 많은", "description": "호기심과 배움에 대한 열망, 새로운 지식과 새로운 경험에 대한 갈증이 있는 사람"},
+    {"type": "헌신적인", "description": "충성심과 책임감이 강한 헌신적이고 근면한 사람"},
+    {"type": "신뢰할 수 있는", "description": "믿을 수 있고 일관성과 신뢰성이 있는 사람"},
+    {"type": "활기찬", "description": "높은 수준의 육체적 정신적 에너지를 지닌 열정적이고 활기찬 사람"},
+    {"type": "친근한", "description": "따뜻하고 접근하기 쉬우며, 관계를 구축하고 유지하는 데 타고난 재능이 있는 사람"},
+    {"type": "정직한", "description": "진실하고 진실하며 무결성과 투명성에 대한 약속이 있는 사람"},
+    {"type": "상상력 있는", "description": "새로운 가능성을 상상하고 미지의 세계를 탐구하는 재능을 지닌 창의적이고 선견지명이 있는 사람"},
+    {"type": "독립적인", "description": "자급자족 및 자립, 강한 자율성과 자기주도적 감각을 가진 사람"},
+    {"type": "혁신적인", "description": "미래지향적이고 수완이 풍부하며 새롭고 더 나은 일을 하는 방법을 찾는 재능이 있는 사람"},
+    {"type": "직관적인", "description": "본능적이고 예리하며 사람과 상황을 분석할 필요 없이 이해하는 재능이 있는 사람"},
+    {"type": "논리적인", "description": "합리적이고 객관적이며, 논리와 이성에 기초한 사고와 의사 결정을 선호하는 사람"},
+    {"type": "개방적인", "description": "다양한 아이디어를 수용하고 관용합니다. 새로운 관점을 고려하려는 의지가 있는 사람"},
+    {"type": "낙관적인", "description": "긍정적이고 희망적이며 사람과 상황에서 좋은 점을 보는 데 중점을 두는 사람"},
+    {"type": "조직화된", "description": "작업과 활동을 계획하고 구성하는 재능이 있는 체계적이고 효율적인 사람"},
+    {"type": "인내심 있는", "description": "관용과 이해심, 차분하게 기다릴 수 있는 능력 그리고 일이 일어나도록 지속적으로 노력 하는 사람"},
+    {"type": "현실적인", "description": "현명하고 근거가 있으며 실용적인 고려 사항을 기반으로 한 사고와 의사 결정을 선호하는 사람"},
+    {"type": "자원 활용형인", "description": "독창성과 자원을 통해 문제에 대한 해결책을 찾는 재능을 가진 영리하고 창의적인 사람"},
+    {"type": "사회적인", "description": "외향적이고 사교적이며 새로운 사람을 만나고 다른 사람들과 어울리는 것을 좋아하는 사람"},
+    {"type": "사려깊은", "description": "사려 깊고 사려깊으며 사물에 대해 깊이 생각하는 경향이 있다. 다른 사람에 대한 관심을 적극 표시하는 사람"}
+]
+
+places_to_meet = [ 
+    ["커피숍", "공원", "바"],
+    ["도서관", "커뮤니티 센터", "스포츠 경기장"],
+    ["레스토랑", "박물관", "쇼핑몰"],
+    ["체육관", "요가 스튜디오", "피트니스 수업"],
+    ["콘서트 홀", "음악 축제", "나이트 클럽"],
+    ["해변", "놀이공원", "동물원"],
+    ["직장", "컨퍼런스 센터", "비즈니스 미팅"],
+    ["대학캠퍼스", "학생회관", "기숙사"],
+    ["예배 장소", "종교 센터", "자선 행사"],
+    ["결혼식장", "연회장", "리셉션 센터"]
+]
+
+asian_man_looks = [
+     {'height': 170, 'weight': 65,
+      'appearance': '키가 크고 날씬하며 각진 특징'},
+     {'height': 165, 'weight': 70,
+      'appearance': '짧은 머리와 네모진 턱을 가진 근육질'},
+     {'height': 175, 'weight': 75,
+      'appearance': '날씬하고 날렵한 이목구비와 안경'},
+     {'height': 168, 'weight': 60,
+      'appearance': '동그란 얼굴에 안경을 쓴 젊음'},
+     {'height': 180, 'weight': 80,
+      'appearance': '키가 크고 날렵한 턱선이 잘 생긴'},
+     {'height': 173, 'weight': 68,
+      'appearance': '단정한 머리와 잘 다듬어진 수염으로 스타일리시함'},
+     {'height': 178, 'weight': 73,
+      'appearance': '날씬한 몸매와 튀어나온 광대뼈가 잘 어울림'},
+     {'height': 171, 'weight': 67,
+      'appearance': '깨끗하고 따뜻한 미소와 차분한 태도'},
+     {'height': 176, 'weight': 72,
+      'appearance': '날렵한 드레스 센스와 깔끔한 면도로 자신감'
+      },
+     {'height': 179, 'weight': 78,
+      'appearance': '강한 근육질 체격과 날카로운 이목구비'},
+     {'height': 167, 'weight': 63,
+      'appearance': '친절한 미소와 친근한 분위기의 발랄함'
+      },
+     {'height': 172, 'weight': 69,
+      'appearance': '그루터기로 튼튼하고 캐주얼하고 여유로운 스타일'
+      },
+     ]
+
+asian_women_looks = [
+     {'height': 160, 'weight': 50,
+      'appearance': '가늘고 섬세한 이목구비와 긴 흑발'
+      },
+     {'height': 165, 'weight': 55,
+      'appearance': '키가 크고 날씬하며 하트 모양의 얼굴과 큰 눈'
+      },
+     {'height': 155, 'weight': 45,
+      'appearance': '뽀얀 피부, 장밋빛 볼, 작은 코'
+      },
+     {'height': 162, 'weight': 50,
+      'appearance': '잘록한 허리와 높은 광대뼈, V자 턱선으로 우아함'
+      },
+     {'height': 158, 'weight': 52,
+      'appearance': '가느다란 목과 가느다란 손가락, 부드러운 미소로 우아함'
+      },
+     {'height': 163, 'weight': 53,
+      'appearance': '작은 코, 긴 속눈썹, 부드러운 목소리로 여성스러움'
+      },
+     {'height': 166, 'weight': 57,
+      'appearance': '긴 다리, 도톰한 입술, 당당한 걸음걸이를 가진 조각상 같은'
+      },
+     {'height': 159, 'weight': 49,
+      'appearance': '동그란 볼살에 발랄한 성격에 귀여운 외모'
+      },
+     {'height': 161, 'weight': 51,
+      'appearance': '잘록한 허리, 가느다란 팔, 조용한 태도'
+      },
+     {'height': 167, 'weight': 60,
+      'appearance': '장엄한 태도, 강한 이목구비, 압도적인 존재감을 지닌 장엄함'
+      },
+     {'height': 154, 'weight': 48,
+      'appearance': '달콤한 미소와 작은 귀, 다정한 성품이 사랑스러운'
+      },
+     {'height': 164, 'weight': 54,
+      'appearance': '세련된 외모, 예리한 위트, 예리한 스타일 감각으로 세련됨'
+      },
+     ]
+
+wealth = [
+     {"properties": "부동산 7,500만원, 보증금 2,000만원, 주식 1,000만원, 명품 500만원"},
+     {"properties": "부동산 1억 5천만 원, 보증금 3천만 원, 주식 2천만 원, 미술품 천만 원"},
+     {"properties": "부동산 2억 5천만 원, 보증금 5천만 원, 주식 3천만 원, 보석류 2천만 원"},
+     {"properties": "부동산 3억원, 보증금 7,500만원, 주식 4,000만원, 골동품 자동차 2,500만원"},
+     {"properties": "부동산 4억원, 보증금 1억원, 주식 5천만원, 고급 와인 3천만원"},
+     {"properties": "부동산 5억원, 보증금 1억 2,500만원, 주식 6,000만원, 수집용 피규어 3,500만원"},
+     {"properties": "부동산 6억 원, 보증금 1억 5천만 원, 주식 7천만 원, 명품 의류 4천만 원"},
+     {"properties": "부동산 7억원, 보증금 1억 7,500만원, 주식 8,000만원, 고급시계 4,500만원"},
+     {"properties": "부동산 8억원, 예금 2억원, 주식 9천만원, 희귀도서 5천만원"},
+     {"properties": "부동산 9억원, 보증금 2억2500만원, 주식 1억원, 전용기 5500만원"},
+     {"properties": "부동산 9억 5천만 원, 보증금 2억 5천만 원, 주식 1억 5천만 원, 요트 6천만 원"},
+     {"properties": "부동산 10억원, 예금 3억원, 주식 2억원, 미술품 1억원"},
+]
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -206,7 +328,7 @@ def query(context, user_input):
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
-        return chat_query(context, user_input, chat_prompt_fortune, "B", "A", 3, 120)
+        return chat_query(context, user_input, context.user_data["prompt"], "B", "A", 3, 120)
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, user_input)
         
@@ -330,6 +452,82 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
     print(f"bot_message={bot_message}")
     return prompt, bot_message
 
+def try_parse_datetime(date_str, format_str):
+    try:
+        return datetime.strptime(date_str, format_str)
+    except:
+        return None    
+
+def parse_date_input(date_str):
+    if date_str == '11':
+        date_str = '1966/2/26 오후 3:00'
+    if date_str == '22':
+        date_str = '1990/11/22 오후 7:00'
+    date_str = date_str.replace('오전', ' AM ')
+    date_str = date_str.replace('오후', ' PM ')
+    date_str = re.sub(r'[^\dAPM:]+',' ', date_str)
+    date_str = ' '.join(date_str.split())
+    date_str = date_str.strip().upper()
+    try:
+        datetime_object = parse(date_str)
+    except:
+        print(f'date paring failed={date_str}')
+        datetime_object = try_parse_datetime(date_str, "%Y %m %d %p %I %M")
+        if datetime_object is None:
+            datetime_object = try_parse_datetime(date_str, "%Y %m %d %p %I")
+        if datetime_object is None:
+            datetime_object = try_parse_datetime(date_str, "%Y %m %d %H")
+        if datetime_object is None:
+            datetime_object = try_parse_datetime(date_str, "%Y %m %d %H %M")
+        if datetime_object is None:
+            print("invalid date input, input failed")
+    return datetime_object
+
+def build_fortune_text(birtyday: datetime, sex):
+    print(birtyday, birtyday.day)
+    job = job_list[birtyday.day % 7]
+    job = ",".join(job)
+    personality_index = int(birtyday.day * birtyday.hour) % 20 
+    Personality_type = Personality_types[personality_index]
+    personality = f"{Personality_type['type']} 성격으로, {Personality_type['description']}"
+    meet_when_month = int(birtyday.day * birtyday.year) % 12
+    meet_when = f"다가오는 {meet_when_month}월 이다."
+    meet_where_index = int(birtyday.day * birtyday.month) % 10
+    meet_where = places_to_meet[meet_where_index]
+    meet_where = ",".join(meet_where)
+    meet_where = f"{meet_where}등이 될 가능성이 있다."
+    appearance_index = int(birtyday.month * birtyday.hour) % 12
+    if sex == 'male':
+        looks = asian_women_looks 
+        sex_str = "남자" 
+        sex_partner_str = "여자"
+    else:
+        looks = asian_man_looks
+        sex_str = "여자" 
+        sex_partner_str = "남자"
+    appearance = f"키는 {looks[appearance_index]['height']}센티미터 이고, 몸무게는 {looks[appearance_index]['weight']} 이며, {looks[appearance_index]['appearance']} 이다"
+    money_index = int(birtyday.day * birtyday.hour) % 12
+    money = f"{wealth[money_index]['properties']} 정도로 예상된다."
+    fortune_prompt = f"""
+A는 점을 봐주는 점쟁이이다. 
+B는 점을 보러온 고객이다.
+B의 성별은 {sex_str} 이다.
+B의 모든 질문은 미래 애인에 대한 것이다.
+B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람의 정보는 다음과 같다.
+성별은 {sex_partner_str} 이다.
+직업은 {job}등일 가능성이 높다.
+성격은 {personality} 이다.
+만나는 시기는 {meet_when}.
+만나는 장소는 {meet_where}.
+외모는 {appearance}.
+재산은 {money}.
+위 내용에 기반하여 점쟁이로서 성실한 자세, 확신에 찬 모습으로, 고객의 질문에 답하시오.
+B: 그 사람의 성격은 어때?
+A: 당신이 만날 미래 애인은 {personality} 이야.
+"""
+    print(fortune_prompt)
+    return fortune_prompt
+
 def chatting(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "chatting"  
     clear_chat_history(context)
@@ -369,6 +567,7 @@ def fortune(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "fortune"  
     clear_chat_history(context)
     update.message.reply_text("역술가 모드로 전환 되었습니다.")
+    update.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
 
 def testmode(update: Update, context: CallbackContext):
     context.user_data["mode"] = "testmode"  
@@ -402,6 +601,24 @@ def clear_chat_history_handler(update: Update, context: CallbackContext):
 def send_typing(context, chat_id):
     context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
   
+def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
+  
+def sex_input(update: Update, context: CallbackContext) :
+    data_selected = update.callback_query.data
+    print("callback : ", data_selected)
+    context.user_data['sex'] = data_selected
+    birtyday = context.user_data["birthday"]
+    sex = context.user_data["sex"]
+    prompt = build_fortune_text(birtyday, sex)
+    context.user_data["prompt"] = prompt
+    update.callback_query.message.reply_text("좋아 준비가 다 됐어. 미래 애인에 대해서 뭐든 물어봐.")
+        
 def unknown(update: Update, context: CallbackContext):
     # print(update.message)
     now = datetime.today()
@@ -428,6 +645,24 @@ def unknown(update: Update, context: CallbackContext):
         if username == 'ninedra9ons':
             status(update, context)
 
+    councelor_type = context.user_data["councelor_type"]
+    if councelor_type == "fortune":
+        if "birthday" not in context.user_data:
+            birtyday = parse_date_input(q)
+            if birtyday is not None:
+                context.user_data["birthday"] = birtyday
+                if "sex" not in context.user_data:
+                    show_list = []
+                    show_list.append(InlineKeyboardButton("남자", callback_data="male")) 
+                    show_list.append(InlineKeyboardButton("여자", callback_data="female")) 
+                    show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list) - 1)) 
+                    update.message.reply_text("성별이 뭐야?", reply_markup=show_markup)
+                    return
+            else:
+                update.message.reply_text("생일을 입력 해야 해. 안그러면 진행이 안돼.")
+                update.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
+                return
+            
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
     t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
     t.start()  
@@ -489,7 +724,9 @@ updater.dispatcher.add_handler(MessageHandler(
 
 # Filters out unknown messages.
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
+updater.dispatcher.add_handler(CallbackQueryHandler(sex_input))
 
 updater.start_polling()
 
 print("Ready!")
+
