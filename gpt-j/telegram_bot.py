@@ -536,42 +536,42 @@ A: 당신이 만날 미래 애인은 {personality} 일 가능성이 높아보여
 
 def chatting(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "chatting"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("일반 채팅 모드로 전환 되었습니다.")
 
 def therapist(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "therapist"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("심리 상담사 채팅 모드로 전환 되었습니다.")
 
 def doctor(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "doctor"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("응급 의사 채팅 모드로 전환 되었습니다.")
 
 def prompt(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "prompt"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("prompt 모드로 전환 되었습니다.")
 
 def expert(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "expert"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("expert 채팅 모드로 전환 되었습니다..")
 
 def expert2(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "expert2"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("expert2 친근 채팅 모드로 전환 되었습니다..")
 
 def mbti(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "mbti"  
-    clear_chat_history(context)
+    init_user_data(context)  
     update.message.reply_text("mbti 모드로 전환 되었습니다.")
 
 def fortune(update: Update, context: CallbackContext):
-    context.user_data["councelor_type"] = "fortune"  
-    clear_chat_history(context)
+    context.user_data["councelor_type"] = "fortune"
+    init_user_data(context)  
     context.user_data.pop("birthday", None)
     context.user_data.pop("birthday_confirm", None)
     context.user_data.pop("sex", None)
@@ -642,7 +642,12 @@ def keyboard_callback(update: Update, context: CallbackContext) :
         else:
             context.user_data.pop("birthday", None)
             update.callback_query.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
-            
+
+def init_user_data(context: CallbackContext):
+    context.user_data["mode"] = "normalmode"
+    context.user_data["shownormal"] = False  
+    clear_chat_history(context)
+                
 def unknown(update: Update, context: CallbackContext):
     # print(update.message)
     now = datetime.today()
@@ -654,10 +659,7 @@ def unknown(update: Update, context: CallbackContext):
     print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
-        context.user_data["mode"] = "normalmode"
-        context.user_data["shownormal"] = False  
-        clear_chat_history(context)
-
+        init_user_data(context)
         if username == 'ninedra9ons':
             context.user_data["mode"] = "testmode"
             #context.user_data["shownormal"] = True
