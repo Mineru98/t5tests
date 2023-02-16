@@ -21,6 +21,9 @@ checkpoint_test = 1840
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
 latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint_test}"
 
+max_output_length = 2048
+min_output_length = 512
+
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
 3.8B parameters language model, 1/46 of chatGPT in parameter size.
@@ -29,7 +32,8 @@ Internal experimental release.
 
 명령어.
 /chatting - 일반 잡담 채팅, 사람을 가정하고 하는 채팅. 주제는 제한 없음.
-/expert - 백과 사전식 질의 응답.
+/expert - 백과 사전식 질의 응답.(존대)
+/expert2 - 백과 사전식 질의 응답.(친근)
 /doctor
 /therapist
 
@@ -104,15 +108,38 @@ A는 모든 분야의 전문가인 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
 A의 이름, 직업, 나이등 신상 정보는 모두 비밀이다.
 위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
-"""
-chat_prompt_expert_few_shot = """
 B: 하늘이 푸른 이유는?
-A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이지.
+A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문입니다.
+B: 연말정산이란?
+A: 과세 대상인 소득과 세액을 정확하게 계산하기 위하여, 납세자의 신고에 의하여, 세금을 계산하는 것을 말합니다.
 """
 
-max_output_length = 1024
-min_output_length = 512
+chat_prompt_expert2 = """
+A는 모든 분야의 전문가인 인공지능이다.
+A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
+A의 이름, 직업, 나이등 신상 정보는 모두 비밀이다.
+위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
+B: 하늘이 푸른 이유는?
+A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이야.
+B: 연말정산이란?
+A: 과세 대상인 소득과 세액을 정확하게 계산하기 위하여, 납세자의 신고에 의하여, 세금을 계산하는 것을 말해.
+"""
 
+chat_prompt_fortune = """
+A는 점을 봐주는 점쟁이이다. 
+B는 점을 보러온 고객이다.
+B의 모든 질문은 미래 애인에 대한 것이다.
+B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람의 정보는 다음과 같다.
+직업은 디자이너, 가이드, 자기를 PR해야하는 직종, 연예인, 창의적인 일 종사자. 아이디어적인 일의 종사자 
+성격은 여린 감정의 소유자로 보여. 예술적인 감성, 부드러운 이미지를 가진 사람일 것 같네. 상상력, 감수성이 풍부해서 이야기할 때 즐거움을 주는 사람이지. 다만 결정장애가 있고, 실수도 많은 데다 상처를 잘 받는 여린 사람이라 주변으로부터 상처를 받지 않도록 멘탈 관리를 잘해줄 필요가 있어.
+만나는 시기는 올해 여름이다.
+B의 주변에 있는 사람이다.
+인물은 준주한 편이고 키는 180 정도다.
+재산은 적당히 있다. 저축도 좀 해놨다.
+위 내용에 기반하여 점쟁이로서 성실한 자세로 고객의 질문에 답하시오.
+B: 그 사람의 성격은 어때?
+A: 당신이 만날 미래 애인은 감수성이 풍부하고 다른 사람에게 즐거움을 주는 사람이야.
+"""
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -171,9 +198,15 @@ def query(context, user_input):
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 7, 120)
+        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 1, 120)
+    elif context.user_data['councelor_type'] == "expert2":
+        if not user_input.endswith(('?', ".", "!")):
+            user_input = user_input + "?"
+        return chat_query(context, user_input, chat_prompt_expert2, "B", "A", 1, 120)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
+    elif context.user_data['councelor_type'] == "fortune":
+        return chat_query(context, user_input, chat_prompt_fortune, "B", "A", 3, 120)
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, user_input)
         
@@ -266,8 +299,6 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
     contents = chat_prompt
     last_bot_message = None
     now = datetime.today().timestamp()
-    if len(chat_history) == 0:
-        contents += chat_prompt_expert_few_shot
     duplicated = next((item for item in chat_history if item["user"] == user_input), None)
     if duplicated is not None:
         chat_history.remove(duplicated)
@@ -324,10 +355,20 @@ def expert(update: Update, context: CallbackContext):
     clear_chat_history(context)
     update.message.reply_text("expert 채팅 모드로 전환 되었습니다..")
 
+def expert2(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "expert2"  
+    clear_chat_history(context)
+    update.message.reply_text("expert2 친근 채팅 모드로 전환 되었습니다..")
+
 def mbti(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "mbti"  
     clear_chat_history(context)
     update.message.reply_text("mbti 모드로 전환 되었습니다.")
+
+def fortune(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "fortune"  
+    clear_chat_history(context)
+    update.message.reply_text("역술가 모드로 전환 되었습니다.")
 
 def testmode(update: Update, context: CallbackContext):
     context.user_data["mode"] = "testmode"  
@@ -349,7 +390,7 @@ def status(update: Update, context: CallbackContext):
     if 'mode' not in context.user_data:
         context.user_data['mode'] = 'normalmode'
     if 'councelor_type' not in context.user_data:
-        context.user_data['councelor_type'] = 'chatting'
+        context.user_data['councelor_type'] = 'expert'
     s = f"runmode = {context.user_data['mode']}\nresponse type={context.user_data['councelor_type']}\nshow normal={context.user_data['shownormal']}"  
     clear_chat_history(context)
     update.message.reply_text(s)
@@ -370,21 +411,23 @@ def unknown(update: Update, context: CallbackContext):
     q = q.strip()
 
     print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
-    if "councelor_type" not in context.user_data.keys():
+    if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
         context.user_data["mode"] = "normalmode"
         context.user_data["shownormal"] = False  
         clear_chat_history(context)
 
-        update.message.reply_text("현재 전문가 질의 응답 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
+        if username == 'ninedra9ons':
+            context.user_data["mode"] = "testmode"
+            #context.user_data["shownormal"] = True
+
+        update.message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
         update.message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
         update.message.reply_text("Language model restarted.")
         # update.message.reply_text(HELP_TEXT)
+        if username == 'ninedra9ons':
+            status(update, context)
 
-    if username == 'ninedra9ons':
-        context.user_data["mode"] = "testmode"
-        context.user_data["shownormal"] = True
-        
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
     t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
     t.start()  
@@ -429,7 +472,9 @@ updater.dispatcher.add_handler(CommandHandler('chatting', chatting))
 updater.dispatcher.add_handler(CommandHandler('therapist', therapist))
 updater.dispatcher.add_handler(CommandHandler('doctor', doctor))
 updater.dispatcher.add_handler(CommandHandler('expert', expert))
+updater.dispatcher.add_handler(CommandHandler('expert2', expert2))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
+updater.dispatcher.add_handler(CommandHandler('fortune', fortune))
 
 updater.dispatcher.add_handler(CommandHandler('testmode', testmode))
 updater.dispatcher.add_handler(CommandHandler('normalmode', normalmode))
