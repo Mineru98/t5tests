@@ -18,8 +18,8 @@ from telegram.ext import CallbackQueryHandler
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 
-checkpoint = 1500
-checkpoint_test = 1840
+checkpoint = 1960
+checkpoint_test = 2000
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
 latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint_test}"
@@ -39,6 +39,7 @@ Internal experimental release.
 /expert2 - 백과 사전식 질의 응답.(친근)
 /doctor
 /therapist
+/fortune
 
 /clear - 채팅 히스토리 삭제
 /prompt - 기타 프롬프트 입력, 일반 문장 입력시 해당 문장을 시작으로 문장을 연속해서 만들어 냄.
@@ -258,7 +259,7 @@ wealth = [
      {"properties": "부동산 6억 원, 보증금 1억 5천만 원, 주식 7천만 원, 명품 의류 4천만 원"},
      {"properties": "부동산 7억원, 보증금 1억 7,500만원, 주식 8,000만원, 고급시계 4,500만원"},
      {"properties": "부동산 8억원, 예금 2억원, 주식 9천만원, 희귀도서 5천만원"},
-     {"properties": "부동산 9억원, 보증금 2억2500만원, 주식 1억원, 전용기 5500만원"},
+     {"properties": "부동산 9억원, 보증금 2억2500만원, 주식 1억원, 자동차 5500만원"},
      {"properties": "부동산 9억 5천만 원, 보증금 2억 5천만 원, 주식 1억 5천만 원, 요트 6천만 원"},
      {"properties": "부동산 10억원, 예금 3억원, 주식 2억원, 미술품 1억원"},
 ]
@@ -325,11 +326,11 @@ def query(context, user_input):
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, user_input, chat_prompt_expert2, "B", "A", 1, 120)
+        return chat_query(context, user_input, chat_prompt_expert2, "B", "A", 2, 120)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
-        return chat_query(context, user_input, context.user_data["prompt"], "B", "A", 3, 120)
+        return chat_query(context, user_input, context.user_data["prompt"], "B", "A", 2, 120)
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, user_input)
         
@@ -366,10 +367,10 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
     try:
         if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
             model = gpt
-            print('running on normal model.')
+            print(f'running on normal model, checkpoint={checkpoint}.')
         else:
             model = gpt_on_test
-            print('running on test model.')
+            print(f'running on test model, checkpoint={checkpoint_test}.')
         output_sequences = model.generate(
             encoded_input["input_ids"], 
             do_sample=False,
@@ -436,12 +437,13 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
 
     prompt, generated = generate(context, contents, True, True, CHAT_RESPONSE_LEN)
 
-    match = re.search('\n[A-Z](?:[:;-]|$)', generated)
+    match = re.search('\n[A-Z](?:[:;-와\']|$)', generated)
     if match is None:
         bot_message = generated
     else:
         stop_index = match.start()
         bot_message = generated[:stop_index].strip()
+        print(f'prefix stop remain = {generated[stop_index:]}')
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
         bot_message_in_history = None
@@ -491,8 +493,8 @@ def build_fortune_text(birtyday: datetime, sex):
     personality_index = int(birtyday.day * birtyday.hour) % 20 
     Personality_type = Personality_types[personality_index]
     personality = f"{Personality_type['type']} 성격으로, {Personality_type['description']}"
-    meet_when_month = int(birtyday.day * birtyday.year) % 12
-    meet_when = f"다가오는 {meet_when_month}월 이다."
+    meet_when_month = int(birtyday.day * birtyday.year) % 12 + 1
+    meet_when = f"다가오는 {meet_when_month}월 일 가능성이 높아."
     meet_where_index = int(birtyday.day * birtyday.month) % 10
     meet_where = places_to_meet[meet_where_index]
     meet_where = ",".join(meet_where)
@@ -502,28 +504,32 @@ def build_fortune_text(birtyday: datetime, sex):
         looks = asian_women_looks 
         sex_str = "남자" 
         sex_partner_str = "여자"
+        sex_partner_str2 = "그녀"
     else:
         looks = asian_man_looks
         sex_str = "여자" 
         sex_partner_str = "남자"
-    appearance = f"키는 {looks[appearance_index]['height']}센티미터 이고, 몸무게는 {looks[appearance_index]['weight']} 이며, {looks[appearance_index]['appearance']} 이다"
+        sex_partner_str2 = "그분"
+    appearance = f"키는 {looks[appearance_index]['height']}센티미터 이고, 몸무게는 {looks[appearance_index]['weight']} 이며, {looks[appearance_index]['appearance']} 정도로 보여"
     money_index = int(birtyday.day * birtyday.hour) % 12
     money = f"{wealth[money_index]['properties']} 정도로 예상된다."
     fortune_prompt = f"""
 A는 점을 봐주는 점쟁이이다. 
-B는 점을 보러온 고객이고 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다.
-B의 모든 질문은 미래 애인에 대한 것이다.
+B는 점을 보러온 고객이고 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다. 
+B의 모든 질문은 미래 애인에 대한 것이다. 절대 본인 즉 점쟁이 A의 이야기를 하지 마시오.
 B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람의 정보는 다음과 같다.
-성별은 {sex_partner_str} 이다.
-직업은 {job} 중 하나일 가능성이 높다.
-성격은 {personality} 이다.
-만나는 시기는 {meet_when}.
-만나는 장소는 {meet_where}.
-외모는 {appearance}.
-재산은 {money}.
-위 내용에 기반하여 점쟁이로서 성실한 자세, 확신에 찬 모습으로, 고객의 질문에 답하시오.
+{sex_partner_str2}의 성별은 {sex_partner_str} 이다.
+{sex_partner_str2}의 직업은 {job} 중 하나일 가능성이 높다.
+{sex_partner_str2}의 성격은 {personality} 일 가능성이 있어.
+{sex_partner_str2}을 만나는 시기는 {meet_when}.
+{sex_partner_str2}을 만나는 장소는 {meet_where}.
+{sex_partner_str2}의 외모는 {appearance}.
+{sex_partner_str2}의 재산은 {money}.
+위 내용에 없는 것을 답할 경우에는 불확실한 추정임을 반드시 이야기 해야 하며 절대 점쟁이 본인 즉 A의 이야기는 하지 마시오.
+답변시에는 명리학에 기반한 추정일 뿐임을 꼭 이야기 하시오.
+위 내용에 기반하여 점쟁이로서 성실한 자세, 약간 신들린 모습으로, 고객의 질문에 답하시오. 
 B: 그 사람의 성격은 어때?
-A: 당신이 만날 미래 애인은 {personality} 이야.
+A: 당신이 만날 미래 애인은 {personality} 일 가능성이 높아보여.
 """
     print(fortune_prompt)
     return fortune_prompt
@@ -566,6 +572,9 @@ def mbti(update: Update, context: CallbackContext):
 def fortune(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "fortune"  
     clear_chat_history(context)
+    context.user_data.pop("birthday", None)
+    context.user_data.pop("birthday_confirm", None)
+    context.user_data.pop("sex", None)
     update.message.reply_text("역술가 모드로 전환 되었습니다.")
     update.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
 
@@ -609,16 +618,31 @@ def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
         menu.append(footer_buttons)
     return menu
   
-def sex_input(update: Update, context: CallbackContext) :
+def keyboard_callback(update: Update, context: CallbackContext) :
     data_selected = update.callback_query.data
     print("callback : ", data_selected)
-    context.user_data['sex'] = data_selected
-    birtyday = context.user_data["birthday"]
-    sex = context.user_data["sex"]
-    prompt = build_fortune_text(birtyday, sex)
-    context.user_data["prompt"] = prompt
-    update.callback_query.message.reply_text("좋아 준비가 다 됐어. 미래 애인에 대해서 뭐든 물어봐.")
-        
+    if data_selected in ["male", "female"]:
+        context.user_data['sex'] = data_selected
+        birtyday = context.user_data["birthday"]
+        sex = context.user_data["sex"]
+        prompt = build_fortune_text(birtyday, sex)
+        context.user_data["prompt"] = prompt
+        partner = "여친" if data_selected == 'male' else "남친"
+        update.callback_query.message.reply_text(f"좋아 준비가 다 됐어. 미래 {partner}에 대해서 뭐든 물어봐.")
+    elif data_selected in ["birthday_yes", "birthday_no"]:
+        if data_selected == "birthday_yes":
+            context.user_data["birthday_confirm"] = True
+            if "sex" not in context.user_data:
+                show_list = []
+                show_list.append(InlineKeyboardButton("남자", callback_data="male")) 
+                show_list.append(InlineKeyboardButton("여자", callback_data="female")) 
+                show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list))) 
+                update.callback_query.message.reply_text("본인 성별이 뭐야?", reply_markup=show_markup)
+                return
+        else:
+            context.user_data.pop("birthday", None)
+            update.callback_query.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
+            
 def unknown(update: Update, context: CallbackContext):
     # print(update.message)
     now = datetime.today()
@@ -650,19 +674,20 @@ def unknown(update: Update, context: CallbackContext):
         if "birthday" not in context.user_data:
             birtyday = parse_date_input(q)
             if birtyday is not None:
+                print(f'birthday input successful={birtyday}')
                 context.user_data["birthday"] = birtyday
-                if "sex" not in context.user_data:
-                    show_list = []
-                    show_list.append(InlineKeyboardButton("남자", callback_data="male")) 
-                    show_list.append(InlineKeyboardButton("여자", callback_data="female")) 
-                    show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list) - 1)) 
-                    update.message.reply_text("성별이 뭐야?", reply_markup=show_markup)
-                    return
+                show_list = []
+                show_list.append(InlineKeyboardButton("맞아", callback_data="birthday_yes")) 
+                show_list.append(InlineKeyboardButton("틀려", callback_data="birthday_no")) 
+                show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list))) 
+                birthday_str = context.user_data["birthday"].strftime('%Y년 %m월 %d일 %I시 %M분 %p')
+                update.message.reply_text(f"생시가 {birthday_str}, 이거 맞나 확인해?", reply_markup=show_markup)
+                return
             else:
                 update.message.reply_text("생일을 입력 해야 해. 안그러면 진행이 안돼.")
                 update.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
                 return
-            
+                    
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
     t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
     t.start()  
@@ -724,7 +749,7 @@ updater.dispatcher.add_handler(MessageHandler(
 
 # Filters out unknown messages.
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
-updater.dispatcher.add_handler(CallbackQueryHandler(sex_input))
+updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
 
 updater.start_polling()
 
