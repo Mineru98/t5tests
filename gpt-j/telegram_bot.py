@@ -1,5 +1,5 @@
 from functools import wraps
-import os, re
+import os, re, argparse, json
 from datetime import datetime
 from threading import Timer   
 from dateutil.parser import parse
@@ -35,6 +35,19 @@ tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
+
+parser_config = argparse.ArgumentParser()
+parser_config.add_argument("--config_file", help = "loading config json file")
+
+parser = argparse.ArgumentParser(parents=[parser_config], add_help=False)
+args_config, unknown = parser_config.parse_known_args()
+if args_config.config_file:
+    config = json.load(open(args_config.config_file))
+    parser.set_defaults(**config)
+
+args = parser.parse_args()
+latest_model_dir = args.normal_model
+latest_model_dir_on_test = args.test_model
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 print(f'normal loading... {latest_model_dir}')
