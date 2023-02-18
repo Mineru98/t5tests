@@ -1,5 +1,5 @@
 {
     "normal_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-2620",
     "test_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-2620",
-    "deepspeed_mode": false
+    "deepspeed_mode": true
 }

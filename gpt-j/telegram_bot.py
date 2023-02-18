@@ -18,6 +18,7 @@ from telegram.ext import CallbackQueryHandler
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 import deepspeed
+import mii 
 
 checkpoint = 2480
 checkpoint_test = 2620
@@ -68,19 +69,21 @@ gpt_on_test = AutoModelForCausalLM.from_pretrained(
     #device_map='auto',
 ).to(device, torch.float16)
 
+generator = None
 deepspeed_mode = args.deepspeed_mode
 if deepspeed_mode:
     print("deepspeed_mode enabled!")
-    ds_engine = deepspeed.init_inference(
-        gpt_on_test,
-        mp_size=1,
-        dtype=torch.float16,
-        replace_method='auto',
-        checkpoint=None,
-        replace_with_kernel_inject=True
-    )
-    gpt_on_test = ds_engine.module
-
+    # ds_engine = deepspeed.init_inference(
+    #     gpt_on_test,
+    #     mp_size=1,
+    #     dtype=torch.float16,
+    #     replace_method='auto',
+    #     checkpoint=None,
+    #     replace_with_kernel_inject=True
+    # )
+    # gpt_on_test = ds_engine.module
+    generator = mii.mii_query_handle("lcw_deployment")
+    
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
 3.8B parameters language model, 1/46 of chatGPT in parameter size.
@@ -401,44 +404,70 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
     print(f'max_length={max_length}')
     
     try:
+        testmode = False
         if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
             model = gpt
             print(f'running on normal model, checkpoint={checkpoint}.')
         else:
+            testmode = True
             model = gpt_on_test
             print(f'running on test model, checkpoint={checkpoint_test}.')
-        start_time = datetime.today().timestamp()
-        output_sequences = model.generate(
-            encoded_input["input_ids"], 
-            do_sample=False,
-            early_stopping=True,
-            num_beams=3,
-            length_penalty=1.0,
-            temperature=1.0,
-            top_k=50,
-            top_p=0.95,
-            no_repeat_ngram_size=3, 
-            repetition_penalty=1.2,
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-            begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-            # forced_eos_token_id=tokenizer.eos_token_id,
-            max_length=max_length
-        )
-        end_time = datetime.today().timestamp()
-        print(f"**inference time = {end_time-start_time}")
-        output = output_sequences[0].tolist()
         
-        prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
-        output = output[input_length:]
-        print(output)
-        output = skip_eos_token(output)
-        try:
-            stop = output.index(tokenizer.eos_token_id)
-        except:
-            stop = len(output)
-        generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
-        garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
+        if deepspeed_mode and testmode:
+            result = generator.query(
+                {"query": [contents]}, 
+                do_sample=True, 
+                max_new_tokens=120,
+                pad_token_id=tokenizer.eos_token_id,
+                early_stopping=True,
+                num_beams=3,
+                length_penalty=1.0,
+                temperature=1.0,
+                top_k=50,
+                top_p=0.95,
+                no_repeat_ngram_size=3, 
+                repetition_penalty=1.2,
+                eos_token_id=tokenizer.eos_token_id,
+                #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+            )
+            prompt = contents
+            generated = str(result.response[0])
+            print(generated)
+            generated = generated[len(contents):]
+            garbage = ""
+        else:
+            start_time = datetime.today().timestamp()
+            output_sequences = model.generate(
+                encoded_input["input_ids"], 
+                do_sample=False,
+                early_stopping=True,
+                num_beams=3,
+                length_penalty=1.0,
+                temperature=1.0,
+                top_k=50,
+                top_p=0.95,
+                no_repeat_ngram_size=3, 
+                repetition_penalty=1.2,
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+                begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+                # forced_eos_token_id=tokenizer.eos_token_id,
+                max_length=max_length
+            )
+            end_time = datetime.today().timestamp()
+            print(f"**inference time = {end_time-start_time}")
+            output = output_sequences[0].tolist()
+            
+            prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
+            output = output[input_length:]
+            print(output)
+            output = skip_eos_token(output)
+            try:
+                stop = output.index(tokenizer.eos_token_id)
+            except:
+                stop = len(output)
+            generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
+            garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
         print(f'prompt={prompt}\ngenerated={generated}')
         generated = generated.replace("답은 아래와 같습니다.\n", "")        
         generated = generated.replace("답변:", "").strip()
