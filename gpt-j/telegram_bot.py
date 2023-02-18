@@ -20,16 +20,16 @@ import torch
 import deepspeed
 
 checkpoint = 2480
-checkpoint_test = 2480
+checkpoint_test = 2620
+model_path = os.environ['TELEGRAM_MODEL_PATH']
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
-latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
-latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint_test}"
-latest_model_dir_on_test = "EleutherAI/polyglot-ko-5.8b"
+latest_model_dir = f"{model_path}/checkpoint-{checkpoint}"
+latest_model_dir_on_test = f"{model_path}/checkpoint-{checkpoint_test}"
+#latest_model_dir_on_test = "EleutherAI/polyglot-ko-5.8b"
 #latest_model_dir_on_test = "lcw99/polyglot-ko-3.8b-multi-func"
 
 max_output_length = 2048
 min_output_length = 512
-
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -49,13 +49,15 @@ gpt_on_test = AutoModelForCausalLM.from_pretrained(
     latest_model_dir_on_test,
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
+    #load_in_8bit=True,
+    #device_map='auto',
 ).to(device, torch.float16)
 
 # ds_engine = deepspeed.init_inference(
 #     gpt_on_test,
 #     mp_size=1,
-#     dtype=torch.float,
-#     #replace_method='auto',
+#     dtype=torch.float32,
+#     replace_method='auto',
 #     checkpoint=None,
 #     replace_with_kernel_inject=True
 # )
@@ -456,7 +458,7 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
 
     prompt, generated = generate(context, contents, True, True, CHAT_RESPONSE_LEN)
 
-    match = re.search('\n?[A-Z][\와\s]?(?:[:;-]|$)?', generated)
+    match = re.search('\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
         bot_message = generated
     else:
