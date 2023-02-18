@@ -17,9 +17,10 @@ from telegram.ext import CallbackQueryHandler
 
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
+import deepspeed
 
-checkpoint = 1960
-checkpoint_test = 2000
+checkpoint = 2000
+checkpoint_test = 2480
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
 latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint_test}"
@@ -283,6 +284,16 @@ gpt_on_test = AutoModelForCausalLM.from_pretrained(
     low_cpu_mem_usage=True,
 ).to(device, torch.float16)
 
+# ds_engine = deepspeed.init_inference(
+#     gpt_on_test,
+#     mp_size=1,
+#     dtype=torch.float16,
+#     replace_method='auto',
+#     checkpoint=None ,
+#     replace_with_kernel_inject=True
+# )
+# gpt_on_test = ds_engine.module
+
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
 sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
 tt = tokenizer("\n?.")
@@ -322,11 +333,11 @@ def query(context, user_input):
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 1, 120)
+        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 3, 120)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, user_input, chat_prompt_expert2, "B", "A", 2, 120)
+        return chat_query(context, user_input, chat_prompt_expert2, "B", "A", 3, 120)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
@@ -371,6 +382,7 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
         else:
             model = gpt_on_test
             print(f'running on test model, checkpoint={checkpoint_test}.')
+        start_time = datetime.today().timestamp()
         output_sequences = model.generate(
             encoded_input["input_ids"], 
             do_sample=False,
@@ -388,6 +400,8 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
             # forced_eos_token_id=tokenizer.eos_token_id,
             max_length=max_length
         )
+        end_time = datetime.today().timestamp()
+        print(f"**inference time = {end_time-start_time}")
         output = output_sequences[0].tolist()
         
         prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
@@ -437,7 +451,7 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
 
     prompt, generated = generate(context, contents, True, True, CHAT_RESPONSE_LEN)
 
-    match = re.search('\n[A-Z](?:[:;-와\']|$)', generated)
+    match = re.search('\n?[A-Z](?:[:;-]|$)', generated)
     if match is None:
         bot_message = generated
     else:
@@ -644,8 +658,12 @@ def keyboard_callback(update: Update, context: CallbackContext) :
             update.callback_query.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
 
 def init_user_data(context: CallbackContext):
-    context.user_data["mode"] = "normalmode"
-    context.user_data["shownormal"] = False  
+    if "councelor_type" not in context.user_data:
+        context.user_data["councelor_type"] = "expert"
+    if "mode" not in context.user_data:
+        context.user_data["mode"] = "normalmode"
+    if "shownormal" not in context.user_data:
+        context.user_data["shownormal"] = False  
     clear_chat_history(context)
                 
 def unknown(update: Update, context: CallbackContext):
