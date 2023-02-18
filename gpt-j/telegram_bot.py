@@ -33,7 +33,7 @@ min_output_length = 512
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
+deepspeed_mode = False
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 
 parser_config = argparse.ArgumentParser()
@@ -66,15 +66,17 @@ gpt_on_test = AutoModelForCausalLM.from_pretrained(
     #device_map='auto',
 ).to(device, torch.float16)
 
-# ds_engine = deepspeed.init_inference(
-#     gpt_on_test,
-#     mp_size=1,
-#     dtype=torch.float32,
-#     replace_method='auto',
-#     checkpoint=None,
-#     replace_with_kernel_inject=True
-# )
-# gpt_on_test = ds_engine.module
+deepspeed_mode = args.deepspeed_mode
+if deepspeed_mode:
+    ds_engine = deepspeed.init_inference(
+        gpt_on_test,
+        mp_size=1,
+        dtype=torch.float32,
+        replace_method='auto',
+        checkpoint=None,
+        replace_with_kernel_inject=True
+    )
+    gpt_on_test = ds_engine.module
 
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
