@@ -40,6 +40,7 @@ parser_config = argparse.ArgumentParser()
 parser_config.add_argument("--config_file", help = "loading config json file")
 
 parser = argparse.ArgumentParser(parents=[parser_config], add_help=False)
+parser.add_argument("--local_rank", help = "local rank")
 args_config, unknown = parser_config.parse_known_args()
 if args_config.config_file:
     config = json.load(open(args_config.config_file))
@@ -73,7 +74,7 @@ if deepspeed_mode:
     ds_engine = deepspeed.init_inference(
         gpt_on_test,
         mp_size=1,
-        dtype=torch.float32,
+        dtype=torch.float16,
         replace_method='auto',
         checkpoint=None,
         replace_with_kernel_inject=True
