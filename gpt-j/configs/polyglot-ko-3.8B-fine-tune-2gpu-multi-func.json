@@ -28,10 +28,10 @@
         "gsm8k_en_to_ko":1.0
     },
     "lora": false,
-    "scratch": false,
+    "scratch": true,
     "reset_weight": false,
-    "unfreeze": 4,
-    "save_path": "./Models/polyglot-ko-3.8b-multi-func-unfreeze16",
+    "unfreeze": 0,
+    "save_path": "./Models/polyglot-ko-3.8b-multi-func",
     "max_input_length": 1024,
     "batch_size": 4,
     "gradient_acc": 64,
