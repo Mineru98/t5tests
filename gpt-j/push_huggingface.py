@@ -1,26 +1,31 @@
 # https://huggingface.co/docs/transformers/model_sharing
 
 from huggingface_hub import notebook_login
-from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
-from transformers import AutoTokenizer
-from transformers import AutoModel, PreTrainedTokenizerFast, AutoModelWithLMHead, TFGPT2LMHeadModel, FlaxGPT2LMHeadModel
+from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 from datasets import load_from_disk, load_dataset
+
+import torch
 
 notebook_login()
 
-if False:
+checkpoint = 2480
+#latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
+latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
+tokenizer_dir = latest_model_dir
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 
-    model_path = "./gpt-j/Models/gpt-j-6B-ko-voc-to-8bit-conv"
-    gpt =  GPTJForCausalLM8.from_pretrained(model_path)
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 
-    gpt.push_to_hub("gpt-j-6B-voc-ext-to-91238-8bit")
+gpt = AutoModelForCausalLM.from_pretrained(
+    latest_model_dir,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True,
+).to(device, torch.float16)
 
-    tokenizer_name = "tokenizer-gpt-j-plus-ko"
-    tokenizer_path = f"./train_tokenizer/{tokenizer_name}"
+print("writing...")
+gpt.save_pretrained(save_directory=f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint}", 
+                    is_main_process=False)
+tokenizer.save_pretrained(save_directory=f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint}")
 
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-    tokenizer.push_to_hub("tokenizer-gpt-j-ext-ko")
-    
-local = "./cc100-ko-only-1-of-5.json"
-ds = load_dataset("json", data_files=local)
-ds.push_to_hub("cc100-ko-only-1-of-5")
+# gpt.push_to_hub(repo_id="polyglot-ko-3.8b-multi-func")
+# tokenizer.push_to_hub(repo_id="polyglot-ko-3.8b-multi-func")

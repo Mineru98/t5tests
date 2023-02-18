@@ -19,14 +19,47 @@ from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 import deepspeed
 
-checkpoint = 2000
+checkpoint = 2480
 checkpoint_test = 2480
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
-latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint_test}"
+latest_model_dir_on_test = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint_test}"
+latest_model_dir_on_test = "EleutherAI/polyglot-ko-5.8b"
+#latest_model_dir_on_test = "lcw99/polyglot-ko-3.8b-multi-func"
 
 max_output_length = 2048
 min_output_length = 512
+
+
+tokenizer_dir = latest_model_dir
+device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
+
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+print(f'normal loading... {latest_model_dir}')
+gpt = AutoModelForCausalLM.from_pretrained(
+    latest_model_dir,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True,
+).to(device, torch.float16)
+
+print(f'test model loading... {latest_model_dir_on_test}')
+gpt_on_test = AutoModelForCausalLM.from_pretrained(
+    latest_model_dir_on_test,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True,
+).to(device, torch.float16)
+
+# ds_engine = deepspeed.init_inference(
+#     gpt_on_test,
+#     mp_size=1,
+#     dtype=torch.float,
+#     #replace_method='auto',
+#     checkpoint=None,
+#     replace_with_kernel_inject=True
+# )
+# gpt_on_test = ds_engine.module
 
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
@@ -266,34 +299,6 @@ wealth = [
 ]
 
 
-tokenizer_dir = latest_model_dir
-device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
-updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
-
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-gpt = AutoModelForCausalLM.from_pretrained(
-    latest_model_dir,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-).to(device, torch.float16)
-
-gpt_on_test = AutoModelForCausalLM.from_pretrained(
-    latest_model_dir_on_test,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-).to(device, torch.float16)
-
-# ds_engine = deepspeed.init_inference(
-#     gpt_on_test,
-#     mp_size=1,
-#     dtype=torch.float16,
-#     replace_method='auto',
-#     checkpoint=None ,
-#     replace_with_kernel_inject=True
-# )
-# gpt_on_test = ds_engine.module
-
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
 sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
 tt = tokenizer("\n?.")
@@ -387,7 +392,7 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
             encoded_input["input_ids"], 
             do_sample=False,
             early_stopping=True,
-            num_beams=5,
+            num_beams=3,
             length_penalty=1.0,
             temperature=1.0,
             top_k=50,
@@ -451,7 +456,7 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
 
     prompt, generated = generate(context, contents, True, True, CHAT_RESPONSE_LEN)
 
-    match = re.search('\n?[A-Z](?:[:;-]|$)', generated)
+    match = re.search('\n?[A-Z][\와\s]?(?:[:;-]|$)?', generated)
     if match is None:
         bot_message = generated
     else:
@@ -667,11 +672,15 @@ def init_user_data(context: CallbackContext):
     clear_chat_history(context)
                 
 def unknown(update: Update, context: CallbackContext):
-    # print(update.message)
+    #print(update)
     now = datetime.today()
-    username = update.message.chat['username']
-    first_name = update.message.chat['first_name']
-    q = update.message.text
+    if update.message is not None:
+        message = update.message
+    elif update.edited_message is not None:
+        message = update.edited_message
+    username = message.chat['username']
+    first_name = message.chat['first_name']
+    q = message.text
     q = q.strip()
 
     print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
@@ -682,9 +691,9 @@ def unknown(update: Update, context: CallbackContext):
             context.user_data["mode"] = "testmode"
             #context.user_data["shownormal"] = True
 
-        update.message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
-        update.message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
-        update.message.reply_text("Language model restarted.")
+        message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
+        message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
+        message.reply_text("Language model restarted.")
         # update.message.reply_text(HELP_TEXT)
         if username == 'ninedra9ons':
             status(update, context)
@@ -701,11 +710,11 @@ def unknown(update: Update, context: CallbackContext):
                 show_list.append(InlineKeyboardButton("틀려", callback_data="birthday_no")) 
                 show_markup = InlineKeyboardMarkup(build_menu(show_list, len(show_list))) 
                 birthday_str = context.user_data["birthday"].strftime('%Y년 %m월 %d일 %I시 %M분 %p')
-                update.message.reply_text(f"생시가 {birthday_str}, 이거 맞나 확인해?", reply_markup=show_markup)
+                message.reply_text(f"생시가 {birthday_str}, 이거 맞나 확인해?", reply_markup=show_markup)
                 return
             else:
-                update.message.reply_text("생일을 입력 해야 해. 안그러면 진행이 안돼.")
-                update.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
+                message.reply_text("생일을 입력 해야 해. 안그러면 진행이 안돼.")
+                message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
                 return
                     
     context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
@@ -719,14 +728,14 @@ def unknown(update: Update, context: CallbackContext):
         a = "음..."
         clear_chat_history(context)
         print('no generation, retry with clear chat history.')
-        update.message.reply_text("잠깐만...")
+        message.reply_text("잠깐만...")
         prompt, a = query(context, q)
         a = a.strip()
     t.cancel()
 
     print(f'query result="{a}", len={len(a)}')
     if len(a) > 0 and prompt!='error!':
-        update.message.reply_text(a)
+        message.reply_text(a)
     
     if "mode" not in context.user_data.keys():
         context.user_data['mode'] = "normalmode" 
@@ -737,7 +746,7 @@ def unknown(update: Update, context: CallbackContext):
         prompt, a2 = query(context, q)
         a2 = a2.strip()
         context.user_data['mode'] = "testmode"
-        update.message.reply_text(f'{a2}-[N]')
+        message.reply_text(f'{a2}-[N]')
         
 def unknown_text(update: Update, context: CallbackContext):
 	update.message.reply_text(
