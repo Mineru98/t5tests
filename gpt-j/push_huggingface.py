@@ -8,7 +8,9 @@ import torch
 
 notebook_login()
 
-checkpoint = 2480
+checkpoint = 2620
+repo_id = f"polyglot-ko-3.8b-multi-func-{checkpoint}"
+
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-{checkpoint}"
 tokenizer_dir = latest_model_dir
@@ -23,9 +25,9 @@ gpt = AutoModelForCausalLM.from_pretrained(
 ).to(device, torch.float16)
 
 print("writing...")
-gpt.save_pretrained(save_directory=f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint}", 
-                    is_main_process=False)
-tokenizer.save_pretrained(save_directory=f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint}")
+# gpt.save_pretrained(save_directory=f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint}", 
+#                     is_main_process=False)
+# tokenizer.save_pretrained(save_directory=f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-save/checkpoint-{checkpoint}")
 
-# gpt.push_to_hub(repo_id="polyglot-ko-3.8b-multi-func")
-# tokenizer.push_to_hub(repo_id="polyglot-ko-3.8b-multi-func")
+gpt.push_to_hub(repo_id=repo_id)
+tokenizer.push_to_hub(repo_id=repo_id)
