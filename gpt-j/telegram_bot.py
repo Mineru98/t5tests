@@ -48,6 +48,7 @@ if args_config.config_file:
 args = parser.parse_args()
 latest_model_dir = args.normal_model
 latest_model_dir_on_test = args.test_model
+tokenizer_dir = latest_model_dir
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 print(f'normal loading... {latest_model_dir}')
@@ -68,6 +69,7 @@ gpt_on_test = AutoModelForCausalLM.from_pretrained(
 
 deepspeed_mode = args.deepspeed_mode
 if deepspeed_mode:
+    print("deepspeed_mode enabled!")
     ds_engine = deepspeed.init_inference(
         gpt_on_test,
         mp_size=1,
