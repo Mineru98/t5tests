@@ -248,10 +248,9 @@ def get_dataset(tokenize):
         "아래 글을 보고 질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n{s['answer']}",
         "아래 글을 보고 질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
         "질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
-        "질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n{s['answer']}",
         "{s['context']}\\n{eos}위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
-        "{s['context']}\\n{eos}위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
-        "{s['context']}\\n{eos}위 글에 따르면, {s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+        "B: {s['context']}\\n위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\nA: {s['answer']}",
+        "B: {s['context']}\\n{s['question']}?\\nA: {s['answer']}",
     ]
     text_templates_conversation = [
         "아래 대화를 연결해 보시오.\\n{s['conversation']}",
@@ -265,38 +264,45 @@ def get_dataset(tokenize):
         "한글원문:{eos}{s['korean']}\\n{eos}영어번역:{s['english']}",
         "{s['korean']}\\n{eos}위글을 영어로 번역 하시오.\\n{s['english']}",
         "{s['korean']}\\n{eos}영어로 번역 하시오.\\n{s['english']}",
-        "{s['korean']}\\n{eos}영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['english']}",
+        "B: {s['korean']} 영어로 번역 해 줘.\\nA: {s['english']}",
+        "B: {s['korean']} 영어로 번역 해 주세요.\\nA: {s['english']}",
     ]
     text_templates_tran_en_to_ko = [
         "영어원문:{s['english']}\\n{eos}한글번역:{s['korean']}",
         "{s['english']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['korean']}",
         "{s['english']}\\n{eos}한글로 번역 하시오.\\n{s['korean']}",
         "{s['english']}\\n{eos}한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['korean']}",
+        "B: {s['english']} 한글로 번역 해 줘.\\nA: 한글 번역은 다음과 같습니다.\\n{s['korean']}",
+        "B: {s['english']} 한글로 번역 해 주세요.\\nA: 한글 번역은 다음과 같습니다.\\n{s['korean']}",
+        "B: {s['english']} 한글로 번역 해 주세요.\\nA: {s['korean']}",
     ]
     text_templates_gsm8k_ko_to_en = [
         "한글원문:{eos}{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어번역:{s['question']}\\n{s['reasoning']}",
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}위글을 영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['question']}\\n{s['reasoning']}",
+        "B: {s['question_kr']}\\n{s['reasoning_kr']} 영어로 번역 하시오.\\nA: {s['question']}\\n{s['reasoning']}",
     ]
     text_templates_gsm8k_en_to_ko = [
         "영어원문:{s['question']}\\n{s['reasoning']}\\n{eos}한글번역:{s['question_kr']}\\n{s['reasoning_kr']}",
         "{s['question']}\\n{s['reasoning']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
         "{s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
-        "{s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
+        "B: {s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
     ]
     text_templates_summarize = [
         "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
         "아래 글을 요약 해 줘.\\n{eos}{s['passage']}\\n{eos}위 글의 요약은 다음과 같습니다.\\n{s['summary1']}",
         "{s['passage']}\\n{eos}위 글을 요약하시오.\\n{s['summary1']}",
         "{s['passage']}\\n{eos}위 글을 요약하면?\\n{s['summary1']}",
+        "B: {s['passage']}\\n위 글을 요약하면?\\nA: {s['summary1']}",
+        "B: {s['passage']} 이글을 요약하면?\\nA: {s['summary1']}",
     ]
     text_templates_reasoning = [
         "질문에 답 하고 이유를 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "질문에 답 하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
-        "{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
-        "{s['question_kr']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
+        "B: {s['question_kr']}\\nA: 정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+        "B: {s['question_kr']}\\nA: 정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
     ]
     text_templates_reasoning_softembeddings = [
         "질문에 답 하고 이유를 설명하시오.\\n{eos}{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
@@ -305,16 +311,17 @@ def get_dataset(tokenize):
         "질문에 답 하고 이유를 설명하시오.\\n{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
         "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
         "질문에 답 하시오.\\n{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
-        "{s['question']}\\n{eos}정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
-        "{s['question']}\\n{eos}정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning']}\\n그러므로 정답은 {s['answer']} 입니다.",
+        "B: {s['question']}\\nA: 정답은 {s['answer']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning']}",
+        "B: {s['question']}\\nA: 정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning']}\\n그러므로 정답은 {s['answer']} 입니다.",
     ]
     text_templates_news_writing = [
         "{s['title']}\\n위 문장을 주제로 신문 기사를 작성 하시오.\\n{eos}{s['text']}",
         "{s['title']}\\n위 내용을 제목으로 신문 기사를 작성 하시오.\\n{eos}{s['text']}",
-        "{s['title']}\\n위 내용을 포함하는 신문 기사를 작성 하시오.\\n{eos}{s['text']}",
+        "B: {s['title']}\\n위 내용을 포함하는 신문 기사를 작성 해봐.\\nA: {s['text']}",
         "아래 문장을 제목으로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
         "아래 문장을 주제로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
-        "아래 내용을 포함하는 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
+        "B: 아래 내용을 포함하는 신문 기사를 작성 하시오.\\n{s['title']}\\nA: {s['text']}",
+        "B: {s['title']} 이 내용으로 신문 기사를 써봐.\\nA: {s['text']}",
     ]
     
     if "sns" in dataset_source.keys():

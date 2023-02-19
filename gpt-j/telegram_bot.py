@@ -19,9 +19,11 @@ from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 import deepspeed
 import mii 
+from deepspeed.module_inject.containers.gptneox import DS_GPTNEOXContainer, GPTNEOXLayerPolicy
+from transformers import GPTNeoXLayer
 
-checkpoint = 2840
-checkpoint_test = 2620
+checkpoint = 0
+checkpoint_test = 0
 model_path = os.environ['TELEGRAM_MODEL_PATH']
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"{model_path}/checkpoint-{checkpoint}"
@@ -35,6 +37,7 @@ min_output_length = 512
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 deepspeed_mode = False
+zero_mode = False
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 
 parser_config = argparse.ArgumentParser()
@@ -63,24 +66,9 @@ gpt = AutoModelForCausalLM.from_pretrained(
 generator = None
 gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
-if deepspeed_mode:
-    print("deepspeed_mode enabled!")
-    if False:
-        ds_engine = deepspeed.init_inference(
-            gpt_on_test,
-            mp_size=1,
-            dtype=torch.float16,
-            replace_method='auto',
-            checkpoint=None,
-            replace_with_kernel_inject=True
-        )
-        gpt_on_test = ds_engine.module
-    else:
-        generator = mii.mii_query_handle("lcw_deployment")
-        new_loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(new_loop)
-else:
-    print(f'test model loading... {latest_model_dir_on_test}')
+zero_mode = args.zero_mode
+if not zero_mode:
+    print(f'****************test model loading... {latest_model_dir_on_test}')
     gpt_on_test = AutoModelForCausalLM.from_pretrained(
         latest_model_dir_on_test,
         torch_dtype=torch.float16,
@@ -88,6 +76,24 @@ else:
         #load_in_8bit=True,
         #device_map='auto',
     ).to(device, torch.float16)
+    
+if deepspeed_mode:
+    print("****************deepspeed_mode enabled!")
+    ds_engine = deepspeed.init_inference(
+        gpt_on_test,
+        mp_size=1,
+        dtype=torch.float16,
+        replace_method='auto',
+        checkpoint=None,
+        replace_with_kernel_inject=False,
+        injection_policy={GPTNeoXLayer: (GPTNEOXLayerPolicy, )}
+    )
+    gpt_on_test = ds_engine.module
+elif zero_mode:
+    print("****************zero_mode enabled!")
+    generator = mii.mii_query_handle("lcw_deployment")
+    new_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(new_loop)
 
     
     
@@ -99,8 +105,8 @@ Internal experimental release.
 
 명령어.
 /chatting - 일반 잡담 채팅, 사람을 가정하고 하는 채팅. 주제는 제한 없음.
-/expert - 백과 사전식 질의 응답.(존대)
-/expert2 - 백과 사전식 질의 응답.(친근)
+/expert - 전문가 질의 응답.(존대)
+/expert2 - 전문가 질의 응답.(친근)
 /doctor
 /therapist
 /fortune
@@ -415,21 +421,21 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
         testmode = False
         if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
             model = gpt
-            print(f'running on normal model, checkpoint={checkpoint}.')
+            print(f'running on normal model, {latest_model_dir}.')
         else:
             testmode = True
             model = gpt_on_test
-            print(f'running on test model, checkpoint={checkpoint_test}.')
+            print(f'running on test model, {latest_model_dir_on_test}.')
         
         start_time = datetime.today().timestamp()
-        if generator is not None and deepspeed_mode and testmode:
+        if generator is not None and zero_mode and testmode:
             result_id = generator.query_non_block(
                 {"query": [contents]}, 
                 do_sample=False, 
                 max_new_tokens=120,
                 pad_token_id=tokenizer.eos_token_id,
                 early_stopping=True,
-                num_beams=3,       # DeepSpeed not support num_beam > 1
+                num_beams=3,       
                 length_penalty=1.0,
                 temperature=0.6,
                 top_k=4,
@@ -502,7 +508,7 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
             generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
             garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
         end_time = datetime.today().timestamp()
-        print(f"******inference time = {end_time-start_time}")
+        print(f"\n******inference time = {end_time-start_time}")
         print(f'prompt={prompt}\ngenerated={generated}')
         generated = generated.replace("답은 아래와 같습니다.\n", "")        
         generated = generated.replace("답변:", "").strip()
@@ -543,7 +549,11 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
 
     match = re.search('\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
-        bot_message = generated
+        stop_index = generated.find("A와 B")
+        if stop_index > 0:
+            bot_message = generated[:stop_index].strip()
+        else:
+            bot_message = generated
     else:
         stop_index = match.start()
         bot_message = generated[:stop_index].strip()
