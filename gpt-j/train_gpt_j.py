@@ -266,6 +266,9 @@ def get_dataset(tokenize):
         "{s['korean']}\\n{eos}영어로 번역 하시오.\\n{s['english']}",
         "B: {s['korean']} 영어로 번역 해 줘.\\nA: {s['english']}",
         "B: {s['korean']} 영어로 번역 해 주세요.\\nA: {s['english']}",
+        "B: {s['korean']}\\nA: 영어로 번역.\\nB: {s['english']}",
+        "B: {s['korean']}\\nA: 영어로.\\nB: {s['english']}",
+        "B: {s['korean']}\\nA: 영어로 해봐.\\nB: {s['english']}",
     ]
     text_templates_tran_en_to_ko = [
         "영어원문:{s['english']}\\n{eos}한글번역:{s['korean']}",
@@ -275,6 +278,9 @@ def get_dataset(tokenize):
         "B: {s['english']} 한글로 번역 해 줘.\\nA: 한글 번역은 다음과 같습니다.\\n{s['korean']}",
         "B: {s['english']} 한글로 번역 해 주세요.\\nA: 한글 번역은 다음과 같습니다.\\n{s['korean']}",
         "B: {s['english']} 한글로 번역 해 주세요.\\nA: {s['korean']}",
+        "B: {s['english']}\\nA: 한글로\\nB: {s['korean']}",
+        "B: {s['english']}\\nA: 한글로 번역.\\nB: {s['korean']}",
+        "B: {s['english']}\\nA: 한글로 해봐.\\nB: {s['korean']}",
     ]
     text_templates_gsm8k_ko_to_en = [
         "한글원문:{eos}{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어번역:{s['question']}\\n{s['reasoning']}",
@@ -282,12 +288,14 @@ def get_dataset(tokenize):
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['question']}\\n{s['reasoning']}",
         "B: {s['question_kr']}\\n{s['reasoning_kr']} 영어로 번역 하시오.\\nA: {s['question']}\\n{s['reasoning']}",
+        "B: {s['question_kr']}\\n{s['reasoning_kr']} 영어로\\nA: {s['question']}\\n{s['reasoning']}",
     ]
     text_templates_gsm8k_en_to_ko = [
         "영어원문:{s['question']}\\n{s['reasoning']}\\n{eos}한글번역:{s['question_kr']}\\n{s['reasoning_kr']}",
         "{s['question']}\\n{s['reasoning']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
         "{s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
         "B: {s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
+        "B: {s['question']}\\n{s['reasoning']}\\n{eos}한글로\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
     ]
     text_templates_summarize = [
         "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
@@ -322,6 +330,9 @@ def get_dataset(tokenize):
         "아래 문장을 주제로 신문 기사를 작성 하시오.\\n{s['title']}\\n{eos}{s['text']}",
         "B: 아래 내용을 포함하는 신문 기사를 작성 하시오.\\n{s['title']}\\nA: {s['text']}",
         "B: {s['title']} 이 내용으로 신문 기사를 써봐.\\nA: {s['text']}",
+        "B: {s['title']} 이걸 제목으로 신문 기사를 써봐.\\nA: {s['text']}",
+        "B: {s['title']} 이걸 제목으로 블로그를 써봐.\\nA: {s['text']}",
+        "B: {s['title']} 이 내용으로 블로그를 써봐.\\nA: {s['text']}",
     ]
     
     if "sns" in dataset_source.keys():

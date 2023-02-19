@@ -109,35 +109,14 @@ Internal experimental release.
 현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
 
 명령어.
+/expert - 전문가 질의 응답. 존대형 [기본모드]
+/expert2 - 전문가 질의 응답. 친근형
 /chatting - 일반 잡담 채팅, 사람을 가정하고 하는 채팅. 주제는 제한 없음.
-/expert - 전문가 질의 응답.(존대)
-/expert2 - 전문가 질의 응답.(친근)
 /doctor
 /therapist
 /fortune
 
-/clear - 채팅 히스토리 삭제
-/prompt - 기타 프롬프트 입력, 일반 문장 입력시 해당 문장을 시작으로 문장을 연속해서 만들어 냄.
-기능으로 동작하는 프롬프트도 있는데 채팅, qna등이 모두 기능 프롬프트로 구현된 것임. 아래는 기타 프롬프터 예제.
-
-- 번역
-<한글문장> 
-영어로 번역 하시오. 
-<영어문장> 
-한글로 번역하시오. 
-
-- 요약
-<장문의 글>
-위글을 요약 하시오.
-
-- Q&A
-<장문의 글>
-위글을 보고 아래 질문에 답하시오.
-<질문>
-
-- 기사작성(experimental)
-다음 문장을 주제로 기사를 작성 하시오. 
-<기사제목> 
+/clear - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
 """
 
 chat_prompt_normal = """
@@ -410,7 +389,13 @@ def search_stop_word(generated):
             bot_message = generated[:stop_index].strip()
             stopped = True
         else:
-            bot_message = generated
+            match = re.search('\n\(', generated)
+            if match is not None:
+                stop_index = match.start()
+                bot_message = generated[:stop_index].strip()
+                stopped = True
+            else:
+                bot_message = generated
     else:
         stopped = True
         stop_index = match.start()
@@ -432,12 +417,14 @@ def reply_partial_text(message, text):
     if match is None:
         matches = re.finditer(',\s', text)
         for m in matches:
-            if m.start(0) > 40:
+            if m.start(0) > generation_chunk * 2:
                 stop_index = m.start(0) 
         if stop_index < 0:
             return text
     else:
         stop_index = match.start()
+        if stop_index < generation_chunk:
+            return text
 
     text_to_reply = text[:stop_index+1].strip()
     if len(text_to_reply) > 0:
@@ -505,6 +492,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             # print(f'input_tensor={input_tensor}')
             stopped = False
             gen_text_concat = ""
+            sentence_count = 0
             while True:
                 input_len_sub = len(input_tensor[0])
                 send_typing(context, context.user_data['chat_id'])
@@ -517,6 +505,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                         gen_text_concat += gen_text
                         gen_text_to_reply += gen_text
                         gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                        sentence_count += 1
                     break
                 r = (output_tensor == tokenizer.eos_token_id).nonzero(as_tuple=True)[0].cpu().numpy()
                 if len(r) == 1:
@@ -528,15 +517,18 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                         gen_text_concat += gen_text
                         gen_text_to_reply += gen_text
                         gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                        sentence_count += 1
                     break
                 gen_text = tokenizer.decode(output_tensor[input_len_sub:], skip_special_tokens=False)
                 print(f'continue gen={gen_text}')
                 gen_text_concat += gen_text
                 gen_text_to_reply += gen_text
                 gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
-                input_tensor = output_sequences              
+                sentence_count += 1
+                input_tensor = output_sequences            
+            print(f'sentence_count={sentence_count}')  
             if len(gen_text_to_reply.strip()) > 0:  
-                message.reply_text(gen_text_to_reply)
+                message.reply_text(gen_text_to_reply) 
             prompt = tokenizer.decode(output_tensor[:input_length], skip_special_tokens=False)
             generated = gen_text_concat
         end_time = datetime.today().timestamp()
@@ -795,6 +787,9 @@ def unknown(update: Update, context: CallbackContext):
     q = message.text
     q = q.strip()
 
+    if q == '--' and 'last_bot_message' in context.user_data:
+        message.reply_text(context.user_data['last_bot_message'])
+        
     print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
@@ -843,7 +838,9 @@ def unknown(update: Update, context: CallbackContext):
         message.reply_text("잠깐만... 오류났다...")
         prompt, a = query(context, message, q)
         a = a.strip()
-
+    else:
+        context.user_data['last_bot_message'] = a
+        
     if "shownormal" not in context.user_data.keys():
         context.user_data['shownormal'] = False 
     show_normal = context.user_data["shownormal"]
