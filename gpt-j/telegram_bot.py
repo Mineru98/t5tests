@@ -1,5 +1,5 @@
 from functools import wraps
-import os, re, argparse, json
+import os, re, argparse, json, traceback, asyncio, time
 from datetime import datetime
 from threading import Timer   
 from dateutil.parser import parse
@@ -20,7 +20,7 @@ import torch
 import deepspeed
 import mii 
 
-checkpoint = 2480
+checkpoint = 2840
 checkpoint_test = 2620
 model_path = os.environ['TELEGRAM_MODEL_PATH']
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
@@ -60,29 +60,36 @@ gpt = AutoModelForCausalLM.from_pretrained(
     low_cpu_mem_usage=True,
 ).to(device, torch.float16)
 
-print(f'test model loading... {latest_model_dir_on_test}')
-gpt_on_test = AutoModelForCausalLM.from_pretrained(
-    latest_model_dir_on_test,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-    #load_in_8bit=True,
-    #device_map='auto',
-).to(device, torch.float16)
-
 generator = None
+gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
 if deepspeed_mode:
     print("deepspeed_mode enabled!")
-    # ds_engine = deepspeed.init_inference(
-    #     gpt_on_test,
-    #     mp_size=1,
-    #     dtype=torch.float16,
-    #     replace_method='auto',
-    #     checkpoint=None,
-    #     replace_with_kernel_inject=True
-    # )
-    # gpt_on_test = ds_engine.module
-    generator = mii.mii_query_handle("lcw_deployment")
+    if False:
+        ds_engine = deepspeed.init_inference(
+            gpt_on_test,
+            mp_size=1,
+            dtype=torch.float16,
+            replace_method='auto',
+            checkpoint=None,
+            replace_with_kernel_inject=True
+        )
+        gpt_on_test = ds_engine.module
+    else:
+        generator = mii.mii_query_handle("lcw_deployment")
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+else:
+    print(f'test model loading... {latest_model_dir_on_test}')
+    gpt_on_test = AutoModelForCausalLM.from_pretrained(
+        latest_model_dir_on_test,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+        #load_in_8bit=True,
+        #device_map='auto',
+    ).to(device, torch.float16)
+
+    
     
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
@@ -382,6 +389,7 @@ def skip_eos_token(output):
     return output
 
 def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0):
+    global generator
     contents = contents.strip()
     if not open_end:
         contents = f'{contents}<|sep|>'
@@ -413,49 +421,74 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
             model = gpt_on_test
             print(f'running on test model, checkpoint={checkpoint_test}.')
         
-        if deepspeed_mode and testmode:
-            result = generator.query(
+        start_time = datetime.today().timestamp()
+        if generator is not None and deepspeed_mode and testmode:
+            result_id = generator.query_non_block(
                 {"query": [contents]}, 
-                do_sample=True, 
+                do_sample=False, 
                 max_new_tokens=120,
                 pad_token_id=tokenizer.eos_token_id,
                 early_stopping=True,
-                num_beams=3,
+                num_beams=3,       # DeepSpeed not support num_beam > 1
                 length_penalty=1.0,
-                temperature=1.0,
-                top_k=50,
-                top_p=0.95,
+                temperature=0.6,
+                top_k=4,
+                top_p=0.6,
                 no_repeat_ngram_size=3, 
                 repetition_penalty=1.2,
                 eos_token_id=tokenizer.eos_token_id,
                 #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
             )
+            result = None
+            for i in range(100):
+                result = generator.get_pending_task_result(result_id)
+                if result is not None:
+                    result = result.response[0]
+                    break
+                time.sleep(1)
+            if result is None:
+                generated = "음... 뭔가 잘 못 됐어..."
+            else:
+                generated = result
             prompt = contents
-            generated = str(result.response[0])
             print(generated)
             generated = generated[len(contents):]
             garbage = ""
         else:
-            start_time = datetime.today().timestamp()
-            output_sequences = model.generate(
-                encoded_input["input_ids"], 
-                do_sample=False,
-                early_stopping=True,
-                num_beams=3,
-                length_penalty=1.0,
-                temperature=1.0,
-                top_k=50,
-                top_p=0.95,
-                no_repeat_ngram_size=3, 
-                repetition_penalty=1.2,
-                pad_token_id=tokenizer.eos_token_id,
-                eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-                begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-                # forced_eos_token_id=tokenizer.eos_token_id,
-                max_length=max_length
-            )
-            end_time = datetime.today().timestamp()
-            print(f"**inference time = {end_time-start_time}")
+            if False:
+                output_sequences = model.generate(
+                    encoded_input["input_ids"], 
+                    do_sample=False,
+                    early_stopping=True,
+                    num_beams=3,
+                    length_penalty=1.0,
+                    temperature=1.0,
+                    top_k=50,
+                    top_p=0.95,
+                    no_repeat_ngram_size=3, 
+                    repetition_penalty=1.2,
+                    pad_token_id=tokenizer.eos_token_id,
+                    eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+                    begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+                    max_length=max_length
+                )
+            else:
+                output_sequences = model.generate(
+                    encoded_input["input_ids"], 
+                    do_sample=False,
+                    early_stopping=True,
+                    num_beams=3,
+                    length_penalty=1.0,
+                    temperature=0.6,
+                    top_k=4,
+                    top_p=0.6,
+                    no_repeat_ngram_size=3, 
+                    repetition_penalty=1.2,
+                    pad_token_id=tokenizer.eos_token_id,
+                    eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+                    begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+                    max_length=max_length
+                )
             output = output_sequences[0].tolist()
             
             prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
@@ -468,6 +501,8 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
                 stop = len(output)
             generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
             garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
+        end_time = datetime.today().timestamp()
+        print(f"******inference time = {end_time-start_time}")
         print(f'prompt={prompt}\ngenerated={generated}')
         generated = generated.replace("답은 아래와 같습니다.\n", "")        
         generated = generated.replace("답변:", "").strip()
@@ -475,6 +510,7 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
         print(f'\n\ngarbage={garbage}')        
     except Exception as e:
         print(f'generate error = {e}')
+        traceback.print_exc()
         prompt = "error!"
         generated = "음..."
     print(f'final generation={generated}')

@@ -12,7 +12,7 @@ ds_config = {
         "block_size": 262144,
         "queue_depth": 32,
         "thread_count": 1,
-        "single_submit": False,
+        "single_submit": True,
         "overlap_events": True
     },
     "zero_optimization": {
@@ -27,6 +27,22 @@ ds_config = {
         "stage3_max_live_parameters": 1e8,
         "stage3_max_reuse_distance": 1e8,
         "stage3_param_persistence_threshold": 10 * model_hidden_size
+    },
+    "train_micro_batch_size_per_gpu": 1,
+}
+
+ds_config2 = {
+    "fp16": {
+        "enabled": True
+    },
+    "bf16": {
+        "enabled": False
+    },
+    "zero_optimization": {
+        "stage": 3,
+        "offload_param": {
+            "device": "none",
+        },
     },
     "train_micro_batch_size_per_gpu": 1,
 }
