@@ -1,5 +1,5 @@
 from functools import wraps
-import os, re
+import os, re, argparse, json, traceback, asyncio, time
 from datetime import datetime
 from threading import Timer   
 from dateutil.parser import parse
@@ -18,9 +18,12 @@ from telegram.ext import CallbackQueryHandler
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
 import deepspeed
+import mii 
+from deepspeed.module_inject.containers.gptneox import DS_GPTNEOXContainer, GPTNEOXLayerPolicy
+from transformers import GPTNeoXLayer
 
-checkpoint = 2480
-checkpoint_test = 2620
+checkpoint = 0
+checkpoint_test = 0
 model_path = os.environ['TELEGRAM_MODEL_PATH']
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
 latest_model_dir = f"{model_path}/checkpoint-{checkpoint}"
@@ -30,11 +33,28 @@ latest_model_dir_on_test = f"{model_path}/checkpoint-{checkpoint_test}"
 
 max_output_length = 2048
 min_output_length = 512
+generation_chunk = 20
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-
+deepspeed_mode = False
+zero_mode = False
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
+
+parser_config = argparse.ArgumentParser()
+parser_config.add_argument("--config_file", help = "loading config json file")
+
+parser = argparse.ArgumentParser(parents=[parser_config], add_help=False)
+parser.add_argument("--local_rank", help = "local rank")
+args_config, unknown = parser_config.parse_known_args()
+if args_config.config_file:
+    config = json.load(open(args_config.config_file))
+    parser.set_defaults(**config)
+
+args = parser.parse_args()
+latest_model_dir = args.normal_model
+latest_model_dir_on_test = args.test_model
+tokenizer_dir = latest_model_dir
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 print(f'normal loading... {latest_model_dir}')
@@ -44,25 +64,44 @@ gpt = AutoModelForCausalLM.from_pretrained(
     low_cpu_mem_usage=True,
 ).to(device, torch.float16)
 
-print(f'test model loading... {latest_model_dir_on_test}')
-gpt_on_test = AutoModelForCausalLM.from_pretrained(
-    latest_model_dir_on_test,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-    #load_in_8bit=True,
-    #device_map='auto',
-).to(device, torch.float16)
+generator = None
+gpt_on_test = None
+deepspeed_mode = args.deepspeed_mode
+zero_mode = args.zero_mode
+if not zero_mode:
+    if latest_model_dir == latest_model_dir_on_test:
+        print("**** normal == test")
+        gpt_on_test = gpt
+    else:
+        print(f'****************test model loading... {latest_model_dir_on_test}')
+        gpt_on_test = AutoModelForCausalLM.from_pretrained(
+            latest_model_dir_on_test,
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=True,
+            #load_in_8bit=True,
+            #device_map='auto',
+        ).to(device, torch.float16)
+    
+if deepspeed_mode:
+    print("****************deepspeed_mode enabled!")
+    ds_engine = deepspeed.init_inference(
+        gpt_on_test,
+        mp_size=1,
+        dtype=torch.float16,
+        # replace_method='auto',
+        checkpoint=None,
+        replace_with_kernel_inject=False,
+        injection_policy={GPTNeoXLayer: (GPTNEOXLayerPolicy, )}
+    )
+    gpt_on_test = ds_engine.module
+elif zero_mode:
+    print("****************zero_mode enabled!")
+    generator = mii.mii_query_handle("lcw_deployment")
+    new_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(new_loop)
 
-# ds_engine = deepspeed.init_inference(
-#     gpt_on_test,
-#     mp_size=1,
-#     dtype=torch.float32,
-#     replace_method='auto',
-#     checkpoint=None,
-#     replace_with_kernel_inject=True
-# )
-# gpt_on_test = ds_engine.module
-
+    
+    
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
 3.8B parameters language model, 1/46 of chatGPT in parameter size.
@@ -70,35 +109,14 @@ Internal experimental release.
 현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
 
 명령어.
+/expert - 전문가 질의 응답. 존대형 [기본모드]
+/expert2 - 전문가 질의 응답. 친근형
 /chatting - 일반 잡담 채팅, 사람을 가정하고 하는 채팅. 주제는 제한 없음.
-/expert - 백과 사전식 질의 응답.(존대)
-/expert2 - 백과 사전식 질의 응답.(친근)
 /doctor
 /therapist
 /fortune
 
-/clear - 채팅 히스토리 삭제
-/prompt - 기타 프롬프트 입력, 일반 문장 입력시 해당 문장을 시작으로 문장을 연속해서 만들어 냄.
-기능으로 동작하는 프롬프트도 있는데 채팅, qna등이 모두 기능 프롬프트로 구현된 것임. 아래는 기타 프롬프터 예제.
-
-- 번역
-<한글문장> 
-영어로 번역 하시오. 
-<영어문장> 
-한글로 번역하시오. 
-
-- 요약
-<장문의 글>
-위글을 요약 하시오.
-
-- Q&A
-<장문의 글>
-위글을 보고 아래 질문에 답하시오.
-<질문>
-
-- 기사작성(experimental)
-다음 문장을 주제로 기사를 작성 하시오. 
-<기사제목> 
+/clear - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
 """
 
 chat_prompt_normal = """
@@ -310,16 +328,6 @@ period_token_id = tt['input_ids'][2]
 print(f'sep_token_id={sep_token_id}\nnewline_token_id={newline_token_id}\nquestion_mark_token_id={question_mark_token_id}\nperiod_token_id={period_token_id}')
 print(tokenizer.decode([224]))
 
-def send_typing_action(func):
-    """Sends typing action while processing func command."""
-
-    @wraps(func)
-    def command_func(update, context, *args, **kwargs):
-        context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-        return func(update, context,  *args, **kwargs)
-
-    return command_func
-
 def start(update: Update, context: CallbackContext):
 	update.message.reply_text(HELP_TEXT)
 
@@ -330,37 +338,103 @@ def clear_chat_history(context):
     context.user_data['chat_history'] = {"normalmode":[], "testmode":[]}
     return
 
-def query(context, user_input):
+def query(context, message, user_input):
     if context.user_data['councelor_type'] == "chatting":
-        return chat_query(context, user_input, chat_prompt_normal)
+        return chat_query(context, message, user_input, chat_prompt_normal)
     elif context.user_data['councelor_type'] == "therapist":
-        return chat_query(context, user_input, chat_prompt_therapist)
+        return chat_query(context, message, user_input, chat_prompt_therapist)
     elif context.user_data['councelor_type'] == "doctor":
-        return chat_query(context, user_input, chat_prompt_doctor)
+        return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, user_input, chat_prompt_expert, "B", "A", 3, 120)
+        return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 3)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, user_input, chat_prompt_expert2, "B", "A", 3, 120)
+        return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 3)
     elif context.user_data['councelor_type'] == "mbti":
-        return chat_query(context, user_input, chat_prompt_mbti, "B", "A", 6)
+        return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
-        return chat_query(context, user_input, context.user_data["prompt"], "B", "A", 2, 120)
+        return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
-        return prompt_query(context, user_input)
+        return prompt_query(context, message, user_input)
         
-def skip_eos_token(output):
-    for index, item in enumerate(output):
-        if item != tokenizer.eos_token_id:
-            output = output[index:]
-            print(f'skip eos token={index}')
-            break
-    return output
+def generate_base(model, input_tokens, gen_len):
+    output_sequences = model.generate(
+        input_tokens, 
+        do_sample=False,
+        early_stopping=True,
+        use_cache=True,
+        num_beams=3,
+        length_penalty=1.0,
+        temperature=0.6,
+        top_k=4,
+        top_p=0.6,
+        no_repeat_ngram_size=3, 
+        repetition_penalty=1.2,
+        pad_token_id=tokenizer.eos_token_id,
+        eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+        begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+        max_new_tokens=gen_len
+    )
+    return output_sequences    
 
-def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0):
+def search_stop_word(generated):
+    stopped = False
+    match = re.search('\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    if match is None:
+        stop_index = generated.find("A와 B")
+        if stop_index > 0:
+            bot_message = generated[:stop_index].strip()
+            stopped = True
+        else:
+            match = re.search('\n\(', generated)
+            if match is not None:
+                stop_index = match.start()
+                bot_message = generated[:stop_index].strip()
+                stopped = True
+            else:
+                bot_message = generated
+    else:
+        stopped = True
+        stop_index = match.start()
+        bot_message = generated[:stop_index].strip()
+        print(f'prefix stop remain = {generated[stop_index:]}')
+    return bot_message, stopped
+
+def remove_trash(text):
+    text = text.replace("답은 아래와 같습니다.\n", "")        
+    text = text.replace("답변:", "")
+    text = text.replace("키키", "ㅋㅋ")
+    return text
+        
+def reply_partial_text(message, text):
+    text = remove_trash(text)
+    print(f'reply_partial_text=[{text}]')
+    match = re.search('[\n\.\?\!][\s\n]', text)
+    stop_index = -1
+    if match is None:
+        matches = re.finditer(',\s', text)
+        for m in matches:
+            if m.start(0) > generation_chunk * 2:
+                stop_index = m.start(0) 
+        if stop_index < 0:
+            return text
+    else:
+        stop_index = match.start()
+        if stop_index < generation_chunk:
+            return text
+
+    text_to_reply = text[:stop_index+1].strip()
+    if len(text_to_reply) > 0:
+        message.reply_text(text_to_reply)
+    remain_text = text[stop_index+1:]
+    print(f'remain_text=[{remain_text}]')
+    return remain_text
+    
+def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
+    global generator
     contents = contents.strip()
     if not open_end:
         contents = f'{contents}<|sep|>'
@@ -368,78 +442,113 @@ def generate(context, contents, chat_mode = False, open_end = False, gen_len = 0
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
     input_length = encoded_input['input_ids'].size()[1]
     print(f'input_length={input_length}')
-    if gen_len > 0:
-        max_length = input_length + gen_len
-    else:
-        if not chat_mode:
-            if input_length * 2 + 10 < max_output_length:
-                max_length = input_length * 2 + 10
-                if max_length < min_output_length:
-                    max_length = min_output_length
-            else:
-                max_length = max_output_length
-        else:
-            max_length = input_length + 50
-    print(f'max_length={max_length}')
     
     try:
+        testmode = False
         if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
             model = gpt
-            print(f'running on normal model, checkpoint={checkpoint}.')
+            print(f'running on normal model, {latest_model_dir}.')
         else:
+            testmode = True
             model = gpt_on_test
-            print(f'running on test model, checkpoint={checkpoint_test}.')
-        start_time = datetime.today().timestamp()
-        output_sequences = model.generate(
-            encoded_input["input_ids"], 
-            do_sample=False,
-            early_stopping=True,
-            num_beams=3,
-            length_penalty=1.0,
-            temperature=1.0,
-            top_k=50,
-            top_p=0.95,
-            no_repeat_ngram_size=3, 
-            repetition_penalty=1.2,
-            pad_token_id=tokenizer.eos_token_id,
-            eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-            begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-            # forced_eos_token_id=tokenizer.eos_token_id,
-            max_length=max_length
-        )
-        end_time = datetime.today().timestamp()
-        print(f"**inference time = {end_time-start_time}")
-        output = output_sequences[0].tolist()
+            print(f'running on test model, {latest_model_dir_on_test}.')
         
-        prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
-        output = output[input_length:]
-        print(output)
-        output = skip_eos_token(output)
-        try:
-            stop = output.index(tokenizer.eos_token_id)
-        except:
-            stop = len(output)
-        generated = tokenizer.decode(output[:stop], skip_special_tokens=False).strip()
-        garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
-        print(f'prompt={prompt}\ngenerated={generated}')
-        generated = generated.replace("답은 아래와 같습니다.\n", "")        
-        generated = generated.replace("답변:", "").strip()
-        generated = generated.replace("키키", "ㅋㅋ")
-        print(f'\n\ngarbage={garbage}')        
+        gen_text_to_reply = ""
+        start_time = datetime.today().timestamp()
+        if generator is not None and zero_mode and testmode:
+            result_id = generator.query_non_block(
+                {"query": [contents]}, 
+                do_sample=False, 
+                max_new_tokens=120,
+                pad_token_id=tokenizer.eos_token_id,
+                early_stopping=True,
+                num_beams=3,       
+                length_penalty=1.0,
+                temperature=0.6,
+                top_k=4,
+                top_p=0.6,
+                no_repeat_ngram_size=3, 
+                repetition_penalty=1.2,
+                eos_token_id=tokenizer.eos_token_id,
+                #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+            )
+            result = None
+            for i in range(100):
+                result = generator.get_pending_task_result(result_id)
+                if result is not None:
+                    result = result.response[0]
+                    break
+                time.sleep(1)
+            if result is None:
+                generated = "음... 뭔가 잘 못 됐어..."
+            else:
+                generated = result
+            prompt = contents
+            print(generated)
+            generated = generated[len(contents):]
+        else:
+            input_tensor = encoded_input['input_ids']
+            input_length = len(input_tensor[0])
+            # print(f'input_tensor={input_tensor}')
+            stopped = False
+            gen_text_concat = ""
+            sentence_count = 0
+            while True:
+                input_len_sub = len(input_tensor[0])
+                send_typing(context, context.user_data['chat_id'])
+                output_sequences = generate_base(model, input_tensor, gen_len)
+                output_tensor = output_sequences[0]
+                gen_text = tokenizer.decode(output_tensor[input_len_sub:], skip_special_tokens=False)
+                gen_text, stopped = search_stop_word(gen_text)
+                if stopped:
+                    if len(gen_text) > 0: 
+                        gen_text_concat += gen_text
+                        gen_text_to_reply += gen_text
+                        gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                        sentence_count += 1
+                    break
+                r = (output_tensor == tokenizer.eos_token_id).nonzero(as_tuple=True)[0].cpu().numpy()
+                if len(r) == 1:
+                    stop = r[0]
+                    print(f"stop={stop}")
+                    output_tensor = output_tensor[:stop]
+                    gen_text = tokenizer.decode(output_tensor[input_len_sub:stop], skip_special_tokens=False)
+                    if len(gen_text) > 0: 
+                        gen_text_concat += gen_text
+                        gen_text_to_reply += gen_text
+                        gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                        sentence_count += 1
+                    break
+                gen_text = tokenizer.decode(output_tensor[input_len_sub:], skip_special_tokens=False)
+                print(f'continue gen={gen_text}')
+                gen_text_concat += gen_text
+                gen_text_to_reply += gen_text
+                gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                sentence_count += 1
+                input_tensor = output_sequences            
+            print(f'sentence_count={sentence_count}')  
+            if len(gen_text_to_reply.strip()) > 0:  
+                message.reply_text(gen_text_to_reply) 
+            prompt = tokenizer.decode(output_tensor[:input_length], skip_special_tokens=False)
+            generated = gen_text_concat
+        end_time = datetime.today().timestamp()
+        print(f"\n******inference time = {end_time-start_time}")
+        generated = remove_trash(generated)
+        print(f'prompt={prompt}\n------generated={generated}')
     except Exception as e:
         print(f'generate error = {e}')
+        traceback.print_exc()
         prompt = "error!"
         generated = "음..."
-    print(f'final generation={generated}')
     
     return prompt, generated
     
 def prompt_query(context, user_input):
     content = f"{user_input}"
-    prompt, generated = generate(context, content, False, True)
+    prompt, generated = generate(context, content, True)
     return prompt, generated
         
-def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=120):
+def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
     contents = chat_prompt
     last_bot_message = None
@@ -456,15 +565,8 @@ def chat_query(context, user_input, chat_prompt, user_prefix="B", bot_prefix="A"
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
-    prompt, generated = generate(context, contents, True, True, CHAT_RESPONSE_LEN)
+    prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
-    match = re.search('\n?[A-Z]\s?(?:[:;-]|$)', generated)
-    if match is None:
-        bot_message = generated
-    else:
-        stop_index = match.start()
-        bot_message = generated[:stop_index].strip()
-        print(f'prefix stop remain = {generated[stop_index:]}')
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
         bot_message_in_history = None
@@ -685,6 +787,9 @@ def unknown(update: Update, context: CallbackContext):
     q = message.text
     q = q.strip()
 
+    if q == '--' and 'last_bot_message' in context.user_data:
+        message.reply_text(context.user_data['last_bot_message'])
+        
     print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
@@ -719,33 +824,35 @@ def unknown(update: Update, context: CallbackContext):
                 message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
                 return
                     
-    context.bot.send_chat_action(chat_id=update.effective_message.chat_id, action=ChatAction.TYPING)
-    t = Timer(8, send_typing, [context, update.effective_message.chat_id])  
-    t.start()  
+    chat_id = update.effective_message.chat_id
+    context.user_data['chat_id'] = chat_id
+    send_typing(context, chat_id)
     
-    prompt, a = query(context, q)
+    prompt, a = query(context, message, q)
     a = a.strip()
     print(f'query result="{a}", len={len(a)}')
     if len(a) == 0 or prompt=='error!':
         a = "음..."
         clear_chat_history(context)
         print('no generation, retry with clear chat history.')
-        message.reply_text("잠깐만...")
-        prompt, a = query(context, q)
+        message.reply_text("잠깐만... 오류났다...")
+        prompt, a = query(context, message, q)
         a = a.strip()
-    t.cancel()
-
+    else:
+        context.user_data['last_bot_message'] = a
+        
+    if "shownormal" not in context.user_data.keys():
+        context.user_data['shownormal'] = False 
+    show_normal = context.user_data["shownormal"]
     print(f'query result="{a}", len={len(a)}')
-    if len(a) > 0 and prompt!='error!':
+    if len(a) > 0 and prompt!='error!' and show_normal:
         message.reply_text(a)
     
     if "mode" not in context.user_data.keys():
         context.user_data['mode'] = "normalmode" 
-    if "shownormal" not in context.user_data.keys():
-        context.user_data['shownormal'] = False 
-    if context.user_data['mode'] == "testmode" and context.user_data["shownormal"]:
+    if context.user_data['mode'] == "testmode" and show_normal:
         context.user_data['mode'] = "normalmode"
-        prompt, a2 = query(context, q)
+        prompt, a2 = query(context, message, q)
         a2 = a2.strip()
         context.user_data['mode'] = "testmode"
         message.reply_text(f'{a2}-[N]')
