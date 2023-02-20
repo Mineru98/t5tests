@@ -515,14 +515,15 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 break
             if len(gen_text.strip()) == 0:
                 break
+            gen_text_concat += gen_text
+            gen_text_to_reply += gen_text
+            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
             gen_text_token = tokenizer(gen_text)['input_ids']
+
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
             if new_gen_token_len < generation_chunk:
                 break
-            gen_text_concat += gen_text
-            gen_text_to_reply += gen_text
-            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
             contents = output         
         print(f'generation_count={generation_count}')
         if not edit_message_mode:
@@ -533,7 +534,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         else:
             gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat.strip() + "◈", sent_message)
             
-        print(f'gen_text_concat final={gen_text_concat}')
+        print(f'gen_text_concat final=[{gen_text_concat}]')
         generated = gen_text_concat
 
         end_time = datetime.today().timestamp()
