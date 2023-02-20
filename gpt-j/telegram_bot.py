@@ -33,7 +33,7 @@ latest_model_dir_on_test = f"{model_path}/checkpoint-{checkpoint_test}"
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 20
+generation_chunk = 30
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -57,6 +57,8 @@ latest_model_dir_on_test = args.test_model
 tokenizer_dir = latest_model_dir
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+error_display_token_output = tokenizer('*.*', return_tensors='pt').to(device)['input_ids']
+
 print(f'normal loading... {latest_model_dir}')
 gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
@@ -361,23 +363,31 @@ def query(context, message, user_input):
         return prompt_query(context, message, user_input)
         
 def generate_base(model, input_tokens, gen_len):
-    output_sequences = model.generate(
-        input_tokens, 
-        do_sample=False,
-        early_stopping=True,
-        use_cache=True,
-        num_beams=3,
-        length_penalty=1.0,
-        temperature=0.6,
-        top_k=4,
-        top_p=0.6,
-        no_repeat_ngram_size=3, 
-        repetition_penalty=1.2,
-        pad_token_id=tokenizer.eos_token_id,
-        eos_token_id=[tokenizer.eos_token_id, sep_token_id],
-        begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-        max_new_tokens=gen_len
-    )
+    for i in range(3):
+        try:
+            output_sequences = model.generate(
+                input_tokens, 
+                do_sample=False,
+                early_stopping=True,
+                use_cache=True,
+                num_beams=3,
+                length_penalty=1.0,
+                temperature=0.6,
+                top_k=5,
+                top_p=0.6,
+                no_repeat_ngram_size=3, 
+                repetition_penalty=1.2,
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=[tokenizer.eos_token_id, sep_token_id],
+                begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+                max_new_tokens=gen_len
+            )
+            return output_sequences    
+        except Exception as e:
+            print(f'generate_base error={e}')
+            traceback.print_exc()
+    output_sequences = torch.cat([input_tokens, error_display_token_output])
+    return output_sequences
     return output_sequences    
 
 def search_stop_word(generated):
@@ -409,29 +419,35 @@ def remove_trash(text):
     text = text.replace("키키", "ㅋㅋ")
     return text
         
-def reply_partial_text(message, text):
-    text = remove_trash(text)
-    print(f'reply_partial_text=[{text}]')
-    match = re.search('[\n\.\?\!][\s\n]', text)
-    stop_index = -1
-    if match is None:
-        matches = re.finditer(',\s', text)
-        for m in matches:
-            if m.start(0) > generation_chunk * 2:
-                stop_index = m.start(0) 
-        if stop_index < 0:
-            return text
+def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg):
+    if True:
+        print(f'reply_text:full_text=[{full_text}]')
+        if last_sent_msg is None:
+            last_sent_msg = message.reply_text(full_text)
+        else:
+            last_sent_msg.edit_text(full_text)
+        return "", last_sent_msg
     else:
-        stop_index = match.start()
-        if stop_index < generation_chunk:
-            return text
+        text = remove_trash(text)
+        print(f'reply_text=[{text}]')
+        match = re.search('[\n\.\?\!][\s\n]', text)
+        stop_index = -1
+        if match is None:
+            matches = re.finditer(',\s', text)
+            for m in matches:
+                if m.start(0) > generation_chunk * 2:
+                    stop_index = m.start(0) 
+            if stop_index < 0:
+                return text
+        else:
+            stop_index = match.start()
 
-    text_to_reply = text[:stop_index+1].strip()
-    if len(text_to_reply) > 0:
-        message.reply_text(text_to_reply)
-    remain_text = text[stop_index+1:]
-    print(f'remain_text=[{remain_text}]')
-    return remain_text
+        text_to_reply = text[:stop_index+1].strip()
+        if len(text_to_reply) > 0:
+            message.reply_text(text_to_reply)
+        remain_text = text[stop_index+1:]
+        print(f'remain_text=[{remain_text}]')
+        return remain_text
     
 def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
     global generator
@@ -493,6 +509,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             stopped = False
             gen_text_concat = ""
             sentence_count = 0
+            sent_message = None
             while True:
                 input_len_sub = len(input_tensor[0])
                 send_typing(context, context.user_data['chat_id'])
@@ -504,7 +521,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     if len(gen_text) > 0: 
                         gen_text_concat += gen_text
                         gen_text_to_reply += gen_text
-                        gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                        gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                         sentence_count += 1
                     break
                 r = (output_tensor == tokenizer.eos_token_id).nonzero(as_tuple=True)[0].cpu().numpy()
@@ -516,19 +533,22 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     if len(gen_text) > 0: 
                         gen_text_concat += gen_text
                         gen_text_to_reply += gen_text
-                        gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                        gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                         sentence_count += 1
                     break
                 gen_text = tokenizer.decode(output_tensor[input_len_sub:], skip_special_tokens=False)
                 print(f'continue gen={gen_text}')
                 gen_text_concat += gen_text
                 gen_text_to_reply += gen_text
-                gen_text_to_reply = reply_partial_text(message, gen_text_to_reply)
+                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 sentence_count += 1
                 input_tensor = output_sequences            
-            print(f'sentence_count={sentence_count}')  
-            if len(gen_text_to_reply.strip()) > 0:  
-                message.reply_text(gen_text_to_reply) 
+            print(f'sentence_count={sentence_count}')
+            if False:
+                if len(gen_text_to_reply.strip()) > 0:  
+                    message.reply_text(gen_text_to_reply) 
+                if sentence_count > 3:
+                    message.reply_text("◈")
             prompt = tokenizer.decode(output_tensor[:input_length], skip_special_tokens=False)
             generated = gen_text_concat
         end_time = datetime.today().timestamp()
@@ -789,6 +809,7 @@ def unknown(update: Update, context: CallbackContext):
 
     if q == '--' and 'last_bot_message' in context.user_data:
         message.reply_text(context.user_data['last_bot_message'])
+        return
         
     print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
