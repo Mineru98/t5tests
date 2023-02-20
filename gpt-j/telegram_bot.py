@@ -33,6 +33,8 @@ tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 deepspeed_mode = False
 zero_mode = False
+edit_message_mode = True
+
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 
 parser_config = argparse.ArgumentParser()
@@ -58,7 +60,7 @@ gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
-)
+).to(device)
 
 generator = None
 gpt_on_test = None
@@ -76,7 +78,7 @@ if not zero_mode:
             low_cpu_mem_usage=True,
             #load_in_8bit=True,
             #device_map='auto',
-        )
+        ).to(device)
     
 if deepspeed_mode:
     print("****************deepspeed_mode enabled!")
@@ -386,20 +388,16 @@ def generate_base(model, input_tokens, gen_len):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search('\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
-        stop_index = generated.find("A와 B")
-        if stop_index > 0:
+        match = re.search(r"A와 B|<\|endoftext\|>|\n\(|^\(", generated)
+        if match is not None:
+            stop_index = match.start()
             bot_message = generated[:stop_index].strip()
             stopped = True
+            print(f'prefix stop remain = {generated[stop_index:]}')
         else:
-            match = re.search('\n\(', generated)
-            if match is not None:
-                stop_index = match.start()
-                bot_message = generated[:stop_index].strip()
-                stopped = True
-            else:
-                bot_message = generated
+            bot_message = generated
     else:
         stopped = True
         stop_index = match.start()
@@ -414,7 +412,7 @@ def remove_trash(text):
     return text
         
 def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg):
-    if True:
+    if edit_message_mode:
         print(f'reply_text:full_text=[{full_text}]')
         if last_sent_msg is None:
             last_sent_msg = message.reply_text(full_text)
@@ -464,46 +462,69 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             print(f'running on test model, {latest_model_dir_on_test}.')
         
         gen_text_to_reply = ""
+        stopped = False
+        gen_text_concat = ""
+        sentence_count = 0
+        sent_message = None
         start_time = datetime.today().timestamp()
         if generator is not None and zero_mode and testmode:
-            result_id = generator.query_non_block(
-                {"query": [contents]}, 
-                do_sample=False, 
-                max_new_tokens=120,
-                pad_token_id=tokenizer.eos_token_id,
-                early_stopping=True,
-                num_beams=3,       
-                length_penalty=1.0,
-                temperature=0.6,
-                top_k=4,
-                top_p=0.6,
-                no_repeat_ngram_size=3, 
-                repetition_penalty=1.2,
-                eos_token_id=tokenizer.eos_token_id,
-                #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-            )
-            result = None
-            for i in range(100):
-                result = generator.get_pending_task_result(result_id)
-                if result is not None:
-                    result = result.response[0]
-                    break
-                time.sleep(1)
-            if result is None:
-                generated = "음... 뭔가 잘 못 됐어..."
-            else:
-                generated = result
             prompt = contents
-            print(generated)
-            generated = generated[len(contents):]
+            while True:
+                result_id = generator.query_non_block(
+                    {"query": [contents]}, 
+                    do_sample=False, 
+                    max_new_tokens=generation_chunk,
+                    pad_token_id=tokenizer.eos_token_id,
+                    early_stopping=True,
+                    num_beams=3,       
+                    length_penalty=1.0,
+                    temperature=0.6,
+                    top_k=4,
+                    top_p=0.6,
+                    no_repeat_ngram_size=3, 
+                    repetition_penalty=1.2,
+                    eos_token_id=tokenizer.eos_token_id,
+                    #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+                )
+                result = None
+                for i in range(100):
+                    result = generator.get_pending_task_result(result_id)
+                    if result is not None:
+                        result = result.response[0]
+                        break
+                    time.sleep(1)
+                if result is None:
+                    output = "음... 뭔가 잘 못 됐어..."
+                else:
+                    output = result
+                prompt = contents
+                gen_text = output[len(contents):]
+                print(gen_text)
+                gen_text, stopped = search_stop_word(gen_text)
+                if stopped:
+                    if len(gen_text) > 0: 
+                        gen_text_concat += gen_text
+                        gen_text_to_reply += gen_text
+                        gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+                        sentence_count += 1
+                    break
+                print(f'continue gen={gen_text}')
+                gen_text_concat += gen_text
+                gen_text_to_reply += gen_text
+                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+                sentence_count += 1
+                contents = output         
+            print(f'sentence_count={sentence_count}')
+            if not edit_message_mode:
+                if len(gen_text_to_reply.strip()) > 0:  
+                    message.reply_text(gen_text_to_reply) 
+                if sentence_count > 3:
+                    message.reply_text("◈")
+            generated = gen_text_concat
         else:
             input_tensor = encoded_input['input_ids']
             input_length = len(input_tensor[0])
             # print(f'input_tensor={input_tensor}')
-            stopped = False
-            gen_text_concat = ""
-            sentence_count = 0
-            sent_message = None
             while True:
                 input_len_sub = len(input_tensor[0])
                 send_typing(context, context.user_data['chat_id'])
@@ -540,7 +561,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 sentence_count += 1
                 input_tensor = output_sequences            
             print(f'sentence_count={sentence_count}')
-            if False:
+            if not edit_message_mode:
                 if len(gen_text_to_reply.strip()) > 0:  
                     message.reply_text(gen_text_to_reply) 
                 if sentence_count > 3:
