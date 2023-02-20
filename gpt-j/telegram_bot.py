@@ -22,14 +22,8 @@ import mii
 from deepspeed.module_inject.containers.gptneox import DS_GPTNEOXContainer, GPTNEOXLayerPolicy
 from transformers import GPTNeoXLayer
 
-checkpoint = 0
-checkpoint_test = 0
-model_path = os.environ['TELEGRAM_MODEL_PATH']
-#latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
-latest_model_dir = f"{model_path}/checkpoint-{checkpoint}"
-latest_model_dir_on_test = f"{model_path}/checkpoint-{checkpoint_test}"
-#latest_model_dir_on_test = "EleutherAI/polyglot-ko-5.8b"
-#latest_model_dir_on_test = "lcw99/polyglot-ko-3.8b-multi-func"
+latest_model_dir = None
+latest_model_dir_on_test = None
 
 max_output_length = 2048
 min_output_length = 512
@@ -64,7 +58,7 @@ gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
-).to(device, torch.float16)
+)
 
 generator = None
 gpt_on_test = None
@@ -82,13 +76,13 @@ if not zero_mode:
             low_cpu_mem_usage=True,
             #load_in_8bit=True,
             #device_map='auto',
-        ).to(device, torch.float16)
+        )
     
 if deepspeed_mode:
     print("****************deepspeed_mode enabled!")
     ds_engine = deepspeed.init_inference(
         gpt_on_test,
-        mp_size=1,
+        tensor_parallel={"enabled":True, "tp_size":2},
         dtype=torch.float16,
         # replace_method='auto',
         checkpoint=None,
@@ -105,7 +99,7 @@ elif zero_mode:
     
     
 HELP_TEXT = f"""
-Large Language Model chat-bot by Sempahore. V 0.1 checkpoint-{checkpoint}
+Large Language Model chat-bot by Sempahore. V 0.1 
 3.8B parameters language model, 1/46 of chatGPT in parameter size.
 Internal experimental release.
 현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
@@ -515,7 +509,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 send_typing(context, context.user_data['chat_id'])
                 output_sequences = generate_base(model, input_tensor, gen_len)
                 output_tensor = output_sequences[0]
-                gen_text = tokenizer.decode(output_tensor[input_len_sub:], skip_special_tokens=False)
+                output_tensor = output_tensor[input_len_sub:]
+                print(output_tensor)
+                gen_text = tokenizer.decode(output_tensor, skip_special_tokens=False)
                 gen_text, stopped = search_stop_word(gen_text)
                 if stopped:
                     if len(gen_text) > 0: 
@@ -527,16 +523,16 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 r = (output_tensor == tokenizer.eos_token_id).nonzero(as_tuple=True)[0].cpu().numpy()
                 if len(r) == 1:
                     stop = r[0]
-                    print(f"stop={stop}")
+                    print(f"****stop={stop}")
                     output_tensor = output_tensor[:stop]
-                    gen_text = tokenizer.decode(output_tensor[input_len_sub:stop], skip_special_tokens=False)
+                    gen_text = tokenizer.decode(output_tensor, skip_special_tokens=False)
                     if len(gen_text) > 0: 
                         gen_text_concat += gen_text
                         gen_text_to_reply += gen_text
                         gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                         sentence_count += 1
                     break
-                gen_text = tokenizer.decode(output_tensor[input_len_sub:], skip_special_tokens=False)
+                gen_text = tokenizer.decode(output_tensor, skip_special_tokens=False)
                 print(f'continue gen={gen_text}')
                 gen_text_concat += gen_text
                 gen_text_to_reply += gen_text
