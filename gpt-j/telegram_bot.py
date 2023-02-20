@@ -497,18 +497,20 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     output = "음... 뭔가 잘 못 됐어..."
                 else:
                     output = result
-                prompt = contents
                 gen_text = output[len(contents):]
-                print(gen_text)
+                print(f'new generated={gen_text}')
                 gen_text, stopped = search_stop_word(gen_text)
                 if stopped:
                     if len(gen_text) > 0: 
+                        print(f'stop pos={len(gen_text)}')
                         gen_text_concat += gen_text
                         gen_text_to_reply += gen_text
                         gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                         sentence_count += 1
                     break
-                print(f'continue gen={gen_text}')
+                print(f'continue gen=[{gen_text}]')
+                if len(gen_text.strip()) == 0:
+                    break
                 gen_text_concat += gen_text
                 gen_text_to_reply += gen_text
                 gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
