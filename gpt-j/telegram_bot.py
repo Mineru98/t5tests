@@ -422,21 +422,21 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
         match = re.search(r"A와 B|<\|endoftext\|>|\n\(|^\(", generated)
         if match is not None:
             stop_index = match.start()
             bot_message = generated[:stop_index].strip()
             stopped = True
-            print(f'prefix stop remain = {generated[stop_index:]}')
+            print(f'prefix stop remain1 = {generated[stop_index:]}')
         else:
             bot_message = generated
     else:
         stopped = True
         stop_index = match.start()
         bot_message = generated[:stop_index].strip()
-        print(f'prefix stop remain = {generated[stop_index:]}')
+        print(f'prefix stop remain2 = {generated[stop_index:]}')
     return bot_message, stopped
 
 def remove_trash(text):
