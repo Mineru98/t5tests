@@ -421,7 +421,7 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'B는 A|A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
         match = re.search(r"A와 B|<\|endoftext\|>|\n\(|^\(", generated)
         if match is not None:
@@ -783,6 +783,9 @@ def unknown(update: Update, context: CallbackContext):
         message = update.message
     elif update.edited_message is not None:
         message = update.edited_message
+        
+    print(message)
+    
     username = message.chat['username']
     first_name = message.chat['first_name']
     q = message.text
