@@ -106,15 +106,12 @@ HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 
 3.8B parameters language model, 1/46 of chatGPT in parameter size.
 Internal experimental release.
-현재 고물 컴퓨터에서 실행 중이므로 긴 문장 생성시 응답 속도가 10초 이상 걸립니다. 
+It is currently running on a server with poor performance, so the response time may reach tens of seconds.
+contacts: changlee99@gmail.com 
 
 명령어.
 /expert - 전문가 질의 응답. 존대형 [기본모드]
 /expert2 - 전문가 질의 응답. 친근형
-/chatting - 일반 잡담 채팅, 사람을 가정하고 하는 채팅. 주제는 제한 없음.
-/doctor
-/therapist
-/fortune
 
 /clear - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
 """
