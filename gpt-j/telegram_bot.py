@@ -60,7 +60,7 @@ gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
     low_cpu_mem_usage=True,
-).to(device)
+).to(device, torch.float16)
 
 generator = None
 gpt_on_test = None
@@ -78,13 +78,13 @@ if not zero_mode:
             low_cpu_mem_usage=True,
             #load_in_8bit=True,
             #device_map='auto',
-        ).to(device)
+        ).to(device, torch.float16)
     
 if deepspeed_mode:
     print("****************deepspeed_mode enabled!")
     ds_engine = deepspeed.init_inference(
         gpt_on_test,
-        tensor_parallel={"enabled":True, "tp_size":2},
+        tensor_parallel={"enabled":True, "tp_size":1},
         dtype=torch.float16,
         # replace_method='auto',
         checkpoint=None,
@@ -358,18 +358,23 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, message, user_input)
         
-def generate_base(model, input_tokens, gen_len):
+def generate_base(model, contents, gen_len):
+    encoded_input = tokenizer(contents, return_tensors='pt').to(device)
+    print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
+    input_length = encoded_input['input_ids'].size()[1]
+    print(f'input_length={input_length}')
+    input_tensor = encoded_input['input_ids']
     for i in range(3):
         try:
             output_sequences = model.generate(
-                input_tokens, 
+                input_tensor, 
                 do_sample=False,
                 early_stopping=True,
                 use_cache=True,
                 num_beams=3,
                 length_penalty=1.0,
                 temperature=0.6,
-                top_k=5,
+                top_k=4,
                 top_p=0.6,
                 no_repeat_ngram_size=3, 
                 repetition_penalty=1.2,
@@ -378,13 +383,42 @@ def generate_base(model, input_tokens, gen_len):
                 begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
                 max_new_tokens=gen_len
             )
-            return output_sequences    
         except Exception as e:
             print(f'generate_base error={e}')
             traceback.print_exc()
-    output_sequences = torch.cat([input_tokens, error_display_token_output])
-    return output_sequences
-    return output_sequences    
+            output_sequences = torch.cat([input_tensor, error_display_token_output])
+    output_text = tokenizer.decode(output_sequences[0], skip_special_tokens=False)
+    return output_text
+
+def generate_base_zero(contents):
+    result_id = generator.query_non_block(
+        {"query": [contents]}, 
+        do_sample=False, 
+        max_new_tokens=generation_chunk,
+        pad_token_id=tokenizer.eos_token_id,
+        early_stopping=True,
+        num_beams=3,       
+        length_penalty=1.0,
+        temperature=0.6,
+        top_k=4,
+        top_p=0.6,
+        no_repeat_ngram_size=3, 
+        repetition_penalty=1.2,
+        eos_token_id=tokenizer.eos_token_id,
+        #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+    )
+    result = None
+    for i in range(100):
+        result = generator.get_pending_task_result(result_id)
+        if result is not None:
+            result = result.response[0]
+            break
+        time.sleep(1)
+    if result is None:
+        output = f"{contents}\n음... 뭔가 잘 못 됐어..."
+    else:
+        output = result
+    return output
 
 def search_stop_word(generated):
     stopped = False
@@ -446,11 +480,6 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
     contents = contents.strip()
     if not open_end:
         contents = f'{contents}<|sep|>'
-    encoded_input = tokenizer(contents, return_tensors='pt').to(device)
-    print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
-    input_length = encoded_input['input_ids'].size()[1]
-    print(f'input_length={input_length}')
-    
     try:
         testmode = False
         if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
@@ -467,113 +496,44 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         sentence_count = 0
         sent_message = None
         start_time = datetime.today().timestamp()
-        if generator is not None and zero_mode and testmode:
-            prompt = contents
-            while True:
-                result_id = generator.query_non_block(
-                    {"query": [contents]}, 
-                    do_sample=False, 
-                    max_new_tokens=generation_chunk,
-                    pad_token_id=tokenizer.eos_token_id,
-                    early_stopping=True,
-                    num_beams=3,       
-                    length_penalty=1.0,
-                    temperature=0.6,
-                    top_k=4,
-                    top_p=0.6,
-                    no_repeat_ngram_size=3, 
-                    repetition_penalty=1.2,
-                    eos_token_id=tokenizer.eos_token_id,
-                    #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-                )
-                result = None
-                for i in range(100):
-                    result = generator.get_pending_task_result(result_id)
-                    if result is not None:
-                        result = result.response[0]
-                        break
-                    time.sleep(1)
-                if result is None:
-                    output = "음... 뭔가 잘 못 됐어..."
-                else:
-                    output = result
-                gen_text = output[len(contents):]
-                print(f'new generated={gen_text}')
-                gen_text, stopped = search_stop_word(gen_text)
-                if stopped:
-                    if len(gen_text) > 0: 
-                        print(f'stop pos={len(gen_text)}')
-                        gen_text_concat += gen_text
-                        gen_text_to_reply += gen_text
-                        gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                        sentence_count += 1
-                    break
-                print(f'continue gen=[{gen_text}]')
-                if len(gen_text.strip()) == 0:
-                    break
-                gen_text_concat += gen_text
-                gen_text_to_reply += gen_text
-                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                sentence_count += 1
-                contents = output         
-            print(f'sentence_count={sentence_count}')
-            if not edit_message_mode:
-                if len(gen_text_to_reply.strip()) > 0:  
-                    message.reply_text(gen_text_to_reply) 
-                if sentence_count > 3:
-                    message.reply_text("◈")
-            generated = gen_text_concat
-        else:
-            input_tensor = encoded_input['input_ids']
-            input_length = len(input_tensor[0])
-            # print(f'input_tensor={input_tensor}')
-            while True:
-                input_len_sub = len(input_tensor[0])
-                send_typing(context, context.user_data['chat_id'])
-                output_sequences = generate_base(model, input_tensor, gen_len)
-                output_tensor = output_sequences[0]
-                output_tensor = output_tensor[input_len_sub:]
-                print(output_tensor)
-                gen_text = tokenizer.decode(output_tensor, skip_special_tokens=False)
-                gen_text, stopped = search_stop_word(gen_text)
-                if stopped:
-                    if len(gen_text) > 0: 
-                        gen_text_concat += gen_text
-                        gen_text_to_reply += gen_text
-                        gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                        sentence_count += 1
-                    break
-                r = (output_tensor == tokenizer.eos_token_id).nonzero(as_tuple=True)[0].cpu().numpy()
-                if len(r) == 1:
-                    stop = r[0]
-                    print(f"****stop={stop}")
-                    output_tensor = output_tensor[:stop]
-                    gen_text = tokenizer.decode(output_tensor, skip_special_tokens=False)
-                    if len(gen_text) > 0: 
-                        gen_text_concat += gen_text
-                        gen_text_to_reply += gen_text
-                        gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                        sentence_count += 1
-                    break
-                gen_text = tokenizer.decode(output_tensor, skip_special_tokens=False)
-                print(f'continue gen={gen_text}')
-                gen_text_concat += gen_text
-                gen_text_to_reply += gen_text
-                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                sentence_count += 1
-                input_tensor = output_sequences            
-            print(f'sentence_count={sentence_count}')
-            if not edit_message_mode:
-                if len(gen_text_to_reply.strip()) > 0:  
-                    message.reply_text(gen_text_to_reply) 
-                if sentence_count > 3:
-                    message.reply_text("◈")
-            prompt = tokenizer.decode(output_tensor[:input_length], skip_special_tokens=False)
-            generated = gen_text_concat
+        prompt = contents
+        print(f'prompt={prompt}')
+        while True:
+            if generator is not None and zero_mode and testmode:
+                output = generate_base_zero(contents)
+            else:
+                output = generate_base(model, contents, gen_len)
+            gen_text = output[len(contents):]
+            print(f'new generated={gen_text}')
+            gen_text, stopped = search_stop_word(gen_text)
+            if stopped:
+                if len(gen_text) > 0: 
+                    print(f'stop pos={len(gen_text)}')
+                    gen_text_concat += gen_text
+                    gen_text_to_reply += gen_text
+                    gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+                    sentence_count += 1
+                break
+            print(f'continue gen=[{gen_text}]')
+            if len(gen_text.strip()) == 0:
+                break
+            gen_text_concat += gen_text
+            gen_text_to_reply += gen_text
+            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+            sentence_count += 1
+            contents = output         
+        print(f'sentence_count={sentence_count}')
+        if not edit_message_mode:
+            if len(gen_text_to_reply.strip()) > 0:  
+                message.reply_text(gen_text_to_reply) 
+            if sentence_count > 3:
+                message.reply_text("◈")
+        generated = gen_text_concat
+
         end_time = datetime.today().timestamp()
         print(f"\n******inference time = {end_time-start_time}")
         generated = remove_trash(generated)
-        print(f'prompt={prompt}\n------generated={generated}')
+        print(f'generated={generated}')
     except Exception as e:
         print(f'generate error = {e}')
         traceback.print_exc()
@@ -885,7 +845,7 @@ def unknown(update: Update, context: CallbackContext):
         context.user_data['shownormal'] = False 
     show_normal = context.user_data["shownormal"]
     print(f'query result="{a}", len={len(a)}')
-    if (len(a) > 0 and prompt!='error!' and show_normal) or zero_mode:
+    if len(a) > 0 and prompt!='error!' and show_normal:
         message.reply_text(a)
     
     if "mode" not in context.user_data.keys():
