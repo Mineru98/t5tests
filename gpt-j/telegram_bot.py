@@ -528,7 +528,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             if sentence_count > 3:
                 message.reply_text("◈")
         else:
-            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat + "◈", sent_message)
+            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat.strip() + "◈", sent_message)
             
         generated = gen_text_concat
 
