@@ -8,7 +8,7 @@ import torch
 
 notebook_login()
 
-checkpoint = 2620
+checkpoint = 3060
 repo_id = f"polyglot-ko-3.8b-multi-func-{checkpoint}"
 
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
