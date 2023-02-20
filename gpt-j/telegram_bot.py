@@ -55,18 +55,20 @@ tokenizer_dir = latest_model_dir
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 error_display_token_output = tokenizer('*.*', return_tensors='pt').to(device)['input_ids']
 
-print(f'normal loading... {latest_model_dir}')
-gpt = AutoModelForCausalLM.from_pretrained(
-    latest_model_dir,
-    torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-).to(device, torch.float16)
-
 generator = None
+gpt = None
 gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
 zero_mode = args.zero_mode
+
 if not zero_mode:
+    print(f'normal loading... {latest_model_dir}')
+    gpt = AutoModelForCausalLM.from_pretrained(
+        latest_model_dir,
+        torch_dtype=torch.float16,
+        low_cpu_mem_usage=True,
+    ).to(device, torch.float16)
+
     if latest_model_dir == latest_model_dir_on_test:
         print("**** normal == test")
         gpt_on_test = gpt
