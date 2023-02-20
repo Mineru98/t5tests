@@ -355,7 +355,7 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "fortune":
         return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
-        return prompt_query(context, user_input)
+        return prompt_query(context, message, user_input)
         
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
@@ -544,9 +544,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
     
     return prompt, generated
     
-def prompt_query(context, user_input):
+def prompt_query(context, message, user_input):
     content = f"{user_input}"
-    prompt, generated = generate(context, content, True)
+    prompt, generated = generate(context, message, content, True)
     return prompt, generated
         
 def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
