@@ -469,7 +469,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             result_id = generator.query_non_block(
                 {"query": [contents]}, 
                 do_sample=False, 
-                max_new_tokens=120,
+                max_new_tokens=30,
                 pad_token_id=tokenizer.eos_token_id,
                 early_stopping=True,
                 num_beams=3,       
@@ -862,7 +862,7 @@ def unknown(update: Update, context: CallbackContext):
         context.user_data['shownormal'] = False 
     show_normal = context.user_data["shownormal"]
     print(f'query result="{a}", len={len(a)}')
-    if len(a) > 0 and prompt!='error!' and show_normal:
+    if (len(a) > 0 and prompt!='error!' and show_normal) or zero_mode:
         message.reply_text(a)
     
     if "mode" not in context.user_data.keys():
