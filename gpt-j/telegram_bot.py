@@ -843,9 +843,15 @@ def unknown(update: Update, context: CallbackContext):
     context.user_data['chat_id'] = chat_id
     send_typing(context, chat_id)
     
+    q_start_time = datetime.today()
+    q_start_time_str = q_start_time.strftime('%Y.%m.%d %H:%M:%S')
     prompt, a = query(context, message, q)
+    q_end_time = datetime.today()
+    q_end_time_str = q_end_time.strftime('%Y.%m.%d %H:%M:%S')
+    duration = q_end_time - q_start_time 
+    
     a = a.strip()
-    print(f'Q:{q}\nA:{a}\n\n')
+    print(f'{q_start_time_str} Q:{q}\n{q_end_time_str} A:{a}\n{duration}\n\n')
 
     if "shownormal" not in context.user_data.keys():
         context.user_data['shownormal'] = False 
@@ -868,7 +874,7 @@ def unknown(update: Update, context: CallbackContext):
         file_name_for_chat = f'{chat_id}-{user_id}-{first_name}.txt'
         path = os.path.join(data_path, file_name_for_chat)
         with open(path, "a") as myfile:
-            myfile.write(f'Q:{q}\nA:{a}\n\n')
+            myfile.write(f'{q_start_time_str} Q:{q}\n{q_end_time_str} A:{a}\n\n')
         
     if "mode" not in context.user_data.keys():
         context.user_data['mode'] = "normalmode" 
