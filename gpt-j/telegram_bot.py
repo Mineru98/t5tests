@@ -446,7 +446,7 @@ def remove_trash(text):
         
 def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg):
     if edit_message_mode:
-        print(f'reply_text:full_text=[{full_text}]')
+        # print(f'reply_text:full_text=[{full_text}]')
         if last_sent_msg is None:
             last_sent_msg = message.reply_text(full_text)
         else:
@@ -454,7 +454,7 @@ def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg
         return "", last_sent_msg
     else:
         text = remove_trash(text)
-        print(f'reply_text=[{text}]')
+        # print(f'reply_text=[{text}]')
         match = re.search('[\n\.\?\!][\s\n]', text)
         stop_index = -1
         if match is None:
@@ -471,7 +471,7 @@ def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg
         if len(text_to_reply) > 0:
             message.reply_text(text_to_reply)
         remain_text = text[stop_index+1:]
-        print(f'remain_text=[{remain_text}]')
+        # print(f'remain_text=[{remain_text}]')
         return remain_text
     
 def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
@@ -492,7 +492,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         gen_text_to_reply = ""
         stopped = False
         gen_text_concat = ""
-        sentence_count = 0
+        generation_count = 0
         sent_message = None
         start_time = datetime.today().timestamp()
         prompt = contents
@@ -502,8 +502,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 output = generate_base_zero(contents)
             else:
                 output = generate_base(model, contents, gen_len)
+            generation_count += 1
             gen_text = output[len(contents):]
-            print(f'new generated={gen_text}')
+            print(f'new generated=[{gen_text}]')
             gen_text, stopped = search_stop_word(gen_text)
             if stopped:
                 if len(gen_text) > 0: 
@@ -511,31 +512,34 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     gen_text_concat += gen_text
                     gen_text_to_reply += gen_text
                     gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                    sentence_count += 1
                 break
-            print(f'continue gen=[{gen_text}]')
             if len(gen_text.strip()) == 0:
+                break
+            gen_text_token = tokenizer(gen_text)['input_ids']
+            new_gen_token_len = len(gen_text_token)
+            print(f'new_gen_token_len={new_gen_token_len}')
+            if new_gen_token_len < generation_chunk:
                 break
             gen_text_concat += gen_text
             gen_text_to_reply += gen_text
             gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-            sentence_count += 1
             contents = output         
-        print(f'sentence_count={sentence_count}')
+        print(f'generation_count={generation_count}')
         if not edit_message_mode:
             if len(gen_text_to_reply.strip()) > 0:  
                 message.reply_text(gen_text_to_reply) 
-            if sentence_count > 3:
+            if generation_count > 3:
                 message.reply_text("◈")
         else:
             gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat.strip() + "◈", sent_message)
             
+        print(f'gen_text_concat final={gen_text_concat}')
         generated = gen_text_concat
 
         end_time = datetime.today().timestamp()
         print(f"\n******inference time = {end_time-start_time}")
         generated = remove_trash(generated)
-        print(f'generated={generated}')
+        # print(f'generated={generated}')
     except Exception as e:
         print(f'generate error = {e}')
         traceback.print_exc()
@@ -576,7 +580,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     chat_history.append({"user": user_input, "bot": bot_message_in_history, "time": timestamp})
     while len(chat_history) > MAX_CHAT_HISTORY:
         chat_history.pop(0)
-    print(f"bot_message={bot_message}")
+    # print(f"bot_message={bot_message}")
     return prompt, bot_message
 
 def try_parse_datetime(date_str, format_str):
@@ -784,18 +788,24 @@ def unknown(update: Update, context: CallbackContext):
     elif update.edited_message is not None:
         message = update.edited_message
         
-    print(message)
+    # print(message)
+    """
+    {'new_chat_photo': [], 'supergroup_chat_created': False, 'photo': [], 'chat': {'username': 'ninedra9ons', 'id': 858097523, 'type': 'private', 'first_name': 'Chang'}, 'group_chat_created': False, 'new_chat_members': [], 'delete_chat_photo': False, 'entities': [], 'text': '오로라 발생 원인?', 'date': 1676931116, 'channel_chat_created': False, 'message_id': 12617, 'caption_entities': [], 'from': {'id': 858097523, 'username': 'ninedra9ons', 'language_code': 'en', 'first_name': 'Chang', 'is_bot': False}}
     
+    """
     username = message.chat['username']
     first_name = message.chat['first_name']
+    user_id = message.chat['id']
+    chat_id = update.effective_message.chat_id
+    
     q = message.text
     q = q.strip()
+    print(f"\n\n---------------\n{now} {first_name}({username}, {user_id}, {chat_id}): {q}\n")
 
     if q == '--' and 'last_bot_message' in context.user_data:
         message.reply_text(context.user_data['last_bot_message'])
         return
         
-    print(f"\n\n---------------\n{now} {first_name}({username}): {q}\n")
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
         init_user_data(context)
@@ -829,13 +839,17 @@ def unknown(update: Update, context: CallbackContext):
                 message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
                 return
                     
-    chat_id = update.effective_message.chat_id
     context.user_data['chat_id'] = chat_id
     send_typing(context, chat_id)
     
     prompt, a = query(context, message, q)
     a = a.strip()
-    print(f'query result="{a}", len={len(a)}')
+    print(f'Q:{q}\nA:{a}\n\n')
+
+    if "shownormal" not in context.user_data.keys():
+        context.user_data['shownormal'] = False 
+    show_normal = context.user_data["shownormal"]
+    
     if len(a) == 0 or prompt=='error!':
         a = "음..."
         clear_chat_history(context)
@@ -844,15 +858,17 @@ def unknown(update: Update, context: CallbackContext):
         prompt, a = query(context, message, q)
         a = a.strip()
     else:
+        if show_normal:
+            message.reply_text(a)
         context.user_data['last_bot_message'] = a
+        data_path = f"{os.path.expanduser('~')}/Documents/changGPT-chatdata"
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+        file_name_for_chat = f'{chat_id}-{user_id}-{first_name}.txt'
+        path = os.path.join(data_path, file_name_for_chat)
+        with open(path, "a") as myfile:
+            myfile.write(f'Q:{q}\nA:{a}\n\n')
         
-    if "shownormal" not in context.user_data.keys():
-        context.user_data['shownormal'] = False 
-    show_normal = context.user_data["shownormal"]
-    print(f'query result="{a}", len={len(a)}')
-    if len(a) > 0 and prompt!='error!' and show_normal:
-        message.reply_text(a)
-    
     if "mode" not in context.user_data.keys():
         context.user_data['mode'] = "normalmode" 
     if context.user_data['mode'] == "testmode" and show_normal:
