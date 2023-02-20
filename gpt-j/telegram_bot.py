@@ -499,7 +499,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         prompt = contents
         print(f'prompt={prompt}')
         while True:
-            if generator is not None and zero_mode and testmode:
+            if generator is not None and zero_mode:
                 output = generate_base_zero(contents)
             else:
                 output = generate_base(model, contents, gen_len)
