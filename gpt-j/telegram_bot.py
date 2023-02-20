@@ -874,7 +874,7 @@ def unknown(update: Update, context: CallbackContext):
         file_name_for_chat = f'{chat_id}-{user_id}-{first_name}.txt'
         path = os.path.join(data_path, file_name_for_chat)
         with open(path, "a") as myfile:
-            myfile.write(f'{q_start_time_str} Q:{q}\n{q_end_time_str} A:{a}\n\n')
+            myfile.write(f'{q_start_time_str} Q:{q}\n{q_end_time_str} A:{a}\n{duration}\n\n')
         
     if "mode" not in context.user_data.keys():
         context.user_data['mode'] = "normalmode" 
