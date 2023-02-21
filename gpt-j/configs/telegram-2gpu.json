@@ -2,5 +2,7 @@
     "normal_model": "/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-3060",
     "test_model": "/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-3060",
     "deepspeed_mode": false,
-    "zero_mode": true
+    "zero_mode": true,
+    "telegram": true,
+    "facebook": true
 }

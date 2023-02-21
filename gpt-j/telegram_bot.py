@@ -22,6 +22,88 @@ import mii
 from deepspeed.module_inject.containers.gptneox import DS_GPTNEOXContainer, GPTNEOXLayerPolicy
 from transformers import GPTNeoXLayer
 
+# facebook messenger section
+# tunning facebook web hook to local
+# ssh -R 8091:127.0.0.1:5000 lcw.plan4.house
+import requests
+from flask import Flask, request
+from waitress import serve
+
+app = Flask(__name__)
+
+fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
+fb_page_access_token = os.environ["FB_PAGE_ACCESS_TOKEN"]
+
+@app.route('/', methods=['GET'])
+def verify():
+    # when the endpoint is registered as a webhook, it must echo back
+    # the 'hub.challenge' value it receives in the query arguments
+    if request.args.get("hub.mode") == "subscribe" and request.args.get("hub.challenge"):
+        if not request.args.get("hub.verify_token") == fb_veryfy_token:
+            return "Verification token mismatch", 403
+        return request.args["hub.challenge"], 200
+
+    return "Hello world", 200
+
+
+@app.route('/', methods=['POST'])
+def webhook():
+    data = request.get_json()
+    log(data)  # {"object": "page", "entry": [{"id": "104026212393785", "time": 1676981468408, "messaging": [{"sender": {"id": "5436183479779412"}, "recipient": {"id": "104026212393785"}, "timestamp": 1676981468032, "message": {"mid": "m_fd7dhzpy9XXc9mnyuqYCl0m_P0t1RoxyDumMyN8ZHUIfL11cMVS5MWPh-ICumR9Xae1Fwc_eBhDdFsFQYFmWFA", "text": "222"}}]}]}
+    if data["object"] == "page":
+        for entry in data["entry"]:
+            chat_id = entry["id"]
+            for messaging_event in entry["messaging"]:
+                if messaging_event.get("message"):  # someone sent us a message
+                    sender_id = messaging_event["sender"]["id"]        # the facebook ID of the person sending you the message
+                    recipient_id = messaging_event["recipient"]["id"]  # the recipient's ID, which should be your page's facebook ID
+                    message_text = messaging_event["message"]["text"]  # the message's text
+                    is_echo = False
+                    if "is_echo" in messaging_event["message"]:
+                        is_echo = messaging_event["message"]["is_echo"]
+                    if not is_echo:
+                        fb_handle_user_message(sender_id, message_text, chat_id)
+                if messaging_event.get("delivery"):  # delivery confirmation
+                    pass
+                if messaging_event.get("optin"):  # optin confirmation
+                    pass
+                if messaging_event.get("postback"):  # user clicked/tapped "postback" button in earlier message
+                    pass
+    return "ok", 200
+
+def send_message(recipient_id, message_text):
+    log("sending message to {recipient}: {text}".format(recipient=recipient_id, text=message_text))
+    params = {"access_token": fb_page_access_token}
+    headers = {"Content-Type": "application/json"}
+    data = json.dumps({
+        "recipient": {
+            "id": recipient_id
+        },
+        "message": {
+            "text": message_text
+        }
+    })
+    r = requests.post("https://graph.facebook.com/v2.6/me/messages", params=params, headers=headers, data=data)
+    if r.status_code != 200:
+        log(r.status_code)
+        log(r.text)
+
+def log(msg):  # simple wrapper for logging to stdout on heroku
+    if type(msg) is dict:
+        msg = json.dumps(msg, ensure_ascii=False)
+    else:
+        msg = str(msg)
+    print(msg)
+    
+def fb_messenger_start():
+    port = 5000
+    print(f'running on port {port}')    
+    serve(app, host="0.0.0.0", port=port)
+    
+#
+# facebook messenger section end
+#
+    
 latest_model_dir = None
 latest_model_dir_on_test = None
 
@@ -33,6 +115,8 @@ tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 deepspeed_mode = False
 zero_mode = False
+telegram = False
+facebook = False
 edit_message_mode = True
 
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
@@ -60,6 +144,8 @@ gpt = None
 gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
 zero_mode = args.zero_mode
+telegram = args.telegram
+facebook = args.facebook
 
 if not zero_mode:
     print(f'normal loading... {latest_model_dir}')
@@ -81,7 +167,7 @@ if not zero_mode:
             #load_in_8bit=True,
             #device_map='auto',
         ).to(device, torch.float16)
-    
+        
 if deepspeed_mode:
     print("****************deepspeed_mode enabled!")
     ds_engine = deepspeed.init_inference(
@@ -98,9 +184,7 @@ elif zero_mode:
     print("****************zero_mode enabled!")
     generator = mii.mii_query_handle("lcw_deployment")
     new_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(new_loop)
-
-    
+    asyncio.set_event_loop(new_loop)    
     
 HELP_TEXT = f"""
 Large Language Model chat-bot by Sempahore. V 0.1 
@@ -725,21 +809,22 @@ def shownormal(update: Update, context: CallbackContext):
     context.user_data["shownormal"] = not context.user_data["shownormal"]  
     update.message.reply_text(f"show normal model = {context.user_data['shownormal']}")
 
-def status(update: Update, context: CallbackContext):
+def status(message, context: CallbackContext):
     if 'mode' not in context.user_data:
         context.user_data['mode'] = 'normalmode'
     if 'councelor_type' not in context.user_data:
         context.user_data['councelor_type'] = 'expert'
     s = f"runmode = {context.user_data['mode']}\nresponse type={context.user_data['councelor_type']}\nshow normal={context.user_data['shownormal']}"  
     clear_chat_history(context)
-    update.message.reply_text(s)
+    message.reply_text(s)
 
 def clear_chat_history_handler(update: Update, context: CallbackContext):
     clear_chat_history(context)
     update.message.reply_text("채팅 히스토리가 삭제 되었습니다.")
 
 def send_typing(context, chat_id):
-    context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
+    if "facebook" not in context.user_data:
+        context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
   
 def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
     menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
@@ -774,7 +859,7 @@ def keyboard_callback(update: Update, context: CallbackContext) :
             context.user_data.pop("birthday", None)
             update.callback_query.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
 
-def init_user_data(context: CallbackContext):
+def init_user_data(context):
     if "councelor_type" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
     if "mode" not in context.user_data:
@@ -785,12 +870,14 @@ def init_user_data(context: CallbackContext):
                 
 def unknown(update: Update, context: CallbackContext):
     #print(update)
-    now = datetime.today()
     if update.message is not None:
         message = update.message
     elif update.edited_message is not None:
         message = update.edited_message
+    chat_id = update.effective_message.chat_id
+    user_message_handler(message, context, chat_id)
         
+def user_message_handler(message, context, chat_id):        
     # print(message)
     """
     {'new_chat_photo': [], 'supergroup_chat_created': False, 'photo': [], 'chat': {'username': 'ninedra9ons', 'id': 858097523, 'type': 'private', 'first_name': 'Chang'}, 'group_chat_created': False, 'new_chat_members': [], 'delete_chat_photo': False, 'entities': [], 'text': '오로라 발생 원인?', 'date': 1676931116, 'channel_chat_created': False, 'message_id': 12617, 'caption_entities': [], 'from': {'id': 858097523, 'username': 'ninedra9ons', 'language_code': 'en', 'first_name': 'Chang', 'is_bot': False}}
@@ -799,8 +886,8 @@ def unknown(update: Update, context: CallbackContext):
     username = message.chat['username']
     first_name = message.chat['first_name']
     user_id = message.chat['id']
-    chat_id = update.effective_message.chat_id
     
+    now = datetime.today()
     q = message.text
     q = q.strip()
     print(f"\n\n---------------\n{now} {first_name}({username}, {user_id}, {chat_id}): {q}\n")
@@ -821,7 +908,7 @@ def unknown(update: Update, context: CallbackContext):
         message.reply_text("Language model restarted.")
         # update.message.reply_text(HELP_TEXT)
         if username == 'ninedra9ons':
-            status(update, context)
+            status(message, context)
 
     councelor_type = context.user_data["councelor_type"]
     if councelor_type == "fortune":
@@ -891,6 +978,37 @@ def unknown_text(update: Update, context: CallbackContext):
 	update.message.reply_text(
 		"Sorry I can't recognize you , you said '%s'" % update.message.text)
 
+#
+#   facebook section
+#
+class ContextFB:
+    def __init__(self):
+        self.user_data = {}
+ 
+class MessageFB:
+    def __init__(self, context, text):
+        self.context = context
+        self.text = text
+        self.chat = {}
+        
+    def reply_text(self, text):
+        user_id = self.context.user_data['user_id']
+        send_message(user_id, text)
+    
+def fb_handle_user_message(user_id, text, chat_id):
+    print(f'facebook message = [{text}]')
+    context = ContextFB()
+    context.user_data['user_id'] = user_id
+    context.user_data['facebook'] = True
+    init_user_data(context)
+    message = MessageFB(context, text)
+    message.chat['username'] = user_id
+    message.chat['first_name'] = user_id
+    message.chat['id'] = user_id
+    user_message_handler(message, context, chat_id)
+
+# fb_handle_user_message('aaa', "안녕", '3333')
+
 updater.dispatcher.add_handler(CommandHandler('start', start))
 updater.dispatcher.add_handler(CommandHandler('help', help))
 updater.dispatcher.add_handler(CommandHandler('clear', clear_chat_history_handler))
@@ -919,7 +1037,10 @@ updater.dispatcher.add_handler(MessageHandler(
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
 updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
 
-updater.start_polling()
+if telegram:
+    print("starting telegram bot...")
+    updater.start_polling()
 
-print("Ready!")
-
+if facebook:
+    print("starting facebook bot...")
+    fb_messenger_start()    # should be last one

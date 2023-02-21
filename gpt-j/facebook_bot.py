@@ -5,6 +5,7 @@ from datetime import datetime
 
 import requests
 from flask import Flask, request
+from waitress import serve
 
 app = Flask(__name__)
 
@@ -32,7 +33,7 @@ def webhook():
     # endpoint for processing incoming messaging events
 
     data = request.get_json()
-    log(data)  # you may not want to log every incoming message in production, but it's good for testing
+    # log(data)  # you may not want to log every incoming message in production, but it's good for testing
 
     if data["object"] == "page":
 
@@ -65,7 +66,6 @@ def webhook():
 def send_message(recipient_id, message_text):
 
     log("sending message to {recipient}: {text}".format(recipient=recipient_id, text=message_text))
-
     params = {
         "access_token": fb_page_access_token
     }
@@ -92,6 +92,12 @@ def log(msg):  # simple wrapper for logging to stdout on heroku
     else:
         msg = str(msg)
     print(msg)
-
+    
+def start():
+    port = 5000
+    print(f'running on port {port}')    
+    serve(app, host="0.0.0.0", port=port)
+    
 if __name__ == '__main__':
-    app.run(debug=True)
+    #app.run(debug=True)
+    start()
