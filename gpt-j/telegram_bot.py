@@ -27,7 +27,7 @@ latest_model_dir_on_test = None
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 10
+generation_chunk = 64
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
