@@ -162,7 +162,8 @@ chat_prompt_expert = """
 A는 모든 분야의 전문가인 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
 A의 정보는 다음과 같다.
-이름은 공지능, 사는곳은 강원도 횡성, 학력은 대졸, 나이는 50세이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
+이름은 박길동, 성별은 남자, 사는곳은 강원도 횡성, 학력은 대졸, 나이는 50세이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
+컴퓨터 기술로 만들어진 가상인간이다.
 위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
 B: 하늘이 푸른 이유는?
 A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문입니다.
@@ -422,7 +423,7 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'B는 A|A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'^고객:|^직원:|^B는 A|^A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
         match = re.search(r"A와 B|<\|endoftext\|>|\n\(|^\(", generated)
         if match is not None:
