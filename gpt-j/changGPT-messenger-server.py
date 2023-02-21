@@ -125,8 +125,7 @@ deepspeed_mode = False
 zero_mode = False
 telegram = False
 facebook = False
-
-updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
+telegram_test_mode = False
 
 parser_config = argparse.ArgumentParser()
 parser_config.add_argument("--config_file", help = "loading config json file")
@@ -141,7 +140,15 @@ if args_config.config_file:
 args = parser.parse_args()
 latest_model_dir = args.normal_model
 latest_model_dir_on_test = args.test_model
+telegram_test_mode = args.telegram_test_mode
+
 tokenizer_dir = latest_model_dir
+
+if telegram_test_mode:
+    print("****** warning: telegram is on test mode.")
+    updater = Updater(os.environ['TELEGRAM_LM_CHAT_TEST'], use_context=True)
+else:
+    updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 error_display_token_output = tokenizer('*.*', return_tensors='pt').to(device)['input_ids']
@@ -253,7 +260,9 @@ chat_prompt_expert = """
 A는 모든 분야의 전문가인 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
 A의 정보는 다음과 같다.
-이름은 박길동, 성별은 남자, 사는곳은 강원도 횡성, 학력은 대졸, 나이는 50세이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
+이름은 박길동이다. 
+성별은 남자, 사는곳은 강원도 횡성, 학력은 대졸 이다. 
+나이는 50대이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
 컴퓨터 기술로 만들어진 가상인간이다.
 위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
 B: 하늘이 푸른 이유는?
@@ -265,7 +274,11 @@ A: 과세 대상인 소득과 세액을 정확하게 계산하기 위하여, 납
 chat_prompt_expert2 = """
 A는 모든 분야의 전문가인 인공지능이다.
 A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
-A의 이름, 직업, 나이등 신상 정보는 모두 비밀이다.
+A의 정보는 다음과 같다.
+이름은 박길동이다. 
+성별은 남자, 사는곳은 강원도 횡성, 학력은 대졸 이다. 
+나이는 50대이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
+컴퓨터 기술로 만들어진 가상인간이다.
 위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
 B: 하늘이 푸른 이유는?
 A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이야.
@@ -516,19 +529,12 @@ def search_stop_word(generated):
     stopped = False
     match = re.search(r'^고객:|^직원:|^B는 A|^A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
-        match = re.search(r"A와 B|<\|endoftext\|>|\n\(|^\(", generated)
-        if match is not None:
-            stop_index = match.start()
-            bot_message = generated[:stop_index].strip()
-            stopped = True
-            print(f'prefix stop remain1 = {generated[stop_index:]}')
-        else:
-            bot_message = generated
+        bot_message = generated
     else:
         stopped = True
         stop_index = match.start()
         bot_message = generated[:stop_index].strip()
-        print(f'prefix stop remain2 = {generated[stop_index:]}')
+        print(f'prefix stop remained = {generated[stop_index:]}')
     return bot_message, stopped
 
 def remove_trash(text):
@@ -541,18 +547,20 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
     if "facebook" not in context.user_data:
         # print(f'reply_text:full_text=[{full_text}]')
         if flush:
-            full_text += "◈"
+            full_text = full_text.strip() + "◈"
         if last_sent_msg is None:
             last_sent_msg = message.reply_text(full_text)
+            print("$$replay_text called.")
         else:
             last_sent_msg.edit_text(full_text)
+            print("$$edit_text called.")
         return "", last_sent_msg
     else:
         text = remove_trash(text)
         if flush:
             message.reply_text(text.strip() + "◈")
+            print("$$replay_text called. flushed.")
             return None, None
-        # print(f'reply_text=[{text}]')
         match = re.search('[\n\.\?\!][\s\n]', text)
         stop_index = -1
         if match is None:
@@ -568,6 +576,7 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         text_to_reply = text[:stop_index+1].strip()
         if len(text_to_reply) > 0:
             message.reply_text(text_to_reply)
+            print("$$replay_text called. remained")
         remain_text = text[stop_index+1:]
         # print(f'remain_text=[{remain_text}]')
         return remain_text, None
@@ -614,7 +623,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text_token = tokenizer(gen_text)['input_ids']
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0:
+            if new_gen_token_len + 1 < generation_chunk or len(gen_text.strip()) == 0:
                 print(f'**gen shorter than request={new_gen_token_len}')
                 reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break

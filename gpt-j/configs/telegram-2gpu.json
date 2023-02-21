@@ -4,5 +4,6 @@
     "deepspeed_mode": false,
     "zero_mode": true,
     "telegram": true,
-    "facebook": true
+    "facebook": true,
+    "telegram_test_mode": false
 }
