@@ -28,6 +28,8 @@ from transformers import GPTNeoXLayer
 import requests
 from flask import Flask, request
 from waitress import serve
+from multiprocessing import Process
+from threading import Thread
 
 app = Flask(__name__)
 
@@ -49,7 +51,7 @@ def verify():
 @app.route('/', methods=['POST'])
 def webhook():
     data = request.get_json()
-    log(data)  # {"object": "page", "entry": [{"id": "104026212393785", "time": 1676981468408, "messaging": [{"sender": {"id": "5436183479779412"}, "recipient": {"id": "104026212393785"}, "timestamp": 1676981468032, "message": {"mid": "m_fd7dhzpy9XXc9mnyuqYCl0m_P0t1RoxyDumMyN8ZHUIfL11cMVS5MWPh-ICumR9Xae1Fwc_eBhDdFsFQYFmWFA", "text": "222"}}]}]}
+    # log(data)  # {"object": "page", "entry": [{"id": "104026212393785", "time": 1676981468408, "messaging": [{"sender": {"id": "5436183479779412"}, "recipient": {"id": "104026212393785"}, "timestamp": 1676981468032, "message": {"mid": "m_fd7dhzpy9XXc9mnyuqYCl0m_P0t1RoxyDumMyN8ZHUIfL11cMVS5MWPh-ICumR9Xae1Fwc_eBhDdFsFQYFmWFA", "text": "222"}}]}]}
     if data["object"] == "page":
         for entry in data["entry"]:
             chat_id = entry["id"]
@@ -62,7 +64,11 @@ def webhook():
                     if "is_echo" in messaging_event["message"]:
                         is_echo = messaging_event["message"]["is_echo"]
                     if not is_echo:
-                        fb_handle_user_message(sender_id, message_text, chat_id)
+                        # fb_handle_user_message(sender_id, message_text, chat_id)
+                        #p = Process(target=fb_handle_user_message, args=(sender_id, message_text, chat_id))
+                        p = Thread(target=fb_handle_user_message, args=(sender_id, message_text, chat_id))
+                        p.start()                        
+                        # send_message(sender_id, f'echo {message_text}')
                 if messaging_event.get("delivery"):  # delivery confirmation
                     pass
                 if messaging_event.get("optin"):  # optin confirmation
@@ -72,7 +78,7 @@ def webhook():
     return "ok", 200
 
 def send_message(recipient_id, message_text):
-    log("sending message to {recipient}: {text}".format(recipient=recipient_id, text=message_text))
+    # log("sending message to {recipient}: {text}".format(recipient=recipient_id, text=message_text))
     params = {"access_token": fb_page_access_token}
     headers = {"Content-Type": "application/json"}
     data = json.dumps({
@@ -98,7 +104,9 @@ def log(msg):  # simple wrapper for logging to stdout on heroku
 def fb_messenger_start():
     port = 5000
     print(f'running on port {port}')    
-    serve(app, host="0.0.0.0", port=port)
+    serve(app, host="0.0.0.0", port=port, threads= 8)
+    # app.run(debug=True)
+
     
 #
 # facebook messenger section end
@@ -117,7 +125,6 @@ deepspeed_mode = False
 zero_mode = False
 telegram = False
 facebook = False
-edit_message_mode = True
 
 updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 
@@ -530,9 +537,11 @@ def remove_trash(text):
     text = text.replace("키키", "ㅋㅋ")
     return text
         
-def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg):
-    if edit_message_mode:
+def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
+    if "facebook" not in context.user_data:
         # print(f'reply_text:full_text=[{full_text}]')
+        if flush:
+            full_text += "◈"
         if last_sent_msg is None:
             last_sent_msg = message.reply_text(full_text)
         else:
@@ -540,6 +549,9 @@ def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg
         return "", last_sent_msg
     else:
         text = remove_trash(text)
+        if flush:
+            message.reply_text(text.strip() + "◈")
+            return None, None
         # print(f'reply_text=[{text}]')
         match = re.search('[\n\.\?\!][\s\n]', text)
         stop_index = -1
@@ -549,7 +561,7 @@ def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg
                 if m.start(0) > generation_chunk * 2:
                     stop_index = m.start(0) 
             if stop_index < 0:
-                return text
+                return text, None
         else:
             stop_index = match.start()
 
@@ -558,7 +570,7 @@ def reply_text(context: CallbackContext, message, text, full_text, last_sent_msg
             message.reply_text(text_to_reply)
         remain_text = text[stop_index+1:]
         # print(f'remain_text=[{remain_text}]')
-        return remain_text
+        return remain_text, None
     
 def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
     global generator
@@ -592,34 +604,24 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text = output[len(contents):]
             print(f'new generated=[{gen_text}]')
             gen_text, stopped = search_stop_word(gen_text)
-            if stopped:
-                if len(gen_text) > 0: 
-                    print(f'stop pos={len(gen_text)}')
-                    gen_text_concat += gen_text
-                    gen_text_to_reply += gen_text
-                    gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-                break
-            if len(gen_text.strip()) == 0:
-                break
             gen_text_concat += gen_text
             gen_text_to_reply += gen_text
-            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+            if stopped:
+                if len(gen_text) > 0: 
+                    print(f'**stop pos={len(gen_text)}')
+                    gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
+                break
             gen_text_token = tokenizer(gen_text)['input_ids']
-
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if new_gen_token_len < generation_chunk:
+            if new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0:
+                print(f'**gen shorter than request={new_gen_token_len}')
+                reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break
+            else:
+                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
             contents = output         
         print(f'generation_count={generation_count}')
-        if not edit_message_mode:
-            if len(gen_text_to_reply.strip()) > 0:  
-                message.reply_text(gen_text_to_reply) 
-            if generation_count > 3:
-                message.reply_text("◈")
-        else:
-            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat.strip() + "◈", sent_message)
-            
         print(f'gen_text_concat final=[{gen_text_concat}]')
         generated = gen_text_concat
 
