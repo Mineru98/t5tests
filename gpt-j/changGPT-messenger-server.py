@@ -623,7 +623,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text_token = tokenizer(gen_text)['input_ids']
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if new_gen_token_len + 1 < generation_chunk or len(gen_text.strip()) == 0 or (new_gen_token_len == generation_chunk and gen_text[:-1] == "."):
+            if new_gen_token_len + 1 < generation_chunk or len(gen_text.strip()) == 0 or (new_gen_token_len == generation_chunk and gen_text.strip()[:-1] == "."):
                 print(f'**gen shorter than request or end with period ={new_gen_token_len}')
                 reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break
