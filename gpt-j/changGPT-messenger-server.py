@@ -800,11 +800,11 @@ def fb_handle_user_message(user_id, text, chat_id):
     global contexts_dict
     
     print(f'facebook message = [{text}]')
-    if chat_id in contexts_dict:
-        context = contexts_dict[chat_id]
+    if user_id in contexts_dict:
+        context = contexts_dict[user_id]
     else:
         context = ContextFB()
-        contexts_dict[chat_id] = context
+        contexts_dict[user_id] = context
         
     context.user_data['user_id'] = user_id
     context.user_data['facebook'] = True
