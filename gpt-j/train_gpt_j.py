@@ -246,8 +246,7 @@ def get_dataset(tokenize):
     text_templates_qna = [
         "아래 지문을 보고 질문에 답 하시오.\\n지문:{eos}{s['context']}\\n{eos}질문:{s['question']}\\n답변:{s['answer']}",
         "아래 글을 보고 질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n{s['answer']}",
-        "아래 글을 보고 질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
-        "질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n답은 아래와 같습니다.\\n{s['answer']}",
+        "질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n{s['answer']}",
         "{s['context']}\\n{eos}위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
         "B: {s['context']}\\n위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\nA: {s['answer']}",
         "B: {s['context']}\\n{s['question']}?\\nA: {s['answer']}",
@@ -294,21 +293,21 @@ def get_dataset(tokenize):
         "영어원문:{s['question']}\\n{s['reasoning']}\\n{eos}한글번역:{s['question_kr']}\\n{s['reasoning_kr']}",
         "{s['question']}\\n{s['reasoning']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
         "{s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\n{s['question_kr']}\\n{s['reasoning_kr']}",
-        "B: {s['question']}\\n{s['reasoning']}\\n{eos}한글로 번역 하시오.\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
-        "B: {s['question']}\\n{s['reasoning']}\\n{eos}한글로\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
+        "B: {s['question']}\\n{s['reasoning']}\\n한글로 번역 하시오.\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
+        "B: {s['question']}\\n{s['reasoning']}\\n한글로\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
     ]
     text_templates_summarize = [
         "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
         "아래 글을 요약 해 줘.\\n{eos}{s['passage']}\\n{eos}위 글의 요약은 다음과 같습니다.\\n{s['summary1']}",
-        "{s['passage']}\\n{eos}위 글을 요약하시오.\\n{s['summary1']}",
-        "{s['passage']}\\n{eos}위 글을 요약하면?\\n{s['summary1']}",
+        "B: {s['passage']} 이걸 요약 하면?\\nA: {s['summary1']}",
+        "B: {s['passage']}\\n요약 해봐?\\nA: {s['summary1']}",
         "B: {s['passage']}\\n위 글을 요약하면?\\nA: {s['summary1']}",
         "B: {s['passage']} 이글을 요약하면?\\nA: {s['summary1']}",
     ]
     text_templates_reasoning = [
         "질문에 답 하고 이유를 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
-        "질문에 답 하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+        "B: {s['question_kr']}\\nA: {s['reasoning_kr']} 그러므로 정답은 {s['answer_kr']}",
         "B: {s['question_kr']}\\nA: 정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "B: {s['question_kr']}\\nA: 정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
     ]
