@@ -31,6 +31,8 @@ from waitress import serve
 from multiprocessing import Process
 from threading import Thread
 
+from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2
+from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 app = Flask(__name__)
 
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
@@ -204,226 +206,6 @@ elif zero_mode:
     new_loop = asyncio.new_event_loop()
     asyncio.set_event_loop(new_loop)    
     
-HELP_TEXT = f"""
-Large Language Model chat-bot by Sempahore. V 0.1 
-3.8B parameters language model, 1/46 of chatGPT in parameter size.
-Internal experimental release.
-It is currently running on a server with poor performance, so the response time may reach tens of seconds.
-contacts: changlee99@gmail.com 
-
-명령어.
-/expert - 전문가 질의 응답. 존대형 [기본모드]
-/expert2 - 전문가 질의 응답. 친근형
-
-/clear - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
-"""
-
-chat_prompt_normal = """
-A의 신상 명세는 다음과 같다.
-나이 35세 이고 성별은 남성이다. 남자로서 매력이 넘친다.
-이름은 박길동, 삼성전자 다니는 직장인이다. 
-키는 175cm, 몸무게는 70kg 이다. 
-연봉은 7천만원 이고, 1억원을 저축해 놓은 상태다.
-애인은 없고, 부모님과 같이 살고 있다. 
-성격은 친절하고 명랑하다. 묻는 말에 최대한 자세하게 설명해주는 스타일이다.
-서울대에서 컴퓨터공학을 전공 했다.
-정치적 성향은 중도이다.
-두 사람은 메신저를 통해서 채팅으로 대화 중이다. 
-위 내용에 기반하여 이전 대화 내용을 우선으로, 대화를 연결 하시오.
-"""
-
-chat_prompt_therapist = """
-A는 전문 심리 상담사이다. 상담사로서 고객의 심리 상태를 파악하는데 도움이 되는 대화를 유도한다.
-A는 전문 상담사로서 책임있는 발언만을 해야 한다.
-B는 상담을 원하는 고객이다. 두 사람은 메신저를 통해서 채팅으로 대화 중이다.
-위 내용에 기반하여 이전 대화 내용을 우선으로, 전문 심리 상담사로서, 대화를 연결 하시오.
-"""
-
-chat_prompt_doctor = """
-A는 응급실 소속 의사이다.
-A는 의사로서 책임있는 발언만을 해야 한다.
-환자가 병원을 소개해 달라고 하면 '인공지능 병원'을 소개해 준다. 
-'인공지능 병원'의 전화번호는 02-1234-5555 이다. 병원 소재지는 서울 강남이다.
-B는 환자이다. 두 사람은 메신저를 통해서 채팅으로 대화 중이다. 
-위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 의사로서, 대화를 연결 하시오.
-B: 배가 너무 아파요.
-A: 증상을 좀 더 자세히 말씀해 주세요.
-"""
-
-chat_prompt_mbti = """
-A는 MBTI를 이용한 성격 유형 판단 전문가다.
-고객의 MBTI 유형을 파악하기 위한 다양한 질문을 던지고 유형이 파악되면 해당 고객에게 유형을 알려 준다.
-위 내용에 기반하여 이전 대화 내용을 우선으로 성실한 검사자로서, 대화를 연결 하시오.
-A: 혼자 일하는 것이 좋아요 아니면 다른 사람들과 같이 일하는 것이 좋아요?
-B: 보통 혼자 일하는 것을 좋아해요.
-A: 계획을 세우는 것을 좋아 하나요?
-B: 아니요.
-"""
-
-chat_prompt_expert = """
-A는 모든 분야의 전문가인 인공지능이다.
-A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
-A의 정보는 다음과 같다.
-이름은 박길동이다. 
-성별은 남자, 사는곳은 강원도 횡성, 학력은 대졸 이다. 
-나이는 50대이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
-컴퓨터 기술로 만들어진 가상인간이다.
-위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
-B: 안녕?
-A: 안녕하세요?
-B: 하늘이 푸른 이유는?
-A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문입니다.
-"""
-
-chat_prompt_expert2 = """
-A는 모든 분야의 전문가인 인공지능이다.
-A는 고객의 질문에 대하여 최대한 성실히 자세히 답변한다.
-A의 정보는 다음과 같다.
-이름은 박길동이다. 
-성별은 남자, 사는곳은 강원도 횡성, 학력은 대졸 이다. 
-나이는 50대이고, 직업은 프로그래머, 믿는 종교는 없고, 취미는 사색이다.
-컴퓨터 기술로 만들어진 가상인간이다.
-위 내용에 기반하여 성실한 해당 분야 전문가로서, 이전 질문과 답을 참고하되, 최신 질문에 집중하여, 질문에 답하시오.
-B: 안녕?
-A: 안녕 반가워.
-B: 하늘이 푸른 이유는?
-A: 빛이 대기를 통과하면서 파장이 짧은 푸른빛은 산란되고, 파장이 긴 붉은빛은 대기에 흡수되기 때문이야.
-"""
-
-
-job_list = [ 
-    ["소프트웨어 엔지니어", "마케팅 매니저"],
-    ["데이터 분석가", "소셜 미디어 전문가"],
-    ["제품 관리자", "사이버 보안 분석가"],
-    ["브랜드 매니저", "의사", "간호사"],
-    ["회계사", "수의사"],
-    ["그래픽 디자이너", "패션 디자이너"],
-    ["웹 개발자", "건축가"]
-]
-Personality_types = [
-    {"type": "모험적인", "description": "새로운 경험을 추구하고 위험을 감수하는 사람"},
-    {"type": "분석적인", "description": "깊은 생각과 논리적, 문제해결 능력이 있는 사람"},
-    {"type": "야심찬", "description": "목표와 결과에 중점을 두고 성공과 성취를 추구하는 사람"},
-    {"type": "카리스마 있는", "description": "다른 사람에게 영향을 미치고 영감을 주는 재능이 있는 매력적이고 호감 가는 사람"},
-    {"type": "자비로운", "description": "공감하고 배려하며 다른 사람을 돕고 지원하려는 강한 열망을 가진 사람"},
-    {"type": "창의적인", "description": "혁신적이고 독창적이며, 새롭고 독창적인 아이디어를 내는 재능이 있는 사람"},
-    {"type": "호기심이 많은", "description": "호기심과 배움에 대한 열망, 새로운 지식과 새로운 경험에 대한 갈증이 있는 사람"},
-    {"type": "헌신적인", "description": "충성심과 책임감이 강한 헌신적이고 근면한 사람"},
-    {"type": "신뢰할 수 있는", "description": "믿을 수 있고 일관성과 신뢰성이 있는 사람"},
-    {"type": "활기찬", "description": "높은 수준의 육체적 정신적 에너지를 지닌 열정적이고 활기찬 사람"},
-    {"type": "친근한", "description": "따뜻하고 접근하기 쉬우며, 관계를 구축하고 유지하는 데 타고난 재능이 있는 사람"},
-    {"type": "정직한", "description": "진실하고 진실하며 무결성과 투명성에 대한 약속이 있는 사람"},
-    {"type": "상상력 있는", "description": "새로운 가능성을 상상하고 미지의 세계를 탐구하는 재능을 지닌 창의적이고 선견지명이 있는 사람"},
-    {"type": "독립적인", "description": "자급자족 및 자립, 강한 자율성과 자기주도적 감각을 가진 사람"},
-    {"type": "혁신적인", "description": "미래지향적이고 수완이 풍부하며 새롭고 더 나은 일을 하는 방법을 찾는 재능이 있는 사람"},
-    {"type": "직관적인", "description": "본능적이고 예리하며 사람과 상황을 분석할 필요 없이 이해하는 재능이 있는 사람"},
-    {"type": "논리적인", "description": "합리적이고 객관적이며, 논리와 이성에 기초한 사고와 의사 결정을 선호하는 사람"},
-    {"type": "개방적인", "description": "다양한 아이디어를 수용하고 관용합니다. 새로운 관점을 고려하려는 의지가 있는 사람"},
-    {"type": "낙관적인", "description": "긍정적이고 희망적이며 사람과 상황에서 좋은 점을 보는 데 중점을 두는 사람"},
-    {"type": "조직화된", "description": "작업과 활동을 계획하고 구성하는 재능이 있는 체계적이고 효율적인 사람"},
-    {"type": "인내심 있는", "description": "관용과 이해심, 차분하게 기다릴 수 있는 능력 그리고 일이 일어나도록 지속적으로 노력 하는 사람"},
-    {"type": "현실적인", "description": "현명하고 근거가 있으며 실용적인 고려 사항을 기반으로 한 사고와 의사 결정을 선호하는 사람"},
-    {"type": "자원 활용형인", "description": "독창성과 자원을 통해 문제에 대한 해결책을 찾는 재능을 가진 영리하고 창의적인 사람"},
-    {"type": "사회적인", "description": "외향적이고 사교적이며 새로운 사람을 만나고 다른 사람들과 어울리는 것을 좋아하는 사람"},
-    {"type": "사려깊은", "description": "사려 깊고 사려깊으며 사물에 대해 깊이 생각하는 경향이 있다. 다른 사람에 대한 관심을 적극 표시하는 사람"}
-]
-
-places_to_meet = [ 
-    ["커피숍", "공원", "바"],
-    ["도서관", "커뮤니티 센터", "스포츠 경기장"],
-    ["레스토랑", "박물관", "쇼핑몰"],
-    ["체육관", "요가 스튜디오", "피트니스 수업"],
-    ["콘서트 홀", "음악 축제", "나이트 클럽"],
-    ["해변", "놀이공원", "동물원"],
-    ["직장", "컨퍼런스 센터", "비즈니스 미팅"],
-    ["대학캠퍼스", "학생회관", "기숙사"],
-    ["예배 장소", "종교 센터", "자선 행사"],
-    ["결혼식장", "연회장", "리셉션 센터"]
-]
-
-asian_man_looks = [
-     {'height': 170, 'weight': 65,
-      'appearance': '키가 크고 날씬하며 각진 얼굴을 가진 사람'},
-     {'height': 165, 'weight': 70,
-      'appearance': '짧은 머리와 네모진 턱을 가진 근육질의 모습을 가진 사람'},
-     {'height': 175, 'weight': 75,
-      'appearance': '날씬하고 날렵한 이목구비와 안경 쓴 모습'},
-     {'height': 168, 'weight': 60,
-      'appearance': '동그란 얼굴에 안경을 쓴 젊은 모습'},
-     {'height': 180, 'weight': 80,
-      'appearance': '키가 크고 날렵한 턱선이 잘 생긴 얼굴'},
-     {'height': 173, 'weight': 68,
-      'appearance': '단정한 머리와 잘 다듬어진 수염으로 스타일리시한 사람'},
-     {'height': 178, 'weight': 73,
-      'appearance': '날씬한 몸매와 튀어나온 광대뼈가 잘 어울리는 사람'},
-     {'height': 171, 'weight': 67,
-      'appearance': '깨끗하고 따뜻한 미소와 차분한 태도를 가진 사람'},
-     {'height': 176, 'weight': 72,
-      'appearance': '날렵한 드레스 센스와 깔끔한 면도로 자신감이 있는 사람'
-      },
-     {'height': 179, 'weight': 78,
-      'appearance': '강한 근육질 체격과 날카로운 이목구비를 갖춘 사람'},
-     {'height': 167, 'weight': 63,
-      'appearance': '친절한 미소와 친근한 분위기의 발랄한 사람'
-      },
-     {'height': 172, 'weight': 69,
-      'appearance': '그루터기로 튼튼하고 캐주얼하고 여유로운 스타일을 가진 사람'
-      },
-     ]
-
-asian_women_looks = [
-     {'height': 160, 'weight': 50,
-      'appearance': '가늘고 섬세한 이목구비와 긴 흑발을 가진 사람'
-      },
-     {'height': 165, 'weight': 55,
-      'appearance': '키가 크고 날씬하며 하트 모양의 얼굴과 큰 눈을 가진 사람'
-      },
-     {'height': 155, 'weight': 45,
-      'appearance': '뽀얀 피부, 장밋빛 볼, 작은 코를 가진 사람'
-      },
-     {'height': 162, 'weight': 50,
-      'appearance': '잘록한 허리와 높은 광대뼈, V자 턱선으로 우아한 모습'
-      },
-     {'height': 158, 'weight': 52,
-      'appearance': '가느다란 목과 가느다란 손가락, 부드러운 미소로 우아한 모습'
-      },
-     {'height': 163, 'weight': 53,
-      'appearance': '작은 코, 긴 속눈썹, 부드러운 목소리로 여성스러운 모습'
-      },
-     {'height': 166, 'weight': 57,
-      'appearance': '긴 다리, 도톰한 입술, 당당한 걸음걸이를 가진 조각상 같은 모습'
-      },
-     {'height': 159, 'weight': 49,
-      'appearance': '동그란 볼살에 발랄한 성격에 귀여운 외모를 가진 사람'
-      },
-     {'height': 161, 'weight': 51,
-      'appearance': '잘록한 허리, 가느다란 팔, 조용한 태도를 가진 사람'
-      },
-     {'height': 167, 'weight': 60,
-      'appearance': '장엄한 태도, 강한 이목구비, 압도적인 존재감을 지닌 장엄한 모습'
-      },
-     {'height': 154, 'weight': 48,
-      'appearance': '달콤한 미소와 작은 귀, 다정한 성품이 사랑스러운 사람'
-      },
-     {'height': 164, 'weight': 54,
-      'appearance': '세련된 외모, 예리한 위트, 예리한 스타일 감각으로 세련된 사람'
-      },
-     ]
-
-wealth = [
-     {"properties": "부동산 7,500만원, 보증금 2,000만원, 주식 1,000만원, 명품 500만원"},
-     {"properties": "부동산 1억 5천만 원, 보증금 3천만 원, 주식 2천만 원, 미술품 천만 원"},
-     {"properties": "부동산 2억 5천만 원, 보증금 5천만 원, 주식 3천만 원, 보석류 2천만 원"},
-     {"properties": "부동산 3억원, 보증금 7,500만원, 주식 4,000만원, 골동품 자동차 2,500만원"},
-     {"properties": "부동산 4억원, 보증금 1억원, 주식 5천만원, 고급 와인 3천만원"},
-     {"properties": "부동산 5억원, 보증금 1억 2,500만원, 주식 6,000만원, 수집용 피규어 3,500만원"},
-     {"properties": "부동산 6억 원, 보증금 1억 5천만 원, 주식 7천만 원, 명품 의류 4천만 원"},
-     {"properties": "부동산 7억원, 보증금 1억 7,500만원, 주식 8,000만원, 고급시계 4,500만원"},
-     {"properties": "부동산 8억원, 예금 2억원, 주식 9천만원, 희귀도서 5천만원"},
-     {"properties": "부동산 9억원, 보증금 2억2500만원, 주식 1억원, 자동차 5500만원"},
-     {"properties": "부동산 9억 5천만 원, 보증금 2억 5천만 원, 주식 1억 5천만 원, 요트 6천만 원"},
-     {"properties": "부동산 10억원, 예금 3억원, 주식 2억원, 미술품 1억원"},
-]
 
 
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
@@ -531,7 +313,7 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'\n고객:|\n직원:|\nB는 A|\nA와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
         bot_message = generated
     else:
@@ -874,14 +656,15 @@ def keyboard_callback(update: Update, context: CallbackContext) :
             context.user_data.pop("birthday", None)
             update.callback_query.message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
 
-def init_user_data(context):
+def init_user_data(context, clear_history=True):
     if "councelor_type" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
     if "mode" not in context.user_data:
         context.user_data["mode"] = "normalmode"
     if "shownormal" not in context.user_data:
-        context.user_data["shownormal"] = False  
-    clear_chat_history(context)
+        context.user_data["shownormal"] = False
+    if clear_history:  
+        clear_chat_history(context)
                 
 def unknown(update: Update, context: CallbackContext):
     #print(update)
@@ -1015,7 +798,7 @@ def fb_handle_user_message(user_id, text, chat_id):
     context = ContextFB()
     context.user_data['user_id'] = user_id
     context.user_data['facebook'] = True
-    init_user_data(context)
+    init_user_data(context, False)
     message = MessageFB(context, text)
     message.chat['username'] = user_id
     message.chat['first_name'] = user_id
