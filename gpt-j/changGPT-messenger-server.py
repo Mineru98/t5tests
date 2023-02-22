@@ -663,9 +663,11 @@ def init_user_data(context, clear_history=True):
         context.user_data["mode"] = "normalmode"
     if "shownormal" not in context.user_data:
         context.user_data["shownormal"] = False
-    if clear_history:  
+    if 'chat_history' not in context.user_data:
+        context.user_data['chat_history'] = {"normalmode":[], "testmode":[]}
+    if clear_history:
         clear_chat_history(context)
-                
+            
 def unknown(update: Update, context: CallbackContext):
     #print(update)
     if update.message is not None:
