@@ -527,7 +527,7 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'^고객:|^직원:|^B는 A|^A와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'\n고객:|\n직원:|\nB는 A|\nA와 B|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
     if match is None:
         bot_message = generated
     else:
