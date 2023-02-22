@@ -59,16 +59,20 @@ def webhook():
                 if messaging_event.get("message"):  # someone sent us a message
                     sender_id = messaging_event["sender"]["id"]        # the facebook ID of the person sending you the message
                     recipient_id = messaging_event["recipient"]["id"]  # the recipient's ID, which should be your page's facebook ID
-                    message_text = messaging_event["message"]["text"]  # the message's text
-                    is_echo = False
-                    if "is_echo" in messaging_event["message"]:
-                        is_echo = messaging_event["message"]["is_echo"]
-                    if not is_echo:
-                        # fb_handle_user_message(sender_id, message_text, chat_id)
-                        #p = Process(target=fb_handle_user_message, args=(sender_id, message_text, chat_id))
-                        p = Thread(target=fb_handle_user_message, args=(sender_id, message_text, chat_id))
-                        p.start()                        
-                        # send_message(sender_id, f'echo {message_text}')
+                    if "text" not in messaging_event["message"]:
+                        print('no text in message.')
+                        log(data)
+                    else:
+                        message_text = messaging_event["message"]["text"]  # the message's text
+                        is_echo = False
+                        if "is_echo" in messaging_event["message"]:
+                            is_echo = messaging_event["message"]["is_echo"]
+                        if not is_echo:
+                            # fb_handle_user_message(sender_id, message_text, chat_id)
+                            #p = Process(target=fb_handle_user_message, args=(sender_id, message_text, chat_id))
+                            p = Thread(target=fb_handle_user_message, args=(sender_id, message_text, chat_id))
+                            p.start()                        
+                            # send_message(sender_id, f'echo {message_text}')
                 if messaging_event.get("delivery"):  # delivery confirmation
                     pass
                 if messaging_event.get("optin"):  # optin confirmation
