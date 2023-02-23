@@ -4,7 +4,22 @@
     "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b-prefixtuning",
     "cache_folder_name": "cache-v2",
     "dataset": {
-        "aihub_summary":0.1
+        "wikiqna":0.1,
+        "aihub_news_qna":0.1,
+        "aihub_book_qna":0.1,
+        "aihub_summary":0.1,
+        "aihub_translation_to_english":0.1,
+        "aihub_translation_to_korean":0.1,
+        "aihub_tech_domain_translation_to_english":0.1,
+        "aihub_tech_domain_translation_to_korean":0.1,
+        "aihub_daily_conversation":0.1,
+        "aihub_domain_conversation":0.1,
+        "aihub_news_qna_writing":0.1,
+        "nikl_news_2020_writing":0.2,
+        "gsm8k_train":1.0,
+        "gsm8k_train_en":1.0,
+        "gsm8k_ko_to_en":1.0,
+        "gsm8k_en_to_ko":1.0
     },
     "lora": false,
     "prefixtuning": true,

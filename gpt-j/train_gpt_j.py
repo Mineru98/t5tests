@@ -5,7 +5,7 @@ from accelerate import Accelerator, DistributedDataParallelKwargs
 import accelerate
 from tqdm.contrib.concurrent import process_map
 from transformers import  AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
-                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel
+                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel, default_data_collator
 from transformers.optimization import AdafactorSchedule
 from transformers.trainer_pt_utils import get_parameter_names, nested_detach, IterableDatasetShard
 from transformers.trainer_utils import seed_worker
@@ -21,7 +21,7 @@ from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 import pandas
 import hanja
 
-from peft import get_peft_config, get_peft_model, LoraConfig, TaskType
+from peft import get_peft_config, get_peft_model, LoraConfig, TaskType, PrefixTuningConfig
 
 """
 # original tokenizer, not freeze, fine_tune or all
@@ -58,6 +58,7 @@ validation_data_size = batch_size * 10
 load_in_8bit = False
 reset_weight = False
 LoRa = False
+PrefixTuning = False
 softembeddings = False
 
 model_name = None 
@@ -92,7 +93,41 @@ def tokenize_string(s):
     encoded_len = tt.encodings[0].offsets[-1][1]
     return encoded_len, tt['input_ids'], tt['attention_mask']
     
+def preprocess_function(ss):
+    max_length = 1088
+
+    batch_size = len(ss['passage'])
+
+    tt = len(text_templates) - 1
+    inputs = [f"{s} 요약하시오.\n" for s in ss['passage']]
+    targets = [f"{s}" for s in ss['summary1']]
+    model_inputs = tokenizer(inputs, padding='max_length', truncation=True, max_length=max_length)
+    labels = tokenizer(targets, padding='max_length', truncation=True, max_length=max_length)
+    for i in range(batch_size):
+        sample_input_ids = model_inputs["input_ids"][i]
+        label_input_ids = labels["input_ids"][i] + [tokenizer.pad_token_id]
+        #print(i, sample_input_ids, label_input_ids)
+        model_inputs["input_ids"][i] = sample_input_ids + label_input_ids 
+        labels["input_ids"][i] = [-100] * len(sample_input_ids) + label_input_ids
+        model_inputs["attention_mask"][i] = [1] * len(model_inputs["input_ids"][i])
+    #print(model_inputs)
+    for i in range(batch_size):
+        sample_input_ids = model_inputs["input_ids"][i]
+        label_input_ids = labels["input_ids"][i]
+        model_inputs["input_ids"][i] = [tokenizer.pad_token_id]*(max_length-len(sample_input_ids)) + sample_input_ids
+        model_inputs["attention_mask"][i] = [0]*(max_length-len(sample_input_ids)) + model_inputs["attention_mask"][i]
+        labels["input_ids"][i] =  [-100]*(max_length-len(sample_input_ids)) + label_input_ids 
+        model_inputs["input_ids"][i] = torch.tensor(model_inputs["input_ids"][i][:max_length])
+        model_inputs["attention_mask"][i] = torch.tensor(model_inputs["attention_mask"][i][:max_length])
+        labels["input_ids"][i] = torch.tensor(labels["input_ids"][i][:max_length]) 
+    model_inputs["labels"] = labels["input_ids"]
+    model_inputs.pop('token_type_ids', None)
+    return model_inputs
+
+    
 def tokenizing_sample(ss):
+    if softembeddings or LoRa or PrefixTuning:
+        return preprocess_function(ss)
     tokenized = {}
     input_ids = []
     attention_mask = []
@@ -124,7 +159,7 @@ def tokenizing_sample(ss):
         pos = 0        
         text = wikitext_detokenizer(text)
         text = ftfy.fix_text(text, normalization='NFKC')
-        if softembeddings:
+        if softembeddings or LoRa or PrefixTuning:
             encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text)
             input_ids.append(input_ids_sub)
             attention_mask.append(attention_mask_sub)
@@ -146,7 +181,8 @@ def tokenizing_sample(ss):
         
     tokenized['input_ids'] = input_ids
     tokenized['attention_mask'] = attention_mask
-    #tokenized['labels'] = input_ids
+    if PrefixTuning:
+        tokenized['labels'] = tokenized['input_ids']
     return tokenized
 
 def wikitext_detokenizer(string):
@@ -708,11 +744,8 @@ def init_model():
             gpt = GPTNeoForCausalLM.from_pretrained(model, **kwarg)
         accelerator.print(gpt)
     else:
-        if model_file is None:
-            model = "EleutherAI/gpt-j-6B"
-        else:
-            accelerator.print("loading weight from file=", model_file)
-            model = model_file
+        accelerator.print("loading weight from file=", model_file)
+        model = model_file
         # kwarg["revision"] = "float16"
         accelerator.print("loading model-", model, kwarg)
         gpt = AutoModelForCausalLM.from_pretrained(model, **kwarg)
@@ -724,7 +757,11 @@ def init_model():
             )        
             gpt = get_peft_model(gpt, peft_config)
             gpt.print_trainable_parameters()
-    
+        elif PrefixTuning:
+            peft_config = PrefixTuningConfig(task_type=TaskType.CAUSAL_LM, num_virtual_tokens = max_input_length)            
+            gpt = get_peft_model(gpt, peft_config)
+            gpt.print_trainable_parameters()
+            
     start_model_path = model
     # list_model_children(gpt)
     
@@ -755,9 +792,10 @@ def init_model():
         for name, param in gpt.named_parameters():
             if not "soft_embedding" in name:
                 param.requires_grad = False
-    else:    
+    elif LoRa or PrefixTuning:
+        pass
+    else:
         if scratch:
-            if not LoRa:
                 if not load_in_8bit:
                     if reset_weight:
                         gpt.init_weights()  # from scarch
@@ -794,6 +832,67 @@ def loss_function(output, input):
     #     return output.loss
     loss = F.cross_entropy(output.logits[:, :-1, :].flatten(0, -2), input['input_ids'][:, 1:].flatten(), reduction='mean')
     return loss
+
+def petf_trainer():
+    global batch_size, train_dataloader, eval_dataloader
+
+    model = init_model()
+    # model = accelerator.prepare(
+    #     model
+    # )
+
+    train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
+    if data_build_only:
+        return
+    
+    num_training_steps = len(train_dataloader.dataset)
+    max_steps = -1
+
+    if deepspeed_config_json is not None:
+        optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
+        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
+    else:
+        optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+        lr_scheduler = transformers.get_linear_schedule_with_warmup(
+            optimizer, 3000, num_training_steps
+        )
+
+    # lr_scheduler = AdafactorSchedule(optimizer)    
+    # optimizer._get_lr = _get_lr
+    
+    model = model.to(device)
+
+    for epoch in range(1):
+        model.train()
+        total_loss = 0
+        for step, batch in enumerate(tqdm(train_dataloader)):
+            batch = {k: v.to(device) for k, v in batch.items()}
+    #         print(batch)
+    #         print(batch["input_ids"].shape)
+            outputs = model(**batch)
+            loss = outputs.loss
+            total_loss += loss.detach().float()
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            optimizer.zero_grad()
+
+        model.eval()
+        eval_loss = 0
+        eval_preds = []
+        for step, batch in enumerate(tqdm(eval_dataloader)):
+            batch = {k: v.to(device) for k, v in batch.items()}
+            with torch.no_grad():
+                outputs = model(**batch)
+            loss = outputs.loss
+            eval_loss += loss.detach().float()
+            eval_preds.extend(tokenizer.batch_decode(torch.argmax(outputs.logits, -1).detach().cpu().numpy(), skip_special_tokens=True))
+
+        eval_epoch_loss = eval_loss/len(train_dataloader)
+        eval_ppl = torch.exp(eval_epoch_loss)
+        train_epoch_loss = total_loss/len(eval_dataloader)
+        train_ppl = torch.exp(train_epoch_loss)
+        print(f"{epoch=}: {train_ppl=} {train_epoch_loss=} {eval_ppl=} {eval_epoch_loss=}")    
     
 def trainer():
     global batch_size
@@ -1294,7 +1393,7 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
-            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, softembeddings
+            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1326,6 +1425,7 @@ def main():
     parser.add_argument("--deepspeed_config_json", help = "deepspeed_config_json file")
     parser.add_argument("--data_build_only", action='store_true', help = "build dataset, no training")
     parser.add_argument("--lora", action='store_true', help = "using LoRa in training")
+    parser.add_argument("--prefixtuning", action='store_true', help = "using PrefixTuning in training")
     parser.add_argument("--softembeddings", action='store_true', help = "using softembeddings")
 
     args_config, unknown = parser_config.parse_known_args()
@@ -1396,6 +1496,8 @@ def main():
         data_build_only = True
     if args.lora:
         LoRa = True
+    if args.prefixtuning:
+        PrefixTuning = True
     if args.softembeddings:
         softembeddings = True
                 
@@ -1438,8 +1540,10 @@ def main():
         
     tokenizer = build_tokenizer()
     
-    #trainer()
-    huggingface_trainer()
+    if PrefixTuning:
+        petf_trainer()
+    else:
+        huggingface_trainer()
     
 if __name__ == '__main__':
     sys.exit(main()) 
