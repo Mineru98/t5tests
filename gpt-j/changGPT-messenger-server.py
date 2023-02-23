@@ -414,7 +414,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             contents = output         
         print(f'generation_count={generation_count}')
         print(f'gen_text_concat final=[{gen_text_concat}]')
-        generated = gen_text_concat
+        generated = gen_text_concat.strip()
 
         end_time = datetime.today().timestamp()
         print(f"\n******inference time = {end_time-start_time}")
@@ -443,11 +443,13 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
         chat_history.remove(duplicated)
     for ch in chat_history:
         ch_time = int(now - ch['time'])
+        #contents += f"---------------------------------------------------------------\n"
         contents += f"{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
         if last_bot_message is not None:
             contents += f'{bot_prefix}: {last_bot_message}\n'
     user_input = user_input.strip()
+    #contents += f"---------------------------------------------------------------\n"
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
     prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
@@ -842,9 +844,9 @@ updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
 updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
 
 if telegram:
-    print("starting telegram bot...")
+    print("telegram bot started...")
     updater.start_polling()
 
 if facebook:
-    print("starting facebook bot...")
+    print("facebook bot started...")
     fb_messenger_start()    # should be last one
