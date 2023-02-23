@@ -236,11 +236,11 @@ def query(context, message, user_input):
         return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + "?"
+            user_input = user_input + "."
         return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 3)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + "?"
+            user_input = user_input + "."
         return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 3)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
@@ -260,7 +260,7 @@ def generate_base(model, contents, gen_len):
             output_sequences = model.generate(
                 input_tensor, 
                 do_sample=False,
-                early_stopping=True,
+                early_stopping=False,
                 use_cache=True,
                 num_beams=3,
                 length_penalty=1.0,
@@ -287,7 +287,8 @@ def generate_base_zero(contents):
         do_sample=False, 
         max_new_tokens=generation_chunk,
         pad_token_id=tokenizer.eos_token_id,
-        early_stopping=True,
+        early_stopping=False,
+        use_cache=True,
         num_beams=3,       
         length_penalty=1.0,
         temperature=0.6,
