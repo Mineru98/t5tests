@@ -5,7 +5,7 @@
     "cache_folder_name": "cache-v2",
     "dataset": {
         "wiki":0.004, 
-        "namu":0.002, 
+        "namu":1.0, 
         "nikl_news":0.002,
         "nikl_news_2020":0.002,
         "aihub_patent_summary":0.002,

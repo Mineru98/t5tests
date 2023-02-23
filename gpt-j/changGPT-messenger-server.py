@@ -123,7 +123,7 @@ latest_model_dir_on_test = None
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 20
+generation_chunk = 25
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -313,7 +313,7 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|<\|endoftext\|>|\n\(|^\(|\n?[A-Z]\s?(?:[:;-]|$)', generated)
+    match = re.search(r'<\|endoftext\|>|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
     if match is None:
         bot_message = generated
     else:
@@ -401,20 +401,15 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text, stopped = search_stop_word(gen_text)
             gen_text_concat += gen_text
             gen_text_to_reply += gen_text
-            if stopped:
-                if len(gen_text) > 0: 
-                    print(f'**stop pos={len(gen_text)}')
-                    gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
-                break
             gen_text_token = tokenizer(gen_text)['input_ids']
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or (new_gen_token_len == generation_chunk and gen_text.strip()[-1:] == "."):
-                print(f'**gen shorter than request or end with period ={new_gen_token_len}')
+            if stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0:
+                print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
                 reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break
-            else:
-                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+
+            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
             contents = output         
         print(f'generation_count={generation_count}')
         print(f'gen_text_concat final=[{gen_text_concat}]')
