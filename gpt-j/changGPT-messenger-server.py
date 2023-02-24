@@ -249,30 +249,33 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, message, user_input)
         
+generation_kwargs = {
+    "do_sample": False,
+    "early_stopping":False,
+    "use_cache":True,
+    "num_beams":3,
+    "length_penalty":1.0,
+    "temperature":0.6,
+    "top_k":4,
+    "top_p":0.6,
+    "no_repeat_ngram_size":3, 
+    "repetition_penalty":1.2,
+    "pad_token_id":tokenizer.eos_token_id,
+}
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
     input_length = encoded_input['input_ids'].size()[1]
     print(f'input_length={input_length}')
     input_tensor = encoded_input['input_ids']
+    generation_kwargs["max_new_tokens"] = gen_len
     for i in range(3):
         try:
             output_sequences = model.generate(
                 input_tensor, 
-                do_sample=False,
-                early_stopping=False,
-                use_cache=True,
-                num_beams=3,
-                length_penalty=1.0,
-                temperature=0.6,
-                top_k=4,
-                top_p=0.6,
-                no_repeat_ngram_size=3, 
-                repetition_penalty=1.2,
-                pad_token_id=tokenizer.eos_token_id,
                 eos_token_id=[tokenizer.eos_token_id, sep_token_id],
                 begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
-                max_new_tokens=gen_len
+                **generation_kwargs
             )
         except Exception as e:
             print(f'generate_base error={e}')
@@ -282,22 +285,11 @@ def generate_base(model, contents, gen_len):
     return output_text
 
 def generate_base_zero(contents):
+    generation_kwargs["max_new_tokens"] = generation_chunk
     result_id = generator.query_non_block(
         {"query": [contents]}, 
-        do_sample=False, 
-        max_new_tokens=generation_chunk,
-        pad_token_id=tokenizer.eos_token_id,
-        early_stopping=False,
-        use_cache=True,
-        num_beams=3,       
-        length_penalty=1.0,
-        temperature=0.6,
-        top_k=4,
-        top_p=0.6,
-        no_repeat_ngram_size=3, 
-        repetition_penalty=1.2,
         eos_token_id=tokenizer.eos_token_id,
-        #begin_suppress_tokens=[tokenizer.eos_token_id, sep_token_id, newline_token_id, question_mark_token_id, period_token_id],
+        **generation_kwargs
     )
     result = None
     for i in range(100):

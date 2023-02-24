@@ -94,7 +94,7 @@ def tokenize_string(s):
     return encoded_len, tt['input_ids'], tt['attention_mask']
     
 def preprocess_function(ss):
-    max_length = 1088
+    max_length = 128
 
     batch_size = len(ss['passage'])
 
@@ -219,6 +219,9 @@ def wikitext_detokenizer(string):
     return string
 
 def preprocess_dataset(source, rate, dss, tokenize: bool = True):
+    use_data_cache_file = True 
+    if PrefixTuning:
+        use_data_cache_file = False
     val_size = int(validation_data_size * rate)
     if val_size < 1:
         val_size = 2
@@ -229,7 +232,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         ds_eval = ds["test"]
         columns = ds_eval.column_names
         cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
-        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file, load_from_cache_file=True)
+        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
         if training_size > 0:
             ds_train = ds[0].select(range(training_size))
         else:
@@ -238,7 +241,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
                 if tokenize:
                     cache_file = f"./{cache_folder_name}/{source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
                     accelerator.print("tokninzing...", cache_file)
-                    ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
+                    ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
                 datasets.append(ds)
             ds_train = concatenate_datasets(datasets)
     else:
@@ -253,8 +256,8 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             cache_file_eval = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
             accelerator.print("tokninzing...", cache_file)
             columns = ds_train.column_names
-            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file_eval, load_from_cache_file=True)
-            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=True)
+            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file_eval, load_from_cache_file=use_data_cache_file)
+            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
 
     if rate < 1.0:
         ds_train = ds_train.shuffle().train_test_split(test_size=(1.0 - rate))["train"]
@@ -281,11 +284,12 @@ def get_dataset(tokenize):
     dss_train = []    
     text_templates_qna = [
         "아래 지문을 보고 질문에 답 하시오.\\n지문:{eos}{s['context']}\\n{eos}질문:{s['question']}\\n답변:{s['answer']}",
-        "아래 글을 보고 질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n{s['answer']}",
-        "질문에 답 하시오.\\n{eos}{s['context']}\\n{eos}{s['question']}?\\n{s['answer']}",
-        "{s['context']}\\n{eos}위 글을 참고하여 아래 질문에 답하시시오.\\n{s['question']}?\\n{s['answer']}",
         "B: {s['context']}\\n{eos}위 글을 보고 아래 질문에 답해줘.\\n{s['question']}?\\nA: {s['answer']}",
         "B: {s['context']}\\n{eos}{s['question']}?\\nA: {s['answer']}",
+    ]
+    text_templates_qna2 = [
+        "B: {s['title']}에 대한 설명에서, {s['question']}\\nA: {s['answer']}",
+        "B: {s['title']}에 대한 질문이다. {s['question']}\\nA: {s['answer']}",
     ]
     text_templates_conversation = [
         "아래 대화를 연결해 보시오.\\n{s['conversation']}",
@@ -309,9 +313,7 @@ def get_dataset(tokenize):
         "영어원문:{s['english']}\\n{eos}한글번역:{s['korean']}",
         "{s['english']}\\n{eos}위글을 한글로 번역 하시오.\\n{s['korean']}",
         "{s['english']}\\n{eos}한글로 번역 하시오.\\n{s['korean']}",
-        "{s['english']}\\n{eos}한글로 번역 하시오.\\n한글 번역은 다음과 같습니다.\\n{s['korean']}",
-        "B: {s['english']}{eos} 한글로 번역 해 줘.\\nA: 한글 번역은 다음과 같습니다.\\n{s['korean']}",
-        "B: {s['english']}{eos} 한글로 번역 해 주세요.\\nA: 한글 번역은 다음과 같습니다.\\n{s['korean']}",
+        "B: {s['english']}{eos} 한글로 번역 해 줘.\\nA: n{s['korean']}",
         "B: {s['english']}{eos} 한글로 번역 해 주세요.\\nA: {s['korean']}",
         "B: {s['english']}\\n{eos}A: 한글로\\nB: {s['korean']}",
         "B: {s['english']}\\n{eos}A: 한글로 번역.\\nB: {s['korean']}",
@@ -321,7 +323,6 @@ def get_dataset(tokenize):
         "한글원문:{eos}{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어번역:{s['question']}\\n{s['reasoning']}",
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}위글을 영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
         "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n{s['question']}\\n{s['reasoning']}",
-        "{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어로 번역 하시오.\\n영어 번역은 다음과 같습니다.\\n{s['question']}\\n{s['reasoning']}",
         "B: {s['question_kr']}\\n{s['reasoning_kr']}{eos} 영어로 번역 하시오.\\nA: {s['question']}\\n{s['reasoning']}",
         "B: {s['question_kr']}\\n{s['reasoning_kr']}{eos} 영어로\\nA: {s['question']}\\n{s['reasoning']}",
     ]
@@ -334,17 +335,15 @@ def get_dataset(tokenize):
     ]
     text_templates_summarize = [
         "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
-        "아래 글을 요약 해 줘.\\n{eos}{s['passage']}\\n{eos}위 글의 요약은 다음과 같습니다.\\n{s['summary1']}",
         "B: {s['passage']}{eos} 이걸 요약 하면?\\nA: {s['summary1']}",
-        "B: {s['passage']}\\n{eos}요약 해봐?\\nA: {s['summary1']}",
+        "B: {s['passage']}\\n{eos}요약 해봐.\\nA: {s['summary1']}",
         "B: {s['passage']}\\n{eos}위 글을 요약하면?\\nA: {s['summary1']}",
         "B: {s['passage']}{eos} 이글을 요약하면?\\nA: {s['summary1']}",
     ]
     text_templates_reasoning = [
         "질문에 답 하고 이유를 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
         "질문에 답 하고 정답을 도출하는 과정을 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
-        "B: {s['question_kr']}\\n{eos}A: {s['reasoning_kr']} 그러므로 정답은 {s['answer_kr']}",
-        "B: {s['question_kr']}\\n{eos}A: 정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
+        "B: {s['question_kr']}\\n{eos}A: {s['reasoning_kr']}. 그러므로 정답은 {s['answer_kr']}",
         "B: {s['question_kr']}\\n{eos}A: 정답은 다음과 같이 도출 가능합니다.\\n{s['reasoning_kr']}\\n그러므로 정답은 {s['answer_kr']} 입니다.",
     ]
     text_templates_reasoning_softembeddings = [
@@ -482,6 +481,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "wikiqna2" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_wiki_qna.zip"})
+        text_templates = text_templates_qna2
+        source = "wikiqna2"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
     if "aihub_news_qna" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}aihub_news_qna.zip"})
         text_templates = text_templates_qna
@@ -601,6 +607,48 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "aihub_administrative_documents_qna" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_administrative_documents_qna.zip"})
+        text_templates = text_templates_qna
+        source = "aihub_administrative_documents_qna"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_technology_science_translation_to_english" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_technology_science_translation.zip"})
+        text_templates = text_templates_tran_ko_to_en
+        source = "aihub_technology_science_translation_to_english"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_technology_science_translation_to_korean" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_technology_science_translation.zip"})
+        text_templates = text_templates_tran_en_to_ko
+        source = "aihub_technology_science_translation_to_korean"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_social_science_translation_to_english" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_social_science_translation.zip"})
+        text_templates = text_templates_tran_ko_to_en
+        source = "aihub_social_science_translation_to_english"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "aihub_social_science_translation_to_korean" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}aihub_social_science_translation.zip"})
+        text_templates = text_templates_tran_en_to_ko
+        source = "aihub_social_science_translation_to_korean"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "korquad_2.1" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}korquad_2.1.zip"})
+        text_templates = text_templates_qna2
+        source = "korquad_2.1"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
                 
     ds_concat_eval = concatenate_datasets(dss_eval) 
     ds_concat_train = concatenate_datasets(dss_train)
@@ -626,14 +674,18 @@ glo_tokenize = None
 #         data = tokenizer(data, max_length=max_input_length, truncation=True, padding=True)
 #     return [data]
     
-def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size):
+def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size, def_data_collator = False):
     global text_templates, glo_tokenize
     glo_tokenize = tokenize
     eval_dataset, train_dataset, text_templates = get_dataset(tokenize)
     accelerator.print(train_dataset)
     accelerator.print(eval_dataset)
-    train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size)
-    eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size)
+    if def_data_collator:
+        train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size, collate_fn=default_data_collator)
+        eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size, collate_fn=default_data_collator)
+    else:
+        train_dataloader = DataLoader(train_dataset, shuffle=False, batch_size=loader_batch_size)
+        eval_dataloader = DataLoader(eval_dataset, shuffle=False, batch_size=loader_batch_size)
     return train_dataloader, eval_dataloader
 
 def build_tokenizer():
@@ -860,19 +912,27 @@ def petf_trainer():
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
     
-    model = model.to(device)
-
+    # model = model.to(device)
+    model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+        model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+    )
+    
     for epoch in range(1):
         model.train()
         total_loss = 0
         for step, batch in enumerate(tqdm(train_dataloader)):
-            batch = {k: v.to(device) for k, v in batch.items()}
-    #         print(batch)
-    #         print(batch["input_ids"].shape)
-            outputs = model(**batch)
+            batch1 = {}
+            for k, vv in batch.items():
+                l = []
+                for v in vv:
+                    # v = v.to(device)
+                    l.append(v)
+                batch1[k] = torch.stack(l)
+            outputs = model(**batch1)
             loss = outputs.loss
             total_loss += loss.detach().float()
-            loss.backward()
+            # loss.backward()
+            accelerator.backward(loss)
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
@@ -1542,6 +1602,7 @@ def main():
     
     if PrefixTuning:
         petf_trainer()
+        # huggingface_trainer()
     else:
         huggingface_trainer()
     
