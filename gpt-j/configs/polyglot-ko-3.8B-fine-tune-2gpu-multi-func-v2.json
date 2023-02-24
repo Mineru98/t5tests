@@ -14,7 +14,6 @@
         "wikiqna2":1.0,
         "aihub_news_qna":1.0,
         "aihub_book_qna":1.0,
-        "korquad_2.1":1.0,
         "aihub_administrative_documents_qna":1.0,
         "aihub_summary":1.0,
         "aihub_translation_to_english":1.0,
@@ -32,7 +31,8 @@
         "gsm8k_train":1.0,
         "gsm8k_train_en":1.0,
         "gsm8k_ko_to_en":1.0,
-        "gsm8k_en_to_ko":1.0
+        "gsm8k_en_to_ko":1.0,
+        "korquad_2.1":1.0
     },
     "lora": false,
     "scratch": true,
