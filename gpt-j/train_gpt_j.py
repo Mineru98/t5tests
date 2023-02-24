@@ -288,7 +288,6 @@ def get_dataset(tokenize):
         "B: {s['context']}\\n{eos}{s['question']}?\\nA: {s['answer']}",
     ]
     text_templates_qna2 = [
-        "B: {s['title']}에 대한 설명에서, {s['question']}\\nA: {s['answer']}",
         "B: {s['title']}에 대한 질문이다. {s['question']}\\nA: {s['answer']}",
     ]
     text_templates_conversation = [
@@ -646,6 +645,13 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}korquad_2.1.zip"})
         text_templates = text_templates_qna2
         source = "korquad_2.1"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "korquad_2.1_dev" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}korquad_2.1_dev.zip"})
+        text_templates = text_templates_qna2
+        source = "korquad_2.1_dev"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
