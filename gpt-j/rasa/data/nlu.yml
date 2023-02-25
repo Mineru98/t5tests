@@ -5,23 +5,42 @@ nlu:
   examples: |
     - [북한의 핵무장에](title) 대해서 [기사를](target) 써줘.
     - [민주주의의 위기에](title) 대해서 신문 [기사를](target) 써줘.
-    - [반려동물의 의료보험에](title) 대해서 [기사를](target) 써봐.
+    - [반려동물의 비싼 의료보험에](title) 대해서 [기사를](target) 써봐.
     - [정치 과몰입을](title) 포함하는 [기사를](target) 작성 하시오.
     - [문재인 필로폰 투약을](title) 제목으로 [기사를](target) 작성 해봐.
-    - ["문재인 필로폰 투약"을](title) 제목으로 [기사를](target) 작성 해봐.
     - [북한의 핵무장에](title) 대해서 [블로그를](target) 써줘.
     - [민주주의의 위기에](title) 대해서 신문 [블로그를](target) 써줘.
     - [반려동물의 의료보험에](title) 대해서 [블로그를](target) 써봐.
     - [정치 과몰입을](title) 포함하는 [블로그를](target) 작성 하시오.
     - [문재인 필로폰 투약을](title) 제목으로 [블로그를](target) 작성 해봐.
-    - ["문재인 필로폰 투약"을](title) 제목으로 [블로그를](target) 작성 해봐.
+    - [북한 김정은의 무리한 핵무장에](title) 대해서 [기사를](target) 써줘.
+    - [민주주의의 암울한 위기에](title) 대해서 신문 [기사를](target) 써줘.
+    - [반려동물의 의료보험에](title) 대해서 [기사를](target) 써봐.
+    - [한국의 정치 과몰입을](title) 포함하는 [기사를](target) 작성 하시오.
+    - [문재인 필로폰 투약을](title) 제목으로 [기사를](target) 작성 해봐.
+    - [북한의 핵무장에](title) 대해서 [블로그를](target) 써줘.
+    - [민주주의의 위기에](title) 대해서 신문 [블로그를](target) 써줘.
+    - [반려동물의 의료보험에](title) 대해서 [블로그를](target) 써봐.
+    - [정치 과몰입을](title) 포함하는 [블로그를](target) 작성 하시오.
+    - [이재명 문재인 필로폰 투약을](title) 제목으로 [블로그를](target) 작성 해봐.
 
 - intent: request_receipe
   examples: |
     - [짜장면을](title) 만드는 [방법](target)
-    - [김치찌개를](title) 만드는 [방법](target) 알려줘.
-    - [우동](title) 만드는 [법](target) 알려줘.
-    - [볶음밥](title) [레시피](target)
+    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 알려줘.
+    - [맛있는 우동](title) 만드는 [법](target) 알려줘.
+    - [고슬고슬 맛있는 볶음밥](title) [레시피](target)
+    - [떡 만두국](title) [레시피](target)
+    - [달달하고 맛있는 짜장면을](title) 만드는 [방법](target)
+    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 알려줘.
+    - [맛있는 우동](title) 만드는 [법](target) 알려줘.
+    - [윤기가 도는 고슬한 볶음밥](title) [레시피](target)
+    - [떡 만두국](title) [레시피](target)
+    - [계란을 넣은 맛있는 짜장면을](title) 만드는 [방법](target)
+    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 알려줘.
+    - [맛있는 우동](title) 만드는 [법](target) 알려줘.
+    - [소세지와 스팸이 들어간 볶음밥](title) [레시피](target)
+    - [떡 만두국](title) [레시피](target)
 
 - intent: affirm
   examples: |

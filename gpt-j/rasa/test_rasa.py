@@ -9,5 +9,5 @@ result = asyncio.run(agent.parse_message(message_data='이순신에 대해서 �
 print(result)
 result = asyncio.run(agent.parse_message(message_data='북한의 인권 상황에 대해서 기사를 써봐.'))
 print(result)
-result = asyncio.run(agent.parse_message(message_data='파전 만드는 법 알려줘.'))
+result = asyncio.run(agent.parse_message(message_data='계란 파전 만드는 법 알려줘.'))
 print(result)
