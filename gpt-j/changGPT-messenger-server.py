@@ -313,7 +313,7 @@ def generate_base_zero(contents):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
+    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
     if match is None:
         bot_message = generated
     else:
@@ -431,24 +431,25 @@ def prompt_query(context, message, user_input):
     content = f"{user_input}"
     prompt, generated = generate(context, message, content, True)
     return prompt, generated
-        
-def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
-    chat_history = context.user_data['chat_history'][context.user_data['mode']]
+
+def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix):
     contents = chat_prompt
     last_bot_message = None
-    now = datetime.today().timestamp()
     duplicated = next((item for item in chat_history if item["user"] == user_input), None)
     if duplicated is not None:
         chat_history.remove(duplicated)
     for ch in chat_history:
-        ch_time = int(now - ch['time'])
         contents += f"{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
         if last_bot_message is not None:
             contents += f'{bot_prefix}: {last_bot_message}\n'
+    return last_bot_message, contents
+
+def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
+    chat_history = context.user_data['chat_history'][context.user_data['mode']]
+    last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-
     if rasa_agent is not None:
         result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
         intent = result['intent']
@@ -463,11 +464,12 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                         e[ent['entity']] += f" {ent['value']}"
                     else:
                         e[ent['entity']] = ent['value']
-                print(f"title = {e['title']}, target = {e['target']}")
-                if "기사" in e['target']:
-                    contents = f"{article_writing}제목: {e['title']} 관한 기사\n기사:"
-                elif "블로그" in e['target']:
-                    contents = f"{blog_writing}제목: {e['title']} 관한 블로그\n블로그:"
+                if 'title' in e and 'target' in e:
+                    print(f"title = {e['title']}, target = {e['target']}")
+                    if "기사" in e['target']:
+                        contents = f"{article_writing}제목: {user_input}\n기사:"
+                    elif "블로그" in e['target']:
+                        contents = f"{blog_writing}제목: {user_input} 관한 블로그\n블로그:"
         elif intent['name'] == "request_receipe" and confidence > 0.95:
             entities = result['entities']
             if len(entities) >= 2:
@@ -477,8 +479,9 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                         e[ent['entity']] += f" {ent['value']}"
                     else:
                         e[ent['entity']] = ent['value']
-                print(f"title = {e['title']}, target = {e['target']}")
-                contents = f"{receipe_writing}요리 이름: {e['title']}\n만드는 법:"
+                if 'title' in e and 'target' in e:
+                    print(f"title = {e['title']}, target = {e['target']}")
+                    contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
     prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
@@ -487,8 +490,15 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     timestamp = datetime.today().timestamp()
             
     chat_history.append({"user": user_input, "bot": bot_message_in_history, "time": timestamp})
-    while len(chat_history) > MAX_CHAT_HISTORY:
+    _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
+    #while len(chat_history) > MAX_CHAT_HISTORY:
+    tokens = tokenizer(contents)['input_ids']
+    print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
+    while len(tokens) > 800:
         chat_history.pop(0)
+        _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
+        tokens = tokenizer(contents)['input_ids']
+        print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
     # print(f"bot_message={bot_message}")
     return prompt, bot_message
 
