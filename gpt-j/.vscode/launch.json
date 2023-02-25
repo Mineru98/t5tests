@@ -19,6 +19,17 @@
                 "configs/test_config.json",
             ],
             "justMyCode": false
+        },
+        {
+            "name": "Python: messsenger server",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "--config_file",
+                "configs/telegram-test.json",
+            ],
+            "justMyCode": false
         }
     ]
 }

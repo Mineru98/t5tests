@@ -34,6 +34,9 @@ from threading import Thread
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2, article_writing, blog_writing, receipe_writing
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
+
+import asyncio
+
 app = Flask(__name__)
 
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
@@ -151,6 +154,11 @@ telegram_test_mode = args.telegram_test_mode
 
 tokenizer_dir = latest_model_dir
 
+rasa_agent = None
+if args.rasa_agent:
+    from rasa.core.agent import Agent
+    rasa_agent = Agent.load(model_path='./rasa/models/model.tar.gz')
+
 if telegram_test_mode:
     print("****** warning: telegram is on test mode.")
     updater = Updater(os.environ['TELEGRAM_LM_CHAT_TEST'], use_context=True)
@@ -204,10 +212,8 @@ if deepspeed_mode:
 elif zero_mode:
     print("****************zero_mode enabled!")
     generator = mii.mii_query_handle("lcw_deployment")
-    new_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(new_loop)    
-    
 
+asyncio_loop = asyncio.get_event_loop()
 
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
 sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
@@ -216,7 +222,7 @@ newline_token_id = tt['input_ids'][0]
 question_mark_token_id = tt['input_ids'][1]
 period_token_id = tt['input_ids'][2]
 print(f'sep_token_id={sep_token_id}\nnewline_token_id={newline_token_id}\nquestion_mark_token_id={question_mark_token_id}\nperiod_token_id={period_token_id}')
-print(tokenizer.decode([224]))
+# print(tokenizer.decode([224]))
 
 def start(update: Update, context: CallbackContext):
 	update.message.reply_text(HELP_TEXT)
@@ -238,11 +244,11 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 3)
+        return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 5)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + "?"
-        return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 3)
+        return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 5)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
@@ -436,15 +442,43 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
         chat_history.remove(duplicated)
     for ch in chat_history:
         ch_time = int(now - ch['time'])
-        #contents += f"---------------------------------------------------------------\n"
         contents += f"{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
         if last_bot_message is not None:
             contents += f'{bot_prefix}: {last_bot_message}\n'
     user_input = user_input.strip()
-    #contents += f"---------------------------------------------------------------\n"
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
 
+    if rasa_agent is not None:
+        result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
+        intent = result['intent']
+        confidence = intent['confidence']
+        print(f"intent={intent['name']}, confidence={confidence}")
+        if intent['name'] == "ask_article" and confidence > 0.95:
+            entities = result['entities']
+            if len(entities) >= 2:
+                e = {}
+                for ent in entities:
+                    if ent['entity'] in e:
+                        e[ent['entity']] += f" {ent['value']}"
+                    else:
+                        e[ent['entity']] = ent['value']
+                print(f"title = {e['title']}, target = {e['target']}")
+                if "기사" in e['target']:
+                    contents = f"{article_writing}제목: {e['title']} 관한 기사\n기사:"
+                elif "블로그" in e['target']:
+                    contents = f"{blog_writing}제목: {e['title']} 관한 블로그\n블로그:"
+        elif intent['name'] == "request_receipe" and confidence > 0.95:
+            entities = result['entities']
+            if len(entities) >= 2:
+                e = {}
+                for ent in entities:
+                    if ent['entity'] in e:
+                        e[ent['entity']] += f" {ent['value']}"
+                    else:
+                        e[ent['entity']] = ent['value']
+                print(f"title = {e['title']}, target = {e['target']}")
+                contents = f"{receipe_writing}요리 이름: {e['title']}\n만드는 법:"
     prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
@@ -868,6 +902,9 @@ updater.dispatcher.add_handler(MessageHandler(
 # Filters out unknown messages.
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
 updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
+
+if not telegram and not facebook:
+    print('error: no messenger server setted.')
 
 if telegram:
     print("telegram bot started...")
