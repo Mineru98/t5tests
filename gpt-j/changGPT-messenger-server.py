@@ -31,7 +31,8 @@ from waitress import serve
 from multiprocessing import Process
 from threading import Thread
 
-from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2
+from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
+            chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2, article_writing, blog_writing, receipe_writing
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 app = Flask(__name__)
 
@@ -236,11 +237,11 @@ def query(context, message, user_input):
         return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + "."
+            user_input = user_input + "?"
         return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 3)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + "."
+            user_input = user_input + "?"
         return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 3)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
@@ -397,7 +398,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text_token = tokenizer(gen_text)['input_ids']
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or generation_count > 20:
+            if stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0:
                 print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
                 reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break
@@ -571,6 +572,24 @@ def mbti(update: Update, context: CallbackContext):
     init_user_data(context)  
     update.message.reply_text("mbti 모드로 전환 되었습니다.")
 
+def article(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "article"  
+    init_user_data(context)  
+    update.message.reply_text("기사 작성 모드로 전환 되었습니다.")
+    update.message.reply_text("기사 제목을 입력 하세요.")
+
+def blog(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "blog"  
+    init_user_data(context)  
+    update.message.reply_text("블로그 작성 모드로 전환 되었습니다.")
+    update.message.reply_text("블로그 제목을 입력 하세요.")
+
+def receipe(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "receipe"  
+    init_user_data(context)  
+    update.message.reply_text("레시피 작성 모드로 전환 되었습니다.")
+    update.message.reply_text("음식 이름을 입력 하세요.")
+
 def fortune(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "fortune"
     init_user_data(context)  
@@ -718,7 +737,19 @@ def user_message_handler(message, context, chat_id):
                 message.reply_text("생일을 입력 해야 해. 안그러면 진행이 안돼.")
                 message.reply_text("생년월일과 출생시간을 입력 해. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 돼.")
                 return
-                    
+    elif councelor_type == "article":
+        content = f'{article_writing}제목: {q}\n기사:'
+        prompt, generated = generate(context, message, content, True)
+        return
+    elif councelor_type == "blog":
+        content = f'{blog_writing}제목: {q}\n블로그:'
+        prompt, generated = generate(context, message, content, True)
+        return
+    elif councelor_type == "receipe":
+        content = f'{receipe_writing}요리 이름: {q}\n만드는 법:'
+        prompt, generated = generate(context, message, content, True)
+        return
+    
     context.user_data['chat_id'] = chat_id
     send_typing(context, chat_id)
     
@@ -819,6 +850,9 @@ updater.dispatcher.add_handler(CommandHandler('expert', expert))
 updater.dispatcher.add_handler(CommandHandler('expert2', expert2))
 updater.dispatcher.add_handler(CommandHandler('mbti', mbti))
 updater.dispatcher.add_handler(CommandHandler('fortune', fortune))
+updater.dispatcher.add_handler(CommandHandler('article', article))
+updater.dispatcher.add_handler(CommandHandler('blog', blog))
+updater.dispatcher.add_handler(CommandHandler('receipe', receipe))
 
 updater.dispatcher.add_handler(CommandHandler('testmode', testmode))
 updater.dispatcher.add_handler(CommandHandler('normalmode', normalmode))
