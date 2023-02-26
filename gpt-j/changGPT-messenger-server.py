@@ -32,7 +32,8 @@ from multiprocessing import Process
 from threading import Thread
 
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
-            chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2, article_writing, blog_writing, receipe_writing
+            chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2, article_writing, \
+            blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 import asyncio
@@ -243,11 +244,11 @@ def query(context, message, user_input):
         return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + "?"
+            user_input = user_input + ""
         return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 5)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + "?"
+            user_input = user_input + ""
         return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 5)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
@@ -262,7 +263,7 @@ generation_kwargs = {
     "use_cache":True,
     "num_beams":3,
     "length_penalty":1.0,
-    "temperature":0.6,
+    "temperature":1.5,
     "top_k":4,
     "top_p":0.6,
     "no_repeat_ngram_size":3, 
@@ -404,11 +405,10 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text_token = tokenizer(gen_text)['input_ids']
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0:
+            if stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200:
                 print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
                 reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break
-
             gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
             contents = output         
         print(f'generation_count={generation_count}')
@@ -445,46 +445,102 @@ def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_pr
             contents += f'{bot_prefix}: {last_bot_message}\n'
     return last_bot_message, contents
 
+def parse_special_input(context, user_input):
+    if len(user_input) < 5:
+        return None, None
+    result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
+    print(result)
+    intent = result['intent']
+    intent_name = intent['name']
+    confidence = intent['confidence']
+    print(f"intent={intent_name}, confidence={confidence}")
+    contents = None
+    reply = None
+    if intent_name == "ask_article" and confidence > 0.95:
+        entities = result['entities']
+        for ent in entities:
+            print(f"{ent['entity']} = {ent['value']}")
+        if len(entities) >= 2:
+            e = {}
+            for ent in entities:
+                print(f"{ent['entity']} = {ent['value']}")
+                if ent['entity'] in e:
+                    e[ent['entity']] += f" {ent['value']}"
+                else:
+                    e[ent['entity']] = ent['value']
+            if 'title' in e and 'target' in e:
+                print(f"title = {e['title']}, target = {e['target']}")
+                if "기사" in e['target']:
+                    contents = f"{article_writing}제목: {user_input}\n기사:"
+                elif "블로그" in e['target']:
+                    contents = f"{blog_writing}제목: {user_input}\n블로그:"
+    elif intent_name == "request_receipe" and confidence > 0.95:
+        entities = result['entities']
+        if len(entities) >= 2:
+            e = {}
+            for ent in entities:
+                print(f"{ent['entity']} = {ent['value']}")
+                if ent['entity'] in e:
+                    e[ent['entity']] += f" {ent['value']}"
+                else:
+                    e[ent['entity']] = ent['value']
+            if 'title' in e and 'target' in e:
+                print(f"title = {e['title']}, target = {e['target']}")
+                contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
+    elif intent_name == "request_poem" and confidence > 0.95:
+        entities = result['entities']
+        if len(entities) >= 2:
+            e = {}
+            for ent in entities:
+                print(f"{ent['entity']} = {ent['value']}")
+                if ent['entity'] in e:
+                    e[ent['entity']] += f" {ent['value']}"
+                else:
+                    e[ent['entity']] = ent['value']
+            if 'title' in e and 'target' in e:
+                title = e['title'] 
+                title = re.sub(r'을$|를$|에$', '', title)
+                print(f"title = {title}, target = {e['target']}")
+                contents = f"{poem_writing}제목: {title}\n시:"
+    elif intent_name == "today_fortune" and confidence > 0.95 and len(result['entities']) == 1 and '운세' in result['entities'][0]['value']:
+        contents = None
+        if context.user_data["councelor_type"] == 'expert':
+            reply = "생년월일시를 입력 하세요. 시는 모르면 입력 안해도 됩니다. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등입니다."
+        else:
+            reply = "생년월일시를 입력 해. 시는 모르면 입력 안해도 돼. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등으로 하면 돼."
+    return contents, reply
+
 def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
     last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
     user_input = user_input.strip()
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-    if rasa_agent is not None:
-        result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
-        intent = result['intent']
-        confidence = intent['confidence']
-        print(f"intent={intent['name']}, confidence={confidence}")
-        if intent['name'] == "ask_article" and confidence > 0.95:
-            entities = result['entities']
-            if len(entities) >= 2:
-                e = {}
-                for ent in entities:
-                    print(f"{ent['entity']} = {ent['value']}")
-                    if ent['entity'] in e:
-                        e[ent['entity']] += f" {ent['value']}"
-                    else:
-                        e[ent['entity']] = ent['value']
-                if 'title' in e and 'target' in e:
-                    print(f"title = {e['title']}, target = {e['target']}")
-                    if "기사" in e['target']:
-                        contents = f"{article_writing}제목: {user_input}\n기사:"
-                    elif "블로그" in e['target']:
-                        contents = f"{blog_writing}제목: {user_input}\n블로그:"
-        elif intent['name'] == "request_receipe" and confidence > 0.95:
-            entities = result['entities']
-            if len(entities) >= 2:
-                e = {}
-                for ent in entities:
-                    print(f"{ent['entity']} = {ent['value']}")
-                    if ent['entity'] in e:
-                        e[ent['entity']] += f" {ent['value']}"
-                    else:
-                        e[ent['entity']] = ent['value']
-                if 'title' in e and 'target' in e:
-                    print(f"title = {e['title']}, target = {e['target']}")
-                    contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
-    prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
+    bot_message = None
+
+    if 'wait_for_birthday' in context.user_data:
+        context.user_data.pop('wait_for_birthday', None)
+        bytes = str.encode(user_input)
+        keyword_len = len(today_fortune_keyword)
+        s = 0
+        for i in bytes:
+            s += i
+        today = datetime.today().day + datetime.today().month + datetime.today().year
+        key1 = int((s * 12 * today) % keyword_len)
+        key2 = int((s * 7 * today) % keyword_len)
+        key3 = int((s * 36.5 * today) % keyword_len)
+        keystr = f'{today_fortune_keyword[key1]} {today_fortune_keyword[key2]} {today_fortune_keyword[key3]}'
+        contents = f"{today_fortune_writing}운세 키워드: {keystr}\n오늘의 운세:"
+    elif rasa_agent is not None:
+        c, r = parse_special_input(context, user_input)
+        if c is not None:
+            contents = c
+        elif r is not None:
+            bot_message = r
+            prompt = contents
+            context.user_data['wait_for_birthday'] = True
+            reply_text(context, message, bot_message, bot_message, None, True)
+    if bot_message is None:
+        prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
@@ -635,6 +691,12 @@ def receipe(update: Update, context: CallbackContext):
     init_user_data(context)  
     update.message.reply_text("레시피 작성 모드로 전환 되었습니다.")
     update.message.reply_text("음식 이름을 입력 하세요.")
+
+def poem(update: Update, context: CallbackContext):
+    context.user_data["councelor_type"] = "poem"  
+    init_user_data(context)  
+    update.message.reply_text("시 작성 모드로 전환 되었습니다.")
+    update.message.reply_text("시 제목을 입력 하세요.")
 
 def fortune(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "fortune"
@@ -795,6 +857,10 @@ def user_message_handler(message, context, chat_id):
         content = f'{receipe_writing}요리 이름: {q}\n만드는 법:'
         prompt, generated = generate(context, message, content, True)
         return
+    elif councelor_type == "poem":
+        content = f'{poem_writing}제목: {q}\n시:'
+        prompt, generated = generate(context, message, content, True)
+        return
     
     context.user_data['chat_id'] = chat_id
     send_typing(context, chat_id)
@@ -899,6 +965,7 @@ updater.dispatcher.add_handler(CommandHandler('fortune', fortune))
 updater.dispatcher.add_handler(CommandHandler('article', article))
 updater.dispatcher.add_handler(CommandHandler('blog', blog))
 updater.dispatcher.add_handler(CommandHandler('receipe', receipe))
+updater.dispatcher.add_handler(CommandHandler('poem', poem))
 
 updater.dispatcher.add_handler(CommandHandler('testmode', testmode))
 updater.dispatcher.add_handler(CommandHandler('normalmode', normalmode))

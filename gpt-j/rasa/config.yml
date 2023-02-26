@@ -15,9 +15,9 @@ pipeline:
     model: "ko_core_news_lg"
     case_sensitive: False
   - name: SpacyTokenizer
-  # - name: LanguageModelFeaturizer
-  #   model_name: "bert"
-  #   model_weights: "rasa/LaBSE"
+  - name: LanguageModelFeaturizer
+    model_name: "bert"
+    model_weights: "rasa/LaBSE"
   - name: SpacyFeaturizer
   - name: RegexFeaturizer
   - name: LexicalSyntacticFeaturizer
@@ -27,7 +27,7 @@ pipeline:
     min_ngram: 1
     max_ngram: 4
   - name: DIETClassifier
-    epochs: 3000
+    epochs: 500
     constrain_similarities: True
   - name: EntitySynonymMapper
   - name: ResponseSelector
