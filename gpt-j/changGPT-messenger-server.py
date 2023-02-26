@@ -460,6 +460,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
             if len(entities) >= 2:
                 e = {}
                 for ent in entities:
+                    print(f"{ent['entity']} = {ent['value']}")
                     if ent['entity'] in e:
                         e[ent['entity']] += f" {ent['value']}"
                     else:
@@ -469,12 +470,13 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                     if "기사" in e['target']:
                         contents = f"{article_writing}제목: {user_input}\n기사:"
                     elif "블로그" in e['target']:
-                        contents = f"{blog_writing}제목: {user_input} 관한 블로그\n블로그:"
+                        contents = f"{blog_writing}제목: {user_input}\n블로그:"
         elif intent['name'] == "request_receipe" and confidence > 0.95:
             entities = result['entities']
             if len(entities) >= 2:
                 e = {}
                 for ent in entities:
+                    print(f"{ent['entity']} = {ent['value']}")
                     if ent['entity'] in e:
                         e[ent['entity']] += f" {ent['value']}"
                     else:
