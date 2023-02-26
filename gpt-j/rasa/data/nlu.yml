@@ -52,6 +52,10 @@ nlu:
     - [떡 만두국](title) [레시피](target)
     - [해물이 들어간 봉골레 파스타](title) [레시피](target)
     - [꿩 대신 닭이 들어간 떡 만두국](title) [레시피](target)
+    - [떡 만두국](title) [레시피](target) 써줘.
+    - [계란을 넣은 맛있는 짜장면을](title) 만드는 [방법](target) 써줘.
+    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 써줘.
+    - [국물이 맛있는 우동](title) 만드는 [법](target) 알려줘.
 
 - intent: affirm
   examples: |

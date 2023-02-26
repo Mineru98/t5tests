@@ -304,7 +304,7 @@ def generate_base_zero(contents):
         if result is not None:
             result = result.response[0]
             break
-        time.sleep(1)
+        time.sleep(2)
     if result is None:
         output = f"{contents}\n음... 뭔가 잘 못 됐어..."
     else:
