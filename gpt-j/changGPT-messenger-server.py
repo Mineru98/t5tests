@@ -505,9 +505,9 @@ def parse_special_input(context, user_input):
     elif intent_name == "today_fortune" and confidence > 0.95 and len(result['entities']) == 1 and '운세' in result['entities'][0]['value']:
         contents = None
         if context.user_data["councelor_type"] == 'expert':
-            reply = "생년월일시를 입력 하세요. 시는 모르면 입력 안해도 됩니다. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등입니다."
+            reply = "생년월일시를 입력 하세요. 시는 모르면 입력 안해도 됩니다. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등입니다. 고민거리가 있으면 생일을 입력 하지 말고 바로 내용을 쓰세요."
         else:
-            reply = "생년월일시를 입력 해. 시는 모르면 입력 안해도 돼. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등으로 하면 돼."
+            reply = "생년월일시를 입력 해. 시는 모르면 입력 안해도 돼. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등으로 하면 돼. 고민거리가 있으면 생일을 입력 하지 말고 바로 내용을 써."
     return contents, reply
 
 def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
@@ -519,16 +519,20 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
 
     if 'wait_for_birthday' in context.user_data:
         context.user_data.pop('wait_for_birthday', None)
-        bytes = str.encode(user_input)
-        keyword_len = len(today_fortune_keyword)
-        s = 0
-        for i in bytes:
-            s += i
-        today = datetime.today().day + datetime.today().month + datetime.today().year
-        key1 = int((s * 12 * today) % keyword_len)
-        key2 = int((s * 7 * today) % keyword_len)
-        key3 = int((s * 36.5 * today) % keyword_len)
-        keystr = f'{today_fortune_keyword[key1]} {today_fortune_keyword[key2]} {today_fortune_keyword[key3]}'
+        match = re.search(r'^[1-9]', user_input)
+        if match is not None:
+            bytes = str.encode(user_input)
+            keyword_len = len(today_fortune_keyword)
+            s = 0
+            for i in bytes:
+                s += i
+            today = datetime.today().day + datetime.today().month + datetime.today().year
+            key1 = int((s * 12 * today) % keyword_len)
+            key2 = int((s * 7 * today) % keyword_len)
+            key3 = int((s * 36.5 * today) % keyword_len)
+            keystr = f'{today_fortune_keyword[key1]} {today_fortune_keyword[key2]} {today_fortune_keyword[key3]}'
+        else:
+            keystr = user_input
         contents = f"{today_fortune_writing}운세 키워드: {keystr}\n오늘의 운세:"
     elif rasa_agent is not None:
         c, r = parse_special_input(context, user_input)
