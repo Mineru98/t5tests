@@ -5,6 +5,11 @@ intents:
   - request_receipe
   - request_poem
   - today_fortune
+  - greeting
+  - confirm
+  - deny
+  - state_male
+  - state_female
 entities:
   - title 
   - target

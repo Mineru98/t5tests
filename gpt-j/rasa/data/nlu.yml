@@ -55,8 +55,8 @@ nlu:
     - [사랑 그 놀라움에](title) 대해서 [시를](target) 써봐.
     - [한국의 내마음의 보석을](title) 포함하는 [시를](target) 작성 하시오.
     - [여름의 끝](title) 제목으로 [시를](target) 작성 해봐.
-    - [설악의 아침에](title) 대해서 [시를](target) 써줘.
-    - [사랑 그 놀라움에](title) 대해서 [시를](target) 써봐.
+    - [설악의 아침에](title) 대해서 [시를](target) 한수 써줘.
+    - [사랑 그 놀라움에](title) 대해서 [시를](target) 한수 써봐.
     - [내마음의 보석을](title) 포함하는 [시를](target) 작성 하시오.
     - [여름의 끝](title) 제목으로 [시를](target) 작성 해봐.
     - [내마음의 보석을 조장하는 자들을](title) 포함하는 [시를](target) 작성 하시오.
@@ -65,24 +65,27 @@ nlu:
     - [반려동물의 의료보험을 추종하는 자들에](title) 대해서 [시를](target) 써봐.
     - [정치 과몰입에 매몰된 사람들을 구조하는 사람들을](title) 포함하는 [시를](target) 작성 하시오.
     - [여름의 끝을 방조한 책임 없는 자들을](title) 제목으로 [시를](target) 작성 해봐.
-    - [봄을] 소재로 한 시를(target) 써 보세요.
-    - [내 마음의 보석을] 소재로 한 시를(target) 써 보세요.
-    - [내 마음의 보석을] 소재로 한 시를(target) 써봐.
-    - [사랑 그 아름다움을] 소재로 한 시를(target) 써봐.
-    - [첫 눈 그 처연함을] 소재로 한 시를(target) 써봐.
-    - [봄을] 주제로 한 시를(target) 써 보세요.
-    - [내 마음의 보석을] 주제로 한 시를(target) 써 보세요.
-    - [내 마음의 보석을] 주제로 한 시를(target) 써봐.
-    - [사랑 그 아름다움을] 주제로 한 시를(target) 써봐.
-    - [첫 눈 그 처연함을] 주제로 한 시를(target) 써봐.
-    - [내 마음의 보석을] 주제로 시를(target) 써봐.
-    - [사랑 그 아름다움을] 주제로 시를(target) 써봐.
-    - [첫 눈 그 처연함을] 주제로 시를(target) 써봐.
-    - [내 마음의 보석을] 소재로 시를(target) 써봐.
-    - [사랑 그 아름다움을] 소재로 시를(target) 써봐.
-    - [첫 눈 그 처연함을] 소재로 시를(target) 써봐.
-    - [사랑을] 소재로 시를(target) 써봐.
-    - [봄을] 소재로 시를(target) 써봐.
+    - [봄을](title) 소재로 한 시를(target) 써 보세요.
+    - [내 마음의 보석을](title) 소재로 한 시를(target) 써 보세요.
+    - [내 마음의 보석을](title) 소재로 한 시를(target) 써봐.
+    - [사랑 그 아름다움을](title) 소재로 한 시를(target) 한수 써봐.
+    - [첫 눈 그 처연함을](title) 소재로 한 시를(target) 써봐.
+    - [봄을](title) 주제로 한 시를(target) 써 보세요.
+    - [내 마음의 보석을](title) 주제로 한 시를(target) 한수 써 보세요.
+    - [내 마음의 보석을](title) 주제로 한 시를(target) 써봐.
+    - [사랑 그 아름다움을](title) 주제로 한 시를(target) 한수 써줘.
+    - [첫 눈 그 처연함을](title) 주제로 한 시를(target) 써봐.
+    - [내 마음의 보석을](title) 주제로 시를(target) 한수 써봐.
+    - [사랑 그 아름다움을](title) 주제로 시를(target) 써줘.
+    - [첫 눈 그 처연함을](title) 주제로 시를(target) 써봐.
+    - [내 마음의 보석을](title) 소재로 시를(target) 한수 써줘.
+    - [사랑 그 아름다움을](title) 소재로 시를(target) 써봐.
+    - [첫 눈 그 처연함을](title) 소재로 시를(target) 한수 써봐.
+    - [사랑을](title) 소재로 시를(target) 한수 써봐.
+    - [봄을](title) 소재로 시를(target) 써봐.
+    - [진달래를](title) 제목으로 시(target) 써봐.
+    - [진달래](title) 시(target) 써줘.
+    - [진달래](title) 시(target) 써봐.
 
 - intent: request_receipe
   examples: |
@@ -98,23 +101,69 @@ nlu:
     - [윤기가 도는 고슬한 볶음밥](title) [레시피](target)
     - [떡 만두국](title) [레시피](target)
     - [계란을 넣은 맛있는 짜장면을](title) 만드는 [방법](target)
-    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 알려줘.
-    - [국물이 맛있는 우동](title) 만드는 [법](target) 알려줘.
+    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 알려줘
+    - [국물이 맛있는 우동](title) 만드는 [법](target) 알려줘
     - [소세지와 스팸이 들어간 볶음밥](title) [레시피](target)
     - [떡 만두국](title) [레시피](target)
     - [해물이 들어간 봉골레 파스타](title) [레시피](target)
     - [꿩 대신 닭이 들어간 떡 만두국](title) [레시피](target)
-    - [떡 만두국](title) [레시피](target) 써줘.
-    - [계란을 넣은 맛있는 짜장면을](title) 만드는 [방법](target) 써줘.
-    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 써줘.
-    - [국물이 맛있는 우동](title) 만드는 [법](target) 알려줘.
+    - [떡 만두국](title) [레시피](target) 써줘
+    - [계란을 넣은 맛있는 짜장면을](title) 만드는 [방법](target) 써줘
+    - [건강하고 맛있는 김치찌개를](title) 만드는 [방법](target) 써줘
+    - [국물이 맛있는 우동](title) 만드는 [법](target) 알려줘
 - intent: today_fortune
   examples: |
     - 오늘의 [운세](target)
-    - 오늘 [운세를](target) 봐줘.
+    - 오늘 [운세를](target) 봐줘
     - 오늘 [운세가](target) 어때
     - 오늘 내 [운세가](target) 어떠니
-    - 오늘 [운세](target) 좀 봐주세요.
-    - 제 [운세](target) 좀 봐주세요.
+    - 오늘 [운세](target) 좀 봐주세요
+    - 제 [운세](target) 좀 봐주세요
     - 내 [운세가](target) 어떠냐
+- intent: greeting
+  examples: |
+    - 안녕
+    - 안녕하세요.
+    - 반갑습니다.
+  
+- intent: confirm
+  examples: |
+    - 맞아
+    - 맞다
+    - 맞네
+    - 맞습니다
+    - 맞네요
+    - 오케이
 
+- intent: deny
+  examples: |
+    - 아니야
+    - 틀려
+    - 틀리네
+    - 틀렸어
+    - 틀렸다
+    - 틀려 다시 할께
+    - 틀려요
+    - 아니에요
+    - 틀려요 다시
+    - 틀려 다시
+
+- intent: state_male
+  examples: |
+    - 남자
+    - 남성
+    - 남
+    - 남자에요
+    - 남자입니다.
+    - 남성입니다.
+    - 남자야
+
+- intent: state_female
+  examples: |
+    - 여자
+    - 여성
+    - 여
+    - 여자에요
+    - 여자입니다.
+    - 여성입니다.
+    - 여자야

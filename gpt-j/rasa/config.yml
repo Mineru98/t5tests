@@ -15,9 +15,12 @@ pipeline:
     model: "ko_core_news_lg"
     case_sensitive: False
   - name: SpacyTokenizer
+  # - name: LanguageModelFeaturizer
+  #   model_name: "bert"
+  #   model_weights: "rasa/LaBSE"
   - name: LanguageModelFeaturizer
-    model_name: "bert"
-    model_weights: "rasa/LaBSE"
+    model_name: "roberta"
+    model_weights: "roberta-base"
   - name: SpacyFeaturizer
   - name: RegexFeaturizer
   - name: LexicalSyntacticFeaturizer
@@ -27,12 +30,13 @@ pipeline:
     min_ngram: 1
     max_ngram: 4
   - name: DIETClassifier
-    epochs: 500
-    constrain_similarities: True
-  - name: EntitySynonymMapper
-  - name: ResponseSelector
-    constrain_similarities: True
-    epochs: 200
+    epochs: 3000
+    constrain_similarities: true
+    batch_strategy: sequence
+  # - name: EntitySynonymMapper
+  # - name: ResponseSelector
+  #   constrain_similarities: True
+  #   epochs: 200
   - name: FallbackClassifier
     threshold: 0.60
 # Configuration for Rasa Core.
