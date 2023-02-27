@@ -455,7 +455,7 @@ def start_ask_birthday(context):
     return reply
     
 def parse_special_input(context, user_input):
-    user_input = re.sub(r"\?$", "", user_input.strip())
+    user_input = re.sub(r"[\?\.]$", "", user_input.strip())
     result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
     print(result)
     intent = result['intent']
@@ -588,8 +588,8 @@ def handle_story(context, message, contents, user_input):
             fortune = re.sub(r"[\.\?\!]", "", fortune)
             ff = fortune.split(' ')
             len_ff = len(ff)
-            pos_sel = datetime.today().day % (len_ff - 3)
-            fortune_keyword = ' '.join(ff[pos_sel:pos_sel+3])
+            pos_sel = datetime.today().day % (len_ff - 4)
+            fortune_keyword = ' '.join(ff[pos_sel:pos_sel+4])
             contents = f"{today_fortune_writing}운세 키워드: {fortune_keyword}\n오늘의 운세:"
         context.user_data.pop('fortune_data_input_state', None)
         context.user_data.pop('birthday', None)
