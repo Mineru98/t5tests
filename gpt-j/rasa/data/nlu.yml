@@ -112,6 +112,7 @@ nlu:
     - 맞습니다
     - 맞네요
     - 오케이
+    - 맞아요
 
 - intent: deny
   examples: |
