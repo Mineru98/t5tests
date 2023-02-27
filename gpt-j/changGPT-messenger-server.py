@@ -30,13 +30,14 @@ from flask import Flask, request
 from waitress import serve
 from multiprocessing import Process
 from threading import Thread
+import asyncio
 
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
-import asyncio
+from plugin.todays_fortune import get_todays_fortune
 
 app = Flask(__name__)
 
@@ -445,18 +446,27 @@ def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_pr
             contents += f'{bot_prefix}: {last_bot_message}\n'
     return last_bot_message, contents
 
+def start_ask_birthday(context):
+    if context.user_data["councelor_type"] == 'expert':
+        reply = "생년월일시를 입력 하세요. 시는 모르면 입력 안해도 됩니다. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등입니다."
+    else:
+        reply = "생년월일시를 입력 해. 시는 모르면 입력 안해도 돼. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등으로 하면 돼."
+    context.user_data['fortune_data_input_state'] = 'wait_for_birthday'
+    return reply
+    
 def parse_special_input(context, user_input):
-    if len(user_input) < 5:
-        return None, None
+    user_input = re.sub(r"\?$", "", user_input.strip())
     result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
     print(result)
     intent = result['intent']
-    intent_name = intent['name']
     confidence = intent['confidence']
+    intent_name = intent['name']
     print(f"intent={intent_name}, confidence={confidence}")
     contents = None
     reply = None
-    if intent_name == "ask_article" and confidence > 0.95:
+    if confidence < 0.95:
+        return None, None, None
+    if intent_name == "ask_article":
         entities = result['entities']
         for ent in entities:
             print(f"{ent['entity']} = {ent['value']}")
@@ -474,7 +484,7 @@ def parse_special_input(context, user_input):
                     contents = f"{article_writing}제목: {user_input}\n기사:"
                 elif "블로그" in e['target']:
                     contents = f"{blog_writing}제목: {user_input}\n블로그:"
-    elif intent_name == "request_receipe" and confidence > 0.95:
+    elif intent_name == "request_receipe":
         entities = result['entities']
         if len(entities) >= 2:
             e = {}
@@ -487,29 +497,105 @@ def parse_special_input(context, user_input):
             if 'title' in e and 'target' in e:
                 print(f"title = {e['title']}, target = {e['target']}")
                 contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
-    elif intent_name == "request_poem" and confidence > 0.95:
+    elif intent_name == "request_poem":
         entities = result['entities']
-        if len(entities) >= 2:
-            e = {}
-            for ent in entities:
-                print(f"{ent['entity']} = {ent['value']}")
-                if ent['entity'] in e:
-                    e[ent['entity']] += f" {ent['value']}"
-                else:
-                    e[ent['entity']] = ent['value']
-            if 'title' in e and 'target' in e:
-                title = e['title'] 
-                title = re.sub(r'을$|를$|에$', '', title)
-                print(f"title = {title}, target = {e['target']}")
-                contents = f"{poem_writing}제목: {title}\n시:"
-    elif intent_name == "today_fortune" and confidence > 0.95 and len(result['entities']) == 1 and '운세' in result['entities'][0]['value']:
+        e = {}
+        for ent in entities:
+            print(f"{ent['entity']} = {ent['value']}")
+            if ent['entity'] in e:
+                e[ent['entity']] += f" {ent['value']}"
+            else:
+                e[ent['entity']] = ent['value']
+        if 'title' in e:
+            title = e['title'] 
+            title = re.sub(r'을$|를$|에$', '', title)
+            print(f"title = {title}")
+        else:
+            title = user_input
+        contents = f"{poem_writing}제목: {title}\n시:"
+    elif intent_name == "today_fortune" and len(result['entities']) == 1 and '운세' in result['entities'][0]['value']:
+        contents = None
+        reply = start_ask_birthday(context)
+    elif intent_name == "greeting":
         contents = None
         if context.user_data["councelor_type"] == 'expert':
-            reply = "생년월일시를 입력 하세요. 시는 모르면 입력 안해도 됩니다. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등입니다. 고민거리가 있으면 생일을 입력 하지 말고 바로 내용을 쓰세요."
+            reply = "안녕하세요? 반갑습니다. ChangGPT입니다. 무엇이든 물어보세요."
         else:
-            reply = "생년월일시를 입력 해. 시는 모르면 입력 안해도 돼. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등으로 하면 돼. 고민거리가 있으면 생일을 입력 하지 말고 바로 내용을 써."
-    return contents, reply
+            reply = "안녕? 반갑다. 뭐든 물어봐."
+        
+    return contents, reply, intent_name
 
+def stop_fortune_mode(context, message):
+    context.user_data.pop('fortune_data_input_state', None)
+    context.user_data.pop('birthday', None)
+    context.user_data.pop('sex', None)
+    bot_message = "운세를 중단합니다."
+    message.reply_text(bot_message)
+    return bot_message
+    
+def handle_story(context, message, contents, user_input):
+    bot_message = None
+    if 'fortune_data_input_state' not in context.user_data:
+        return contents, bot_message
+    
+    if 'wait_for_birthday' == context.user_data['fortune_data_input_state']:
+        match = re.search(r'^[1-9]', user_input)
+        if match is not None:
+            birtyday = parse_date_input(user_input)
+            if birtyday is not None:
+                print(f'birthday input successful={birtyday}')
+                context.user_data["birthday"] = birtyday
+                birthday_str = context.user_data["birthday"].strftime('%Y년 %m월 %d일 %I시 %M분 %p')
+                bot_message = f"생시가 {birthday_str}, 맞나 확인해 주세요. 맞아, 틀려 외의 문장을 입력 하면 운세 진행이 중단됩니다."
+                message.reply_text(bot_message)
+                context.user_data['fortune_data_input_state'] = 'wait_for_confirm'
+            else:
+                bot_message = "생일을 입력 해야 합니다. 양식이 맞지 않습니다.. 날짜 형식이 아닌 일반 문장을 입력 하면 운세 진행이 중단됩니다."
+                message.reply_text(bot_message)
+                message.reply_text("생년월일과 출생시간을 입력 해야 합니다. 1980년 3월 20일 오후 2시 20분 또는 1999.2.12 22:00, 1988/12/31 오후 1:30, 198003200220 같은 형식으로 하면 됩니다.")
+        else:
+            if user_input.startswith('--'):
+                keystr = user_input[2:]
+                contents = f"{today_fortune_writing}운세 키워드: {keystr}\n오늘의 운세:"
+            else:
+                bot_message = stop_fortune_mode(context, message)
+    elif 'wait_for_confirm' == context.user_data['fortune_data_input_state']:
+        c, r, i = parse_special_input(context, user_input)
+        if i == 'confirm':
+            context.user_data['fortune_data_input_state'] = 'wait_for_sex'
+            bot_message = "성별을 입력 해 주세요. 성별외의 단어를 입력 하면 운세 진행이 중단 됩니다."
+            message.reply_text(bot_message)
+        elif i == 'deny':
+            bot_message = start_ask_birthday(context)
+            message.reply_text(bot_message)
+        else:
+            bot_message = stop_fortune_mode(context, message)
+    elif 'wait_for_sex' == context.user_data['fortune_data_input_state']:
+        c, r, i = parse_special_input(context, user_input)
+        if i == 'state_male':
+            context.user_data['sex'] = 'male'
+        elif i == 'state_female':
+            context.user_data['sex'] = 'female'
+        else:
+            bot_message = stop_fortune_mode(context, message)
+        if 'birthday' in context.user_data and 'sex' in context.user_data:
+            birthday_str = context.user_data["birthday"].strftime('%Y%m%d%H%M')
+            today_str = datetime.today().strftime('%Y%m%d%H%M')
+            saju, target_date_samju, fortune = get_todays_fortune(context.user_data['sex'], birthday_str, today_str)
+            message.reply_text(saju)
+            message.reply_text(target_date_samju)
+            print(fortune)
+            fortune = re.sub(r"[\.\?\!]", "", fortune)
+            ff = fortune.split(' ')
+            len_ff = len(ff)
+            pos_sel = datetime.today().day % (len_ff - 3)
+            fortune_keyword = ' '.join(ff[pos_sel:pos_sel+3])
+            contents = f"{today_fortune_writing}운세 키워드: {fortune_keyword}\n오늘의 운세:"
+        context.user_data.pop('fortune_data_input_state', None)
+        context.user_data.pop('birthday', None)
+        context.user_data.pop('sex', None)
+    return contents, bot_message
+    
 def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
     last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
@@ -517,34 +603,19 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     bot_message = None
 
-    if 'wait_for_birthday' in context.user_data:
-        context.user_data.pop('wait_for_birthday', None)
-        match = re.search(r'^[1-9]', user_input)
-        if match is not None:
-            bytes = str.encode(user_input)
-            keyword_len = len(today_fortune_keyword)
-            s = 0
-            for i in bytes:
-                s += i
-            today = datetime.today().day + datetime.today().month + datetime.today().year
-            key1 = int((s * 12 * today) % keyword_len)
-            key2 = int((s * 7 * today) % keyword_len)
-            key3 = int((s * 36.5 * today) % keyword_len)
-            keystr = f'{today_fortune_keyword[key1]} {today_fortune_keyword[key2]} {today_fortune_keyword[key3]}'
-        else:
-            keystr = user_input
-        contents = f"{today_fortune_writing}운세 키워드: {keystr}\n오늘의 운세:"
-    elif rasa_agent is not None:
-        c, r = parse_special_input(context, user_input)
-        if c is not None:
-            contents = c
-        elif r is not None:
-            bot_message = r
-            prompt = contents
-            context.user_data['wait_for_birthday'] = True
-            reply_text(context, message, bot_message, bot_message, None, True)
+    prompt = ""
+    contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
-        prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
+        if rasa_agent is not None:
+            c, r, _ = parse_special_input(context, user_input)
+            if c is not None:
+                contents = c
+            elif r is not None:
+                bot_message = r
+                prompt = contents
+                reply_text(context, message, bot_message, bot_message, None, True)
+            if bot_message is None:
+                prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
@@ -798,6 +869,7 @@ def unknown(update: Update, context: CallbackContext):
     chat_id = update.effective_message.chat_id
     user_message_handler(message, context, chat_id)
         
+block_list = ["61182118"]        
 def user_message_handler(message, context, chat_id):        
     # print(message)
     """
@@ -817,6 +889,11 @@ def user_message_handler(message, context, chat_id):
         message.reply_text(context.user_data['last_bot_message'])
         return
         
+    #print(f'{user_id}, {block_list}, {user_id in block_list}')
+    if str(user_id) in block_list:
+        print('blocked.')
+        return
+    
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
         init_user_data(context)

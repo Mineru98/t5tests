@@ -1,6 +1,6 @@
 {
-    "normal_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-480",
-    "test_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-480",
+    "normal_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-780",
+    "test_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-780",
     "deepspeed_mode": false,
     "zero_mode": true,
     "telegram": true,

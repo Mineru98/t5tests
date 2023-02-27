@@ -18,19 +18,21 @@ pipeline:
   # - name: LanguageModelFeaturizer
   #   model_name: "bert"
   #   model_weights: "rasa/LaBSE"
-  - name: LanguageModelFeaturizer
-    model_name: "roberta"
-    model_weights: "roberta-base"
+  # - name: LanguageModelFeaturizer
+    # model_name: "distilbert"
+    # model_weights: "distilbert-base-multilingual-cased"
+    # model_name: "bert"
+    # model_weights: "kykim/bert-kor-base"
   - name: SpacyFeaturizer
-  - name: RegexFeaturizer
-  - name: LexicalSyntacticFeaturizer
-  - name: CountVectorsFeaturizer
-  - name: CountVectorsFeaturizer
-    analyzer: "char_wb"
-    min_ngram: 1
-    max_ngram: 4
+  # - name: RegexFeaturizer
+  # - name: LexicalSyntacticFeaturizer
+  # - name: CountVectorsFeaturizer
+  # - name: CountVectorsFeaturizer
+  #   analyzer: "char_wb"
+  #   min_ngram: 1
+  #   max_ngram: 4
   - name: DIETClassifier
-    epochs: 3000
+    epochs: 200
     constrain_similarities: true
     batch_strategy: sequence
   # - name: EntitySynonymMapper
@@ -38,7 +40,7 @@ pipeline:
   #   constrain_similarities: True
   #   epochs: 200
   - name: FallbackClassifier
-    threshold: 0.60
+    threshold: 0.90
 # Configuration for Rasa Core.
 # https://rasa.com/docs/rasa/core/policies/
 policies:
