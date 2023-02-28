@@ -393,6 +393,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         prompt = contents
         print(f'prompt={prompt}')
         while True:
+            send_typing(context, context.user_data['chat_id'])
             if generator is not None and zero_mode:
                 output = generate_base_zero(contents)
             else:
@@ -944,7 +945,6 @@ def user_message_handler(message, context, chat_id):
         return
     
     context.user_data['chat_id'] = chat_id
-    send_typing(context, chat_id)
     
     q_start_time = datetime.today()
     q_start_time_str = q_start_time.strftime('%Y.%m.%d %H:%M:%S')
