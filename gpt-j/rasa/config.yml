@@ -24,9 +24,14 @@ pipeline:
     # model_name: "bert"
     # model_weights: "kykim/bert-kor-base"
   - name: SpacyFeaturizer
+  # - name: LanguageModelFeaturizer
+  #   model_name: "distilbert"
+  #   model_weights: "distilbert-base-multilingual-cased"
+    # model_name: "bert"
+    # model_weights: "kykim/bert-kor-base"
   # - name: RegexFeaturizer
   # - name: LexicalSyntacticFeaturizer
-  # - name: CountVectorsFeaturizer
+  - name: CountVectorsFeaturizer
   # - name: CountVectorsFeaturizer
   #   analyzer: "char_wb"
   #   min_ngram: 1
@@ -35,12 +40,15 @@ pipeline:
     epochs: 200
     constrain_similarities: true
     batch_strategy: sequence
+    number_of_transformer_layers: 10
+    number_of_attention_heads: 8
+    embedding_dimension: 100
   # - name: EntitySynonymMapper
   # - name: ResponseSelector
   #   constrain_similarities: True
   #   epochs: 200
   - name: FallbackClassifier
-    threshold: 0.90
+    threshold: 0.70
 # Configuration for Rasa Core.
 # https://rasa.com/docs/rasa/core/policies/
 policies:

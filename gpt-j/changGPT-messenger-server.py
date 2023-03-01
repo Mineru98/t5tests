@@ -33,7 +33,7 @@ from threading import Thread
 import asyncio
 
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
-            chat_prompt_mbti, chat_prompt_expert, chat_prompt_expert2, article_writing, \
+            chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
@@ -246,7 +246,10 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + ""
-        return chat_query(context, message, user_input, chat_prompt_expert, "B", "A", 5)
+        if context.user_data['language'] == 'ko':
+            return chat_query(context, message, user_input, chat_prompt_expert_ko, "B", "A", 5)
+        elif context.user_data['language'] == 'en':
+            return chat_query(context, message, user_input, chat_prompt_expert_en, "B", "A", 5)
     elif context.user_data['councelor_type'] == "expert2":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + ""
@@ -465,55 +468,26 @@ def parse_special_input(context, user_input):
     print(f"intent={intent_name}, confidence={confidence}")
     contents = None
     reply = None
-    if confidence < 0.95:
+    if confidence < 0.98:
         return None, None, None
     if intent_name == "ask_article":
-        entities = result['entities']
-        for ent in entities:
-            print(f"{ent['entity']} = {ent['value']}")
-        if len(entities) >= 2:
-            e = {}
-            for ent in entities:
-                print(f"{ent['entity']} = {ent['value']}")
-                if ent['entity'] in e:
-                    e[ent['entity']] += f" {ent['value']}"
-                else:
-                    e[ent['entity']] = ent['value']
-            if 'title' in e and 'target' in e:
-                print(f"title = {e['title']}, target = {e['target']}")
-                if "기사" in e['target']:
-                    contents = f"{article_writing}제목: {user_input}\n기사:"
-                elif "블로그" in e['target']:
-                    contents = f"{blog_writing}제목: {user_input}\n블로그:"
+        contents = f"{article_writing}제목: {user_input}\n기사:"
+    elif intent_name == "ask_blog":
+        contents = f"{blog_writing}제목: {user_input}\n블로그:"
     elif intent_name == "request_receipe":
-        entities = result['entities']
-        if len(entities) >= 2:
-            e = {}
-            for ent in entities:
-                print(f"{ent['entity']} = {ent['value']}")
-                if ent['entity'] in e:
-                    e[ent['entity']] += f" {ent['value']}"
-                else:
-                    e[ent['entity']] = ent['value']
-            if 'title' in e and 'target' in e:
-                print(f"title = {e['title']}, target = {e['target']}")
-                contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
+        contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
     elif intent_name == "request_poem":
-        entities = result['entities']
-        e = {}
-        for ent in entities:
-            print(f"{ent['entity']} = {ent['value']}")
-            if ent['entity'] in e:
-                e[ent['entity']] += f" {ent['value']}"
-            else:
-                e[ent['entity']] = ent['value']
-        if 'title' in e:
-            title = e['title'] 
-            title = re.sub(r'을$|를$|에$', '', title)
-            print(f"title = {title}")
-        else:
-            title = user_input
-        contents = f"{poem_writing}제목: {title}\n시:"
+        contents = f"{poem_writing}제목: {user_input}\n시:"
+    elif intent_name == "english_mode":
+        context.user_data['language'] = "en"
+        clear_chat_history(context)
+        contents = None
+        reply = "From now on, we will speak in English."
+    elif intent_name == "korean_mode":
+        context.user_data['language'] = "ko"
+        clear_chat_history(context)
+        contents = None
+        reply = "지금 부터는 한국말로 이야기 합니다."
     elif intent_name == "today_fortune" and len(result['entities']) == 1 and '운세' in result['entities'][0]['value']:
         contents = None
         reply = start_ask_birthday(context)
@@ -897,6 +871,7 @@ def user_message_handler(message, context, chat_id):
     
     if "councelor_type" not in context.user_data or "mode" not in context.user_data:
         context.user_data["councelor_type"] = "expert"
+        context.user_data["language"] = "ko"
         init_user_data(context)
         if username == 'ninedra9ons':
             context.user_data["mode"] = "testmode"
