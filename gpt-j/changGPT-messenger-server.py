@@ -34,7 +34,8 @@ import asyncio
 
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
-            blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword
+            blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
+            entity_extract_for_poem
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -246,6 +247,8 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "expert":
         if not user_input.endswith(('?', ".", "!")):
             user_input = user_input + ""
+        if 'language' not in context.user_data:
+            context.user_data['language'] = 'ko'
         if context.user_data['language'] == 'ko':
             return chat_query(context, message, user_input, chat_prompt_expert_ko, "B", "A", 5)
         elif context.user_data['language'] == 'en':
@@ -274,6 +277,7 @@ generation_kwargs = {
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
+
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
     print(f"text={len(contents)}, token={encoded_input['input_ids'].size()}")
@@ -372,21 +376,25 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         # print(f'remain_text=[{remain_text}]')
         return remain_text, None
     
+def generate_low_level(context, contents, gen_len = generation_chunk):
+    if generator is not None and zero_mode:
+        output = generate_base_zero(contents)
+    else:
+        if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
+            model = gpt
+            print(f'running on normal model, {latest_model_dir}.')
+        else:
+            model = gpt_on_test
+            print(f'running on test model, {latest_model_dir_on_test}.')
+        output = generate_base(model, contents, gen_len)
+    return output
+    
 def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
     global generator
     contents = contents.strip()
     if not open_end:
         contents = f'{contents}<|sep|>'
     try:
-        testmode = False
-        if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
-            model = gpt
-            print(f'running on normal model, {latest_model_dir}.')
-        else:
-            testmode = True
-            model = gpt_on_test
-            print(f'running on test model, {latest_model_dir_on_test}.')
-        
         gen_text_to_reply = ""
         stopped = False
         gen_text_concat = ""
@@ -397,10 +405,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         print(f'prompt={prompt}')
         while True:
             send_typing(context, context.user_data['chat_id'])
-            if generator is not None and zero_mode:
-                output = generate_base_zero(contents)
-            else:
-                output = generate_base(model, contents, gen_len)
+            output = generate_low_level(context, contents, gen_len)
             generation_count += 1
             gen_text = output[len(contents):]
             print(f'new generated=[{gen_text}]')
@@ -477,18 +482,22 @@ def parse_special_input(context, user_input):
     elif intent_name == "request_receipe":
         contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
     elif intent_name == "request_poem":
-        contents = f"{poem_writing}제목: {user_input}\n시:"
+        content = f'{entity_extract_for_poem}{user_input} ==>'
+        title = generate_low_level(context, content)[len(content):].strip()
+        contents = f"{poem_writing}제목: {title}\n시:"
     elif intent_name == "english_mode":
-        context.user_data['language'] = "en"
-        clear_chat_history(context)
-        contents = None
-        reply = "From now on, we will speak in English."
+        if context.user_data['language'] != "en":
+            context.user_data['language'] = "en"
+            clear_chat_history(context)
+            contents = None
+            reply = "From now on, we will speak in English."
     elif intent_name == "korean_mode":
-        context.user_data['language'] = "ko"
-        clear_chat_history(context)
-        contents = None
-        reply = "지금 부터는 한국말로 이야기 합니다."
-    elif intent_name == "today_fortune" and len(result['entities']) == 1 and '운세' in result['entities'][0]['value']:
+        if context.user_data['language'] != "ko":
+            context.user_data['language'] = "ko"
+            clear_chat_history(context)
+            contents = None
+            reply = "지금 부터는 한국말로 이야기 합니다."
+    elif intent_name == "today_fortune":
         contents = None
         reply = start_ask_birthday(context)
     elif intent_name == "greeting":
