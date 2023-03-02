@@ -172,6 +172,7 @@ tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 error_display_token_output = tokenizer('*.*', return_tensors='pt').to(device)['input_ids']
 
 generator = None
+generator_on_test = None
 gpt = None
 gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
@@ -215,7 +216,11 @@ if deepspeed_mode:
 elif zero_mode:
     print("****************zero_mode enabled!")
     generator = mii.mii_query_handle("lcw_deployment")
-
+    try:
+        generator_on_test = mii.mii_query_handle("lcw_deployment_test")
+    except:
+        print("zeromode: no generator on test")
+        generator_on_test = generator
 asyncio_loop = asyncio.get_event_loop()
 
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
@@ -300,16 +305,16 @@ def generate_base(model, contents, gen_len):
     output_text = tokenizer.decode(output_sequences[0], skip_special_tokens=False)
     return output_text
 
-def generate_base_zero(contents):
+def generate_base_zero(zero_generator, contents):
     generation_kwargs["max_new_tokens"] = generation_chunk
-    result_id = generator.query_non_block(
+    result_id = zero_generator.query_non_block(
         {"query": [contents]}, 
         eos_token_id=tokenizer.eos_token_id,
         **generation_kwargs
     )
     result = None
     for i in range(100):
-        result = generator.get_pending_task_result(result_id)
+        result = zero_generator.get_pending_task_result(result_id)
         if result is not None:
             result = result.response[0]
             break
@@ -377,15 +382,17 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         return remain_text, None
     
 def generate_low_level(context, contents, gen_len = generation_chunk):
-    if generator is not None and zero_mode:
-        output = generate_base_zero(contents)
+    if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
+        model = gpt
+        zero_generator = generator 
+        print(f'running on normal model')
     else:
-        if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
-            model = gpt
-            print(f'running on normal model, {latest_model_dir}.')
-        else:
-            model = gpt_on_test
-            print(f'running on test model, {latest_model_dir_on_test}.')
+        model = gpt_on_test
+        zero_generator = generator_on_test 
+        print(f'running on test model')
+    if generator is not None and zero_mode:
+        output = generate_base_zero(zero_generator, contents)
+    else:
         output = generate_base(model, contents, gen_len)
     return output
     
@@ -681,8 +688,8 @@ def build_fortune_text(birtyday: datetime, sex):
     fortune_prompt = f"""
 A는 점을 봐주는 점쟁이이다. 
 B는 점을 보러온 고객이고 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다. 
-B의 모든 질문은 미래 애인에 대한 것이다. 절대 본인 즉 점쟁이 A의 이야기를 하지 마시오.
-B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람의 정보는 다음과 같다.
+B의 모든 질문은 {sex_partner_str2}에 대한 것이다. 절대 본인 즉 점쟁이 A의 이야기를 하면 안된다.
+{sex_partner_str2}의 정보는 아래와 같다.
 {sex_partner_str2}의 성별은 {sex_partner_str} 이다.
 {sex_partner_str2}의 직업은 {job} 중 하나일 가능성이 높다.
 {sex_partner_str2}의 성격은 {personality} 일 가능성이 있어.
@@ -690,11 +697,12 @@ B의 미래의 애인 또는 장차 만나게 될 사람, 미지의 그 사람�
 {sex_partner_str2}을 만나는 장소는 {meet_where}.
 {sex_partner_str2}의 외모는 {appearance}.
 {sex_partner_str2}의 재산은 {money}.
-위 내용에 없는 것을 답할 경우에는 불확실한 추정임을 반드시 이야기 해야 하며 절대 점쟁이 본인 즉 A의 이야기는 하지 마시오.
-답변시에는 명리학에 기반한 추정일 뿐임을 꼭 이야기 하시오.
-위 내용에 기반하여 점쟁이로서 성실한 자세, 약간 신들린 모습으로, 고객의 질문에 답하시오. 
-B: 그 사람의 성격은 어때?
-A: 당신이 만날 미래 애인은 {personality} 일 가능성이 높아보여.
+{sex_partner_str2}의 이름은 당연히 알 수가 없어.
+위 내용에 기반하여 점쟁이로서 성실한 자세, 약간 신들린 모습으로, 대화를 연결 하시오. 
+B: {sex_partner_str2}은 어떤 사람이야?
+A: 어디 보자...
+{sex_partner_str2}의 성격은 {personality} 일 가능성이 높아보여. {sex_partner_str2}의 직업은 {job} 중 하나일 것인데, 이런 사람들은 보통 {personality} 를 가지고 있을 가능성이 높아. 
+{sex_partner_str2}의 외모는 대략 {appearance}. 이런 외모라면 {sex_partner_str2}의 성격은 {personality} 일 가능성이 높지. 
 """
     print(fortune_prompt)
     return fortune_prompt
@@ -783,7 +791,10 @@ def shownormal(update: Update, context: CallbackContext):
     context.user_data["shownormal"] = not context.user_data["shownormal"]  
     update.message.reply_text(f"show normal model = {context.user_data['shownormal']}")
 
-def status(message, context: CallbackContext):
+def status(update, context: CallbackContext):
+    status_sub(update.message, context)
+    
+def status_sub(message, context: CallbackContext):
     if 'mode' not in context.user_data:
         context.user_data['mode'] = 'normalmode'
     if 'councelor_type' not in context.user_data:
@@ -883,16 +894,16 @@ def user_message_handler(message, context, chat_id):
         context.user_data["councelor_type"] = "expert"
         context.user_data["language"] = "ko"
         init_user_data(context)
-        if username == 'ninedra9ons':
-            context.user_data["mode"] = "testmode"
-            #context.user_data["shownormal"] = True
+        # if username == 'ninedra9ons':
+        #     context.user_data["mode"] = "testmode"
+        #     #context.user_data["shownormal"] = True
 
         message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
         message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
         message.reply_text("Language model restarted.")
         # update.message.reply_text(HELP_TEXT)
         if username == 'ninedra9ons':
-            status(message, context)
+            status_sub(message, context)
 
     councelor_type = context.user_data["councelor_type"]
     if councelor_type == "fortune":

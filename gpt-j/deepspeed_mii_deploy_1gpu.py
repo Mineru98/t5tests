@@ -48,9 +48,9 @@ ds_config2 = {
 }
 
 mii.deploy(task="text-generation",
-           model="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-1660",
+           model="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-3060",
            #model="EleutherAI/gpt-neox-20b",
-           model_path="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-1660",
+           model_path="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-3060",
            deployment_name="lcw_deployment",
            enable_deepspeed=False,
            enable_zero=True,
