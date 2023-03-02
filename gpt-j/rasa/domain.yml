@@ -5,6 +5,7 @@ intents:
   - ask_blog
   - request_receipe
   - request_poem
+  - request_samhangsi
   - today_fortune
   - greeting
   - confirm

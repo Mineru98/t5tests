@@ -35,7 +35,7 @@ import asyncio
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
-            entity_extract_for_poem
+            entity_extract_for_poem, samhangsi_writing
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -305,8 +305,8 @@ def generate_base(model, contents, gen_len):
     output_text = tokenizer.decode(output_sequences[0], skip_special_tokens=False)
     return output_text
 
-def generate_base_zero(zero_generator, contents):
-    generation_kwargs["max_new_tokens"] = generation_chunk
+def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
+    generation_kwargs["max_new_tokens"] = gen_len
     result_id = zero_generator.query_non_block(
         {"query": [contents]}, 
         eos_token_id=tokenizer.eos_token_id,
@@ -391,7 +391,7 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         zero_generator = generator_on_test 
         print(f'running on test model')
     if generator is not None and zero_mode:
-        output = generate_base_zero(zero_generator, contents)
+        output = generate_base_zero(zero_generator, contents, gen_len)
     else:
         output = generate_base(model, contents, gen_len)
     return output
@@ -492,6 +492,17 @@ def parse_special_input(context, user_input):
         content = f'{entity_extract_for_poem}{user_input} ==>'
         title = generate_low_level(context, content)[len(content):].strip()
         contents = f"{poem_writing}제목: {title}\n시:"
+    elif intent_name == "request_samhangsi":
+        content = f'{entity_extract_for_poem}{user_input} ==>'
+        name = generate_low_level(context, content)[len(content):].strip()
+        name_comma = ""
+        for c in name:
+            name_comma += f"{c},"
+        name_comma = name_comma[:-1]
+        content = f"{samhangsi_writing}{name_comma} =>"
+        samhangsi = generate_low_level(context, content, 80)[len(content):].strip()
+        reply = re.sub(r'[0-9]', '', samhangsi)
+        contents = None
     elif intent_name == "english_mode":
         if context.user_data['language'] != "en":
             context.user_data['language'] = "en"
