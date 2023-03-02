@@ -1,5 +1,5 @@
 import mii
-mii_configs = {"tensor_parallel": 1, "dtype": "fp16", "port_number": 50950,}
+mii_configs = {"tensor_parallel": 1, "dtype": "fp16", "port_number": 50951, "torch_dist_port": 29501}
 model_hidden_size=3072
 ds_config = {
     "fp16": {
@@ -51,7 +51,7 @@ mii.deploy(task="text-generation",
            model="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-1660",
            #model="EleutherAI/gpt-neox-20b",
            model_path="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-1660",
-           deployment_name="lcw_deployment",
+           deployment_name="lcw_deployment_test",
            enable_deepspeed=False,
            enable_zero=True,
            ds_config=ds_config,

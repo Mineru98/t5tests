@@ -1,2 +1,2 @@
 import mii
-mii.terminate("lcw_deployment")
+mii.terminate("lcw_deployment_test")

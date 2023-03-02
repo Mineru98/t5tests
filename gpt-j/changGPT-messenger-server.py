@@ -473,7 +473,7 @@ def parse_special_input(context, user_input):
     print(f"intent={intent_name}, confidence={confidence}")
     contents = None
     reply = None
-    if confidence < 0.98:
+    if confidence < 0.99:
         return None, None, None
     if intent_name == "ask_article":
         contents = f"{article_writing}제목: {user_input}\n기사:"
@@ -584,6 +584,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
     last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
     user_input = user_input.strip()
+    #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     bot_message = None
 
