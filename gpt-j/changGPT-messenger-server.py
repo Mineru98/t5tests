@@ -215,9 +215,9 @@ if deepspeed_mode:
     gpt_on_test = ds_engine.module
 elif zero_mode:
     print("****************zero_mode enabled!")
-    generator = mii.mii_query_handle("lcw_deployment")
+    generator = mii.mii_query_handle("lcw_deployment_test")
     try:
-        generator_on_test = mii.mii_query_handle("lcw_deployment_test")
+        generator_on_test = mii.mii_query_handle("lcw_deployment")
     except:
         print("zeromode: no generator on test")
         generator_on_test = generator
@@ -701,6 +701,7 @@ A는 점을 봐주는 점쟁이이다.
 B는 점을 보러온 고객이고 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다. 
 B의 모든 질문은 {sex_partner_str2}에 대한 것이다. 절대 본인 즉 점쟁이 A의 이야기를 하면 안된다.
 {sex_partner_str2}의 정보는 아래와 같다.
+{sex_partner_str2}는 싱글이다.
 {sex_partner_str2}의 성별은 {sex_partner_str} 이다.
 {sex_partner_str2}의 직업은 {job} 중 하나일 가능성이 높다.
 {sex_partner_str2}의 성격은 {personality} 일 가능성이 있어.
