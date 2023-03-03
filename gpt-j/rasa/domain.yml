@@ -6,6 +6,7 @@ intents:
   - request_receipe
   - request_poem
   - request_samhangsi
+  - movie_recommend
   - today_fortune
   - greeting
   - confirm

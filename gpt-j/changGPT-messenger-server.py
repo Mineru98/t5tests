@@ -470,7 +470,7 @@ def start_ask_birthday(context):
     context.user_data['fortune_data_input_state'] = 'wait_for_birthday'
     return reply
     
-def parse_special_input(context, user_input):
+def parse_special_input(context, message, user_input):
     user_input = re.sub(r"[\?\.]$", "", user_input.strip())
     result = asyncio.run(rasa_agent.parse_message(message_data=user_input))
     print(result)
@@ -480,8 +480,9 @@ def parse_special_input(context, user_input):
     print(f"intent={intent_name}, confidence={confidence}")
     contents = None
     reply = None
+    do_not_send_reply = False
     if confidence < 0.99:
-        return None, None, None
+        return None, None, None, do_not_send_reply
     if intent_name == "ask_article":
         contents = f"{article_writing}제목: {user_input}\n기사:"
     elif intent_name == "ask_blog":
@@ -504,6 +505,29 @@ def parse_special_input(context, user_input):
         samhangsi = generate_low_level(context, content, 80)[len(content):].strip()
         reply = re.sub(r'[0-9]', '', samhangsi)
         contents = None
+    elif intent_name == "movie_recommend":
+        content = f'{entity_extract_for_poem}{user_input} ==>'
+        movie_title = generate_low_level(context, content)[len(content):].strip()
+        content = f"자동 영화 추천 목록\n• {movie_title}"
+        gen_text_concat = ""
+        sent_message = None
+        num_recommend = 7
+        for i in range(num_recommend):
+            content += "\n•"
+            print(content)
+            recommend = generate_low_level(context, content, 50)[len(content):]
+            recommend = recommend.strip()
+            print(recommend)
+            match = re.search(r'•', recommend)
+            if match is not None:
+                recommend = recommend[:match.start()].strip()
+            gen_text_concat += f"• {recommend}\n"
+            _, sent_message = reply_text(context, message, None, gen_text_concat, sent_message, i == num_recommend - 1)
+            # message.reply_text(f"*. {recommend}")
+            content += recommend
+        contents = None
+        reply = gen_text_concat
+        do_not_send_reply = True
     elif intent_name == "english_mode":
         if context.user_data['language'] != "en":
             context.user_data['language'] = "en"
@@ -526,7 +550,7 @@ def parse_special_input(context, user_input):
         else:
             reply = "안녕? 반갑다. 뭐든 물어봐."
         
-    return contents, reply, intent_name
+    return contents, reply, intent_name, do_not_send_reply
 
 def stop_fortune_mode(context, message):
     context.user_data.pop('fortune_data_input_state', None)
@@ -563,7 +587,7 @@ def handle_story(context, message, contents, user_input):
             else:
                 bot_message = stop_fortune_mode(context, message)
     elif 'wait_for_confirm' == context.user_data['fortune_data_input_state']:
-        c, r, i = parse_special_input(context, user_input)
+        c, r, i, _ = parse_special_input(context, message, user_input)
         if i == 'confirm':
             context.user_data['fortune_data_input_state'] = 'wait_for_sex'
             bot_message = "성별을 입력 해 주세요. 성별외의 단어를 입력 하면 운세 진행이 중단 됩니다."
@@ -574,7 +598,7 @@ def handle_story(context, message, contents, user_input):
         else:
             bot_message = stop_fortune_mode(context, message)
     elif 'wait_for_sex' == context.user_data['fortune_data_input_state']:
-        c, r, i = parse_special_input(context, user_input)
+        c, r, i, _ = parse_special_input(context, message, user_input)
         if i == 'state_male':
             context.user_data['sex'] = 'male'
         elif i == 'state_female':
@@ -611,13 +635,14 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
         if rasa_agent is not None:
-            c, r, _ = parse_special_input(context, user_input)
+            c, r, _, do_not_reply = parse_special_input(context, message, user_input)
             if c is not None:
                 contents = c
             elif r is not None:
                 bot_message = r
                 prompt = contents
-                reply_text(context, message, bot_message, bot_message, None, True)
+                if not do_not_reply:
+                    reply_text(context, message, bot_message, bot_message, None, True)
             if bot_message is None:
                 prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
