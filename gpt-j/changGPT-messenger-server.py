@@ -645,7 +645,8 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                     reply_text(context, message, bot_message, bot_message, None, True)
         if bot_message is None:
             match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히", user_input)
-            if match is not None:
+            match2 = re.search(r"대해서", user_input)
+            if match is not None and match2 is not None:
                 contents += detail_answer_prompt
             #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
             contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
