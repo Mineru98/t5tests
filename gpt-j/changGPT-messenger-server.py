@@ -35,7 +35,7 @@ import asyncio
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
-            entity_extract_for_poem, samhangsi_writing
+            entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -489,6 +489,8 @@ def parse_special_input(context, message, user_input):
         contents = f"{blog_writing}제목: {user_input}\n블로그:"
     elif intent_name == "request_receipe":
         contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
+    elif intent_name == "movie_info":
+        contents = f"{movie_info}{user_input}"
     elif intent_name == "request_poem":
         content = f'{entity_extract_for_poem}{user_input} ==>'
         title = generate_low_level(context, content)[len(content):].strip()
@@ -627,8 +629,6 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
     last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
     user_input = user_input.strip()
-    #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-    contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     bot_message = None
 
     prompt = ""
@@ -643,8 +643,13 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                 prompt = contents
                 if not do_not_reply:
                     reply_text(context, message, bot_message, bot_message, None, True)
-            if bot_message is None:
-                prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
+        if bot_message is None:
+            match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히", user_input)
+            if match is not None:
+                contents += detail_answer_prompt
+            #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
+            contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
+            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
