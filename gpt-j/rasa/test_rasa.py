@@ -38,5 +38,7 @@ while True:
     print_entities('지금 부터 영어로')
     print_entities('지금 부터 한글로')
     print_entities('speak in english')
+    print_entities('레볼루셔너리 로드와 비슷한 영화 추천')
+    
     
     input('waiting...')

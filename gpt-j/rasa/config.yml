@@ -37,7 +37,7 @@ pipeline:
   #   min_ngram: 1
   #   max_ngram: 4
   - name: DIETClassifier
-    epochs: 180
+    epochs: 190
     constrain_similarities: true
     # batch_strategy: sequence
     number_of_transformer_layers: 4

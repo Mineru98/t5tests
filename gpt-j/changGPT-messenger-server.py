@@ -481,7 +481,7 @@ def parse_special_input(context, message, user_input):
     contents = None
     reply = None
     do_not_send_reply = False
-    if confidence < 0.99:
+    if confidence < 0.98:
         return None, None, None, do_not_send_reply
     if intent_name == "ask_article":
         contents = f"{article_writing}제목: {user_input}\n기사:"
@@ -508,7 +508,7 @@ def parse_special_input(context, message, user_input):
     elif intent_name == "movie_recommend":
         content = f'{entity_extract_for_poem}{user_input} ==>'
         movie_title = generate_low_level(context, content)[len(content):].strip()
-        content = f"자동 영화 추천 목록\n• {movie_title}"
+        content = f"영화 추천목록\n• {movie_title}"
         gen_text_concat = ""
         sent_message = None
         num_recommend = 7
