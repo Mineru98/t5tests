@@ -23,7 +23,7 @@ while True:
 
     print_entities('저알')
     print_entities('개나리 시 써봐')
-    print_entities('이창원으로 삼행시 써봐')
+    print_entities('이순신으로 삼행시 써봐')
     print_entities('안녕')
     print_entities('어떻게')
     print_entities('이순신에 대해서 블로그를 써봐')

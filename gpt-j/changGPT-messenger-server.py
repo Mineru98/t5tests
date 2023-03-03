@@ -500,6 +500,7 @@ def parse_special_input(context, user_input):
             name_comma += f"{c},"
         name_comma = name_comma[:-1]
         content = f"{samhangsi_writing}{name_comma} =>"
+        print(content)
         samhangsi = generate_low_level(context, content, 80)[len(content):].strip()
         reply = re.sub(r'[0-9]', '', samhangsi)
         contents = None
