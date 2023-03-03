@@ -37,12 +37,12 @@ pipeline:
   #   min_ngram: 1
   #   max_ngram: 4
   - name: DIETClassifier
-    epochs: 110
+    epochs: 180
     constrain_similarities: true
     # batch_strategy: sequence
-    number_of_transformer_layers: 10
-    number_of_attention_heads: 8
-    embedding_dimension: 100
+    number_of_transformer_layers: 4
+    number_of_attention_heads: 4
+    embedding_dimension: 50
   # - name: EntitySynonymMapper
   # - name: ResponseSelector
   #   constrain_similarities: True

@@ -23,6 +23,7 @@ while True:
 
     print_entities('저알')
     print_entities('개나리 시 써봐')
+    print_entities('개나리를 소재로 시를 써봐')
     print_entities('이순신으로 삼행시 써봐')
     print_entities('안녕')
     print_entities('어떻게')
