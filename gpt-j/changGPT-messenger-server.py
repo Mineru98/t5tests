@@ -734,8 +734,9 @@ def build_fortune_text(birtyday: datetime, sex):
     money_index = int(birtyday.day * birtyday.hour) % 12
     money = f"{wealth[money_index]['properties']} 정도로 예상된다."
     fortune_prompt = f"""
-A는 점을 봐주는 점쟁이이다. 
-B는 점을 보러온 고객이고 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다. 
+B는 사주를 보러온 고객이다.
+B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다. 
+{sex_partner_str2}는 장차 고객B가 만날 수도 있는 미래의 연인이다.
 {sex_partner_str2}의 정보는 아래와 같다.
 {sex_partner_str2}는 싱글이다.
 {sex_partner_str2}의 성별은 {sex_partner_str} 이다.
