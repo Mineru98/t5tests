@@ -35,7 +35,7 @@ import asyncio
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
-            entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt
+            entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt, detail_answer_prompt_fortune
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -632,6 +632,17 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     bot_message = None
 
     prompt = ""
+    # match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히", user_input)
+    # match2 = re.search(r"대해서", user_input)
+    # if match is not None:
+    #     #contents += detail_answer_prompt
+    #     #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
+    #contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt}\n{bot_prefix}: "
+    #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
+    if context.user_data['councelor_type'] == 'fortune':
+        contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt_fortune}\n{bot_prefix}: "
+    else:
+        contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt}\n{bot_prefix}: "
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
         if rasa_agent is not None:
@@ -643,14 +654,8 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                 prompt = contents
                 if not do_not_reply:
                     reply_text(context, message, bot_message, bot_message, None, True)
-        if bot_message is None:
-            match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히", user_input)
-            match2 = re.search(r"대해서", user_input)
-            if match is not None and match2 is not None:
-                contents += detail_answer_prompt
-            #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-            contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
+            if bot_message is None:
+                prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
@@ -731,7 +736,6 @@ def build_fortune_text(birtyday: datetime, sex):
     fortune_prompt = f"""
 A는 점을 봐주는 점쟁이이다. 
 B는 점을 보러온 고객이고 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 점을 보러 왔다. 
-B의 모든 질문은 {sex_partner_str2}에 대한 것이다. 절대 본인 즉 점쟁이 A의 이야기를 하면 안된다.
 {sex_partner_str2}의 정보는 아래와 같다.
 {sex_partner_str2}는 싱글이다.
 {sex_partner_str2}의 성별은 {sex_partner_str} 이다.
@@ -742,11 +746,7 @@ B의 모든 질문은 {sex_partner_str2}에 대한 것이다. 절대 본인 즉 
 {sex_partner_str2}의 외모는 {appearance}.
 {sex_partner_str2}의 재산은 {money}.
 {sex_partner_str2}의 이름은 당연히 알 수가 없어.
-위 내용에 기반하여 점쟁이로서 성실한 자세, 약간 신들린 모습으로, 대화를 연결 하시오. 
-B: {sex_partner_str2}은 어떤 사람이야?
-A: 어디 보자...
-{sex_partner_str2}의 성격은 {personality} 일 가능성이 높아보여. {sex_partner_str2}의 직업은 {job} 중 하나일 것인데, 이런 사람들은 보통 {personality} 를 가지고 있을 가능성이 높아. 
-{sex_partner_str2}의 외모는 대략 {appearance}. 이런 외모라면 {sex_partner_str2}의 성격은 {personality} 일 가능성이 높지. 
+위 내용에 기반하여 대화를 연결 하시오. 
 """
     print(fortune_prompt)
     return fortune_prompt
