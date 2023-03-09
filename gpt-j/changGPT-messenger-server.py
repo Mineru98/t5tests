@@ -394,8 +394,7 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         msg = json.dumps(chatgpt_output, ensure_ascii=False)
         print(f'---chatgpt---\n{msg}')
 
-        output = chatgpt_output['choices'][0]['message']['content'] + '<|endoftext|>'
-        print(f'{chatgpt_output}')
+        output = contents + chatgpt_output['choices'][0]['message']['content'] + '<|endoftext|>'
         return output
 
     if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
