@@ -757,7 +757,7 @@ def build_fortune_text(birtyday: datetime, sex):
 B는 사주를 보러온 고객이다.
 B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 사주를 보러 왔다.
 B를 지칭할떄는 '고객'이라고 하면 된다.
-모든 답변은 반말로 한다. 
+이후 질문에 대한 모든 답변은 반말로 한다. 
 {sex_partner_str2}는 장차 고객 B가 만날 수도 있는 미래의 연인이다.
 {sex_partner_str2}의 정보는 아래와 같다.
 {sex_partner_str2}는 싱글이다.
