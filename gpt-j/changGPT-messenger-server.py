@@ -952,8 +952,12 @@ def user_message_handler(message, context, chat_id):
         return
         
     if q == "/chatgpt":
-        context.user_data["chatgpt"] = True
-        message.reply_text("ChatGPT mode enabled.")
+        if 'chatgpt' in context.user_data:
+            context.user_data.pop('chatgpt', None)
+            message.reply_text("ChatGPT mode disabled.")
+        else:
+            context.user_data["chatgpt"] = True
+            message.reply_text("ChatGPT mode enabled.")
         return
 
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
