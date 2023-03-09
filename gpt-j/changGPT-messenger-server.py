@@ -639,10 +639,15 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #     #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     #contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt}\n{bot_prefix}: "
     #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-    if context.user_data['councelor_type'] == 'fortune':
-        contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt_fortune}\n{bot_prefix}: "
+    match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히|이유는", user_input)
+    if match is not None:
+        if context.user_data['councelor_type'] == 'fortune':
+            contents += f"{user_prefix}: {user_input}{detail_answer_prompt_fortune}\n{bot_prefix}:"
+        else:
+            contents += f"{user_prefix}: {user_input}{detail_answer_prompt}\n{bot_prefix}:"
     else:
-        contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt}\n{bot_prefix}: "
+        contents += f"{user_prefix}: {user_input}\n{bot_prefix}:"
+        
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
         if rasa_agent is not None:
@@ -747,7 +752,8 @@ B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해�
 {sex_partner_str2}의 외모는 {appearance}.
 {sex_partner_str2}의 재산은 {money}.
 {sex_partner_str2}의 이름은 당연히 알 수가 없어.
-위 내용에 기반하여 대화를 연결 하시오. 
+B: 답변을 하는 역술인은 어떤 사람입니까?
+A: 명리학은 우연에 의지하여 요행으로 사람의 미래를 맞추는 그런 학문이 아닙니다. 사람의 태어난 시점을 기준으로 음양 오행의 원리에 따라 그 사람의 미래를 예측하는 것으로 확정론적 세계관을 가지고 있는 과학입니다. 다만 워낙 많은 생년일시만 하더라도 워낙 많은 변수가 존재하기 때문에 이러한 변수중에서 어떤 것을 더 우선적으로 볼지는 사주를 해석하는 전문가의 철학과 능력에 달려 있는 문제입니다. 답변하는 구룡선생님은 오랜 수련으로 명리학을 통달 하였을 뿐만 아니라 각각의 변수의 경중을 잘 따져 해석을 해내는 출중한 능력이 있는 분입니다. 
 """
     print(fortune_prompt)
     return fortune_prompt
