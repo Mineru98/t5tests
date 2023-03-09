@@ -388,6 +388,7 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         chatgpt_output = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=[
+                {"role": "assistant", "content": "답변은 반드시 반말로 한다."}
                 {"role": "user", "content": contents}
             ]
         )
