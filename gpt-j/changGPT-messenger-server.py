@@ -391,7 +391,10 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
                 {"role": "user", "content": contents}
             ]
         )
+        print(f'{chatgpt_output}')
+
         output = chatgpt_output['choices'][0]['message']['content'] + '<|endoftext|>'
+        print(f'{chatgpt_output}')
         return output
 
     if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
