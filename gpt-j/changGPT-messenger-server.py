@@ -391,7 +391,8 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
                 {"role": "user", "content": contents}
             ]
         )
-        print(f'{chatgpt_output}')
+        msg = json.dumps(chatgpt_output, ensure_ascii=False)
+        print(f'---chatgpt---\n{msg}')
 
         output = chatgpt_output['choices'][0]['message']['content'] + '<|endoftext|>'
         print(f'{chatgpt_output}')
@@ -953,6 +954,7 @@ def user_message_handler(message, context, chat_id):
         
     if q == "/chatgpt":
         context.user_data["chatgpt"] = True
+        message.reply_text("ChatGPT mode enabled.")
         return
 
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
