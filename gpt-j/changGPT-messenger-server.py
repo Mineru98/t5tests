@@ -39,11 +39,13 @@ from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, 
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
+import openai
 
 app = Flask(__name__)
 
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
 fb_page_access_token = os.environ["FB_PAGE_ACCESS_TOKEN"]
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
 @app.route('/', methods=['GET'])
 def verify():
@@ -382,6 +384,16 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         return remain_text, None
     
 def generate_low_level(context, contents, gen_len = generation_chunk):
+    if 'chatgpt' in context.user_data:
+        chatgpt_output = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "user", "content": contents}
+            ]
+        )
+        output = chatgpt_output['choices'][0]['message']['content'] + '<|endoftext|>'
+        return output
+
     if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
         model = gpt
         zero_generator = generator 
@@ -936,6 +948,10 @@ def user_message_handler(message, context, chat_id):
         message.reply_text(context.user_data['last_bot_message'])
         return
         
+    if q == "/chatgpt":
+        context.user_data["chatgpt"] = True
+        return
+
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
     if str(user_id) in block_list:
         print('blocked.')
