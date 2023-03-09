@@ -655,7 +655,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt}\n{bot_prefix}: "
     #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
     match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히|이유는", user_input)
-    if match is not None:
+    if match is not None and 'chatgpt' not in context.user_data:
         if context.user_data['councelor_type'] == 'fortune':
             contents += f"{user_prefix}: {user_input}{detail_answer_prompt_fortune}\n{bot_prefix}:"
         else:
@@ -665,7 +665,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
         
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
-        if rasa_agent is not None:
+        if rasa_agent is not None and 'chatgpt' not in context.user_data:
             c, r, _, do_not_reply = parse_special_input(context, message, user_input)
             if c is not None:
                 contents = c
