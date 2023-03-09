@@ -674,8 +674,8 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                 prompt = contents
                 if not do_not_reply:
                     reply_text(context, message, bot_message, bot_message, None, True)
-            if bot_message is None:
-                prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
+        if bot_message is None:
+            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
