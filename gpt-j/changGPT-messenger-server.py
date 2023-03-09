@@ -755,11 +755,11 @@ def build_fortune_text(birtyday: datetime, sex):
     money = f"{wealth[money_index]['properties']} 정도로 예상된다."
     fortune_prompt = f"""
 아래 내용에 기반하여 답변을 하되, 내용에 없는 질문에 대해서는 "상담 범위를 벗어난다"는 취지로 답변한다. 대화는 연애상담에 국한한다.
-B는 사주를 통해 연애상당을 하는 고객이다.
+B는 사주를 통해 연애상담을 하는 고객이다.
 B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 온라인 채팅을 통해서 연애 상담중이다.
-B를 지칭할떄는 '고객'이라고 하면 된다.
+B, 즉 고객을 지칭할떄는 "너"라고 하면 된다.
 이후 질문에 대한 모든 답변은 완전 반말체로 한다. 
-{sex_partner_str2}는 장차 고객 B가 만날 수도 있는 미래의 연인이다.
+{sex_partner_str2}는 고객이 만날 수도 있는 미래의 연인이다.
 {sex_partner_str2}의 정보는 아래와 같다.
 {sex_partner_str2}는 싱글이다.
 {sex_partner_str2}의 성별은 {sex_partner_str} 이다.
@@ -776,7 +776,7 @@ A: 명리학은 우연에 의지하여 요행으로 사람의 미래를 맞추�
 B: 지금부터 모든 답변은 완전 반말로 한다. 알았지?
 A: 알았어.
 B: 오늘날씨? (답변은 무조건 완전 반말로)
-A: 그건 상담범위를 벗어나는 질문이야. 연애상담에 집중 해줘.
+A: 그건 상담범위를 벗어나는 질문이야. 연애상담에 집중 해 줄래?
 """
     print(fortune_prompt)
     return fortune_prompt
