@@ -667,7 +667,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
         
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
-        if rasa_agent is not None and 'chatgpt' not in context.user_data:
+        if rasa_agent is not None:
             c, r, _, do_not_reply = parse_special_input(context, message, user_input)
             if c is not None:
                 contents = c
