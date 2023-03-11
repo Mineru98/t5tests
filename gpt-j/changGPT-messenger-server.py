@@ -602,6 +602,7 @@ def handle_story(context, message, contents, user_input):
             if user_input.startswith('--'):
                 keystr = user_input[2:]
                 contents = f"{today_fortune_writing}운세 키워드: {keystr}\n오늘의 운세:"
+                context.user_data.pop('fortune_data_input_state', None)
             else:
                 bot_message = stop_fortune_mode(context, message)
     elif 'wait_for_confirm' == context.user_data['fortune_data_input_state']:
