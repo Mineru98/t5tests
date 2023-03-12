@@ -39,7 +39,7 @@
     "scratch": true,
     "reset_weight": false,
     "unfreeze": 0,
-    "save_path": "./Models/polyglot-ko-3.8b-multi-func-v2",
+    "save_path": "./Models/polyglot-ko-3.8b-wiki-nami",
     "max_input_length": 1024,
     "batch_size": 4,
     "gradient_acc": 64,
