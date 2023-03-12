@@ -314,7 +314,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
         eos_token_id=tokenizer.eos_token_id,
         **generation_kwargs
     )
-    result = future.result()
+    result = future.result().response
     print(result)
     if result is None:
         output = f"{contents}\n음... 뭔가 잘 못 됐어..."
