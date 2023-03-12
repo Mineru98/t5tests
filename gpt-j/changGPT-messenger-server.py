@@ -433,14 +433,16 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text = output[len(contents):]
             print(f'new generated=[{gen_text}]')
             gen_text, stopped = search_stop_word(gen_text)
+            force_continue = False
             if gen_text.endswith('�'):
                 gen_text = gen_text[:-1]
+                force_continue = True
             gen_text_concat += gen_text
             gen_text_to_reply += gen_text
             gen_text_token = tokenizer(gen_text)['input_ids'][:generation_chunk]
             new_gen_token_len = len(gen_text_token)
             print(f'new_gen_token_len={new_gen_token_len}')
-            if stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200:
+            if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
                 print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
                 reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                 break
