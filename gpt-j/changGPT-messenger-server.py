@@ -315,6 +315,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
         **generation_kwargs
     )
     result = future.result()
+    print(result)
     if result is None:
         output = f"{contents}\n음... 뭔가 잘 못 됐어..."
     else:
