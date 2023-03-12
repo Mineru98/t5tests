@@ -329,7 +329,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
+    match = re.search(r'�|<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
     if match is None:
         bot_message = generated
     else:
