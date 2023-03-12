@@ -472,7 +472,7 @@ def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_pr
     if duplicated is not None:
         chat_history.remove(duplicated)
     for ch in chat_history:
-        contents += f"{user_prefix}: {ch['user']}\n"
+        contents += f"###\n{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
         if last_bot_message is not None:
             contents += f'{bot_prefix}: {last_bot_message}\n'
