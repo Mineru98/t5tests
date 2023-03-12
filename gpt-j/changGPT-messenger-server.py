@@ -329,7 +329,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'�|<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
+    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
     if match is None:
         bot_message = generated
     else:
@@ -433,6 +433,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text = output[len(contents):]
             print(f'new generated=[{gen_text}]')
             gen_text, stopped = search_stop_word(gen_text)
+            if gen_text.endswith('�')
+                getn_text = gen_text[:-1]
             gen_text_concat += gen_text
             gen_text_to_reply += gen_text
             gen_text_token = tokenizer(gen_text)['input_ids'][:generation_chunk]
