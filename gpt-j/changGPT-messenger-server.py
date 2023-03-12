@@ -309,18 +309,12 @@ def generate_base(model, contents, gen_len):
 
 def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
     generation_kwargs["max_new_tokens"] = gen_len
-    result_id = zero_generator.query_non_block(
+    future = zero_generator.query_async(
         {"query": [contents]}, 
         eos_token_id=tokenizer.eos_token_id,
         **generation_kwargs
     )
-    result = None
-    for i in range(100):
-        result = zero_generator.get_pending_task_result(result_id)
-        if result is not None:
-            result = result.response[0]
-            break
-        time.sleep(2)
+    result = future.result()
     if result is None:
         output = f"{contents}\n음... 뭔가 잘 못 됐어..."
     else:
