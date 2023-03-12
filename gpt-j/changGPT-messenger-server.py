@@ -689,7 +689,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #while len(chat_history) > MAX_CHAT_HISTORY:
     tokens = tokenizer(contents)['input_ids']
     print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
-    while len(tokens) > 800:
+    while len(tokens) > 1024:
         chat_history.pop(0)
         _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
         tokens = tokenizer(contents)['input_ids']
