@@ -661,9 +661,9 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
         if context.user_data['councelor_type'] == 'fortune':
             contents += f"{user_prefix}: {user_input}{detail_answer_prompt_fortune}\n{bot_prefix}:"
         else:
-            contents += f"{user_prefix}: {user_input}{detail_answer_prompt}\n{bot_prefix}:"
+            contents += f"###\n{user_prefix}: {user_input}{detail_answer_prompt}\n{bot_prefix}:"
     else:
-        contents += f"{user_prefix}: {user_input}\n{bot_prefix}:"
+        contents += f"###\n{user_prefix}: {user_input}\n{bot_prefix}:"
         
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
