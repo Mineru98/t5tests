@@ -433,7 +433,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             gen_text = output[len(contents):]
             print(f'new generated=[{gen_text}]')
             gen_text, stopped = search_stop_word(gen_text)
-            if gen_text.endswith('�')
+            if gen_text.endswith('�'):
                 getn_text = gen_text[:-1]
             gen_text_concat += gen_text
             gen_text_to_reply += gen_text
