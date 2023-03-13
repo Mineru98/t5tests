@@ -224,7 +224,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         use_data_cache_file = False
     val_size = int(validation_data_size * rate)
     if val_size < 1:
-        val_size = 2
+        val_size = 1
     if len(dss) > 1:
         ds = dss[0]
         ds = ds.train_test_split(val_size)
