@@ -220,6 +220,7 @@ elif zero_mode:
     print("****************zero_mode enabled!")
     generator = mii.mii_query_handle("lcw_deployment")
     try:
+        print("****************loading lcw_deployment_test.")
         generator_on_test = mii.mii_query_handle("lcw_deployment_test")
     except:
         print("zeromode: no generator on test")
@@ -278,9 +279,9 @@ generation_kwargs_beam = {
     "use_cache":True,
     "num_beams":3,
     # "length_penalty":1.0,
-    "temperature":0.6,
+    "temperature":0.01,
     "top_k":4,
-    "top_p":0.4,
+    "top_p":0.2,
     "no_repeat_ngram_size":2, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
@@ -301,8 +302,19 @@ generation_kwargs_contrasive = {
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-#generation_kwargs = generation_kwargs_beam
-generation_kwargs = generation_kwargs_contrasive
+generation_kwargs_temp = {
+    "repetition_penalty":1.1,
+    "do_sample":True,
+    "use_cache":True,
+    "early_stopping":False,
+    "temperature":0.5,
+    "top_k":50,
+    "top_p":1.0,
+    "pad_token_id":tokenizer.eos_token_id,
+}
+
+generation_kwargs = generation_kwargs_temp
+#generation_kwargs = generation_kwargs_contrasive
 
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
@@ -488,14 +500,14 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 generation_count += 1
                 gen_text = output[len(contents):]
                 print(f'new generated=[{gen_text}]')
-                prev_len = len(gen_text_concat)
-                gen_text_concat += gen_text
-                gen_text_concat, stopped = search_stop_word(gen_text_concat)
-                gen_text = gen_text_concat[prev_len:]
                 force_continue = False
                 if gen_text.endswith('�'):
                     gen_text = gen_text[:-1]
                     force_continue = True
+                prev_len = len(gen_text_concat)
+                gen_text_concat += gen_text
+                gen_text_concat, stopped = search_stop_word(gen_text_concat)
+                gen_text = gen_text_concat[prev_len:]
                 gen_text_to_reply += gen_text
                 gen_text_token = tokenizer(gen_text)['input_ids'][:generation_chunk]
                 new_gen_token_len = len(gen_text_token)
