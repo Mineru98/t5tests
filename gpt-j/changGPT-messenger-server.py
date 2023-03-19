@@ -46,6 +46,7 @@ app = Flask(__name__)
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
 fb_page_access_token = os.environ["FB_PAGE_ACCESS_TOKEN"]
 openai.api_key = os.environ["OPENAI_API_KEY"]
+openai.api_base = "http://127.0.0.1:8888/v1"
 
 @app.route('/', methods=['GET'])
 def verify():
@@ -217,9 +218,9 @@ if deepspeed_mode:
     gpt_on_test = ds_engine.module
 elif zero_mode:
     print("****************zero_mode enabled!")
-    generator = mii.mii_query_handle("lcw_deployment_test")
+    generator = mii.mii_query_handle("lcw_deployment")
     try:
-        generator_on_test = mii.mii_query_handle("lcw_deployment")
+        generator_on_test = mii.mii_query_handle("lcw_deployment_test")
     except:
         print("zeromode: no generator on test")
         generator_on_test = generator
@@ -272,14 +273,15 @@ def query(context, message, user_input):
         return prompt_query(context, message, user_input)
         
 generation_kwargs = {
-    "do_sample": False,
+    "do_sample":True,
     "early_stopping":False,
     "use_cache":True,
-    "num_beams":3,
-    "length_penalty":1.0,
-    "temperature":1.5,
-    "top_k":4,
-    "top_p":0.6,
+    # "num_beams":3,
+    # "length_penalty":1.0,
+    "temperature":0.3,
+    "penalty_alpha":0.6,    # contrasive search 
+    "top_k":2,
+    "top_p":0.8,
     "no_repeat_ngram_size":3, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
@@ -354,8 +356,11 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
             last_sent_msg = message.reply_text(full_text)
             print("$$replay_text called.")
         else:
-            last_sent_msg.edit_text(full_text)
-            print("$$edit_text called.")
+            #print(f"$$edit_text called=[{full_text}]")
+            try:
+                last_sent_msg.edit_text(full_text)
+            except:
+                pass
         return "", last_sent_msg
     else:
         text = remove_trash(text)
@@ -426,28 +431,63 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         start_time = datetime.today().timestamp()
         prompt = contents
         print(f'prompt={prompt}')
-        while True:
-            send_typing(context, context.user_data['chat_id'])
-            output = generate_low_level(context, contents, gen_len)
-            generation_count += 1
-            gen_text = output[len(contents):]
-            print(f'new generated=[{gen_text}]')
-            gen_text, stopped = search_stop_word(gen_text)
-            force_continue = False
-            if gen_text.endswith('�'):
-                gen_text = gen_text[:-1]
-                force_continue = True
-            gen_text_concat += gen_text
-            gen_text_to_reply += gen_text
-            gen_text_token = tokenizer(gen_text)['input_ids'][:generation_chunk]
-            new_gen_token_len = len(gen_text_token)
-            print(f'new_gen_token_len={new_gen_token_len}')
-            if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
-                print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
-                reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
-                break
-            gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
-            contents = output         
+        if False:
+            completion_text = []
+            speed = 0.001 #smaller is faster
+            max_response_length = 512
+            start_time = time.time()
+            # Generate Answer
+            response = openai.Completion.create(
+                model='chang',
+                prompt=prompt,
+                max_tokens=max_response_length,
+                stream=True,  # this time, we set stream=True
+                **generation_kwargs,
+            )
+
+            # Stream Answer
+            for event in response:
+                event_time = time.time() - start_time  # calculate the time delay of the event
+                gen_text = event['choices'][0]['text']  # extract the text
+                print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}")
+                time.sleep(speed)
+                if len(gen_text) == 0:
+                    continue
+                prev_len = len(gen_text_concat)
+                gen_text_concat += gen_text
+                gen_text_concat, stopped = search_stop_word(gen_text_concat)
+                gen_text = gen_text_concat[prev_len:]
+                if len(gen_text) > 0:
+                    gen_text_to_reply += gen_text
+                    gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+                if stopped:
+                    break
+        else:
+            while True:
+                send_typing(context, context.user_data['chat_id'])
+                output = generate_low_level(context, contents, gen_len)
+                generation_count += 1
+                gen_text = output[len(contents):]
+                print(f'new generated=[{gen_text}]')
+                prev_len = len(gen_text_concat)
+                gen_text_concat += gen_text
+                gen_text_concat, stopped = search_stop_word(gen_text_concat)
+                gen_text = gen_text_concat[prev_len:]
+                force_continue = False
+                if gen_text.endswith('�'):
+                    gen_text = gen_text[:-1]
+                    force_continue = True
+                gen_text_to_reply += gen_text
+                gen_text_token = tokenizer(gen_text)['input_ids'][:generation_chunk]
+                new_gen_token_len = len(gen_text_token)
+                print(f'new_gen_token_len={new_gen_token_len}')
+                if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
+                    print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
+                    reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
+                    break
+                gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+                contents = output         
+
         print(f'generation_count={generation_count}')
         print(f'gen_text_concat final=[{gen_text_concat}]')
         generated = gen_text_concat.strip()
@@ -476,7 +516,7 @@ def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_pr
     if duplicated is not None:
         chat_history.remove(duplicated)
     for ch in chat_history:
-        contents += f"###\n{user_prefix}: {ch['user']}\n"
+        contents += f"{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
         if last_bot_message is not None:
             contents += f'{bot_prefix}: {last_bot_message}\n'
@@ -665,9 +705,9 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
         if context.user_data['councelor_type'] == 'fortune':
             contents += f"{user_prefix}: {user_input}{detail_answer_prompt_fortune}\n{bot_prefix}:"
         else:
-            contents += f"###\n{user_prefix}: {user_input}{detail_answer_prompt}\n{bot_prefix}:"
+            contents += f"{user_prefix}: {user_input}{detail_answer_prompt}\n{bot_prefix}:"
     else:
-        contents += f"###\n{user_prefix}: {user_input}\n{bot_prefix}:"
+        contents += f"{user_prefix}: {user_input}\n{bot_prefix}:"
         
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:

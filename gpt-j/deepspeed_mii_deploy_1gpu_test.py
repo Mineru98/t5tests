@@ -47,10 +47,12 @@ ds_config2 = {
     "train_micro_batch_size_per_gpu": 1,
 }
 
+model_path = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-wiki-nami/checkpoint-1800"
+
 mii.deploy(task="text-generation",
-           model="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-3520",
+           model=model_path,
            #model="EleutherAI/gpt-neox-20b",
-           model_path="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-3520",
+           model_path=model_path,
            deployment_name="lcw_deployment_test",
            enable_deepspeed=False,
            enable_zero=True,
