@@ -272,20 +272,37 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, message, user_input)
         
-generation_kwargs = {
+generation_kwargs_beam = {
+    "do_sample":False,
+    "early_stopping":False,
+    "use_cache":True,
+    "num_beams":3,
+    # "length_penalty":1.0,
+    "temperature":0.6,
+    "top_k":4,
+    "top_p":0.4,
+    "no_repeat_ngram_size":2, 
+    "repetition_penalty":1.2,
+    "pad_token_id":tokenizer.eos_token_id,
+}
+
+generation_kwargs_contrasive = {
     "do_sample":True,
     "early_stopping":False,
     "use_cache":True,
     # "num_beams":3,
     # "length_penalty":1.0,
-    "temperature":0.3,
-    "penalty_alpha":0.6,    # contrasive search 
-    "top_k":2,
-    "top_p":0.8,
-    "no_repeat_ngram_size":3, 
-    "repetition_penalty":1.2,
+    # "temperature":0.6,
+    "penalty_alpha":0.6,     
+    "top_k":4,
+    # "top_p":0.4,
+    # "no_repeat_ngram_size":2, 
+    # "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
+
+#generation_kwargs = generation_kwargs_beam
+generation_kwargs = generation_kwargs_contrasive
 
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
@@ -432,7 +449,6 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         prompt = contents
         print(f'prompt={prompt}')
         if False:
-            completion_text = []
             speed = 0.001 #smaller is faster
             max_response_length = 512
             start_time = time.time()
@@ -449,7 +465,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             for event in response:
                 event_time = time.time() - start_time  # calculate the time delay of the event
                 gen_text = event['choices'][0]['text']  # extract the text
-                print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}")
+                if len(gen_text) > 0:
+                    print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}, {ord(gen_text[0])}")
                 time.sleep(speed)
                 if len(gen_text) == 0:
                     continue
@@ -461,6 +478,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     gen_text_to_reply += gen_text
                     gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 if stopped:
+                    print(f'**stop pos={len(gen_text)}')
+                    reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
         else:
             while True:
