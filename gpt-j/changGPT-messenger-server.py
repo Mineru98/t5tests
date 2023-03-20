@@ -445,6 +445,12 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
     else:
         output = generate_base(model, contents, gen_len)
     return output
+
+def generate_and_stop(context, contents, gen_len = generation_chunk):
+    output = generate_low_level(context, contents, gen_len)
+    output = output[len(contents):].strip()
+    output, stopped = search_stop_word(output)
+    return output
     
 def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
     global generator
@@ -584,23 +590,23 @@ def parse_special_input(context, message, user_input):
         contents = f"{movie_info}{user_input}"
     elif intent_name == "request_poem":
         content = f'{entity_extract_for_poem}{user_input} ==>'
-        title = generate_low_level(context, content)[len(content):].strip()
+        title = generate_and_stop(context, content)
         contents = f"{poem_writing}제목: {title}\n시:"
     elif intent_name == "request_samhangsi":
         content = f'{entity_extract_for_poem}{user_input} ==>'
-        name = generate_low_level(context, content)[len(content):].strip()
+        name = generate_and_stop(context, content)
         name_comma = ""
         for c in name:
             name_comma += f"{c},"
         name_comma = name_comma[:-1]
         content = f"{samhangsi_writing}{name_comma} ="
         print(content)
-        samhangsi = generate_low_level(context, content, 80)[len(content):].strip()
+        samhangsi = generate_and_stop(context, content, 80)
         reply = re.sub(r'[0-9]', '', samhangsi)
         contents = None
     elif intent_name == "movie_recommend":
         content = f'{entity_extract_for_poem}{user_input} ==>'
-        movie_title = generate_low_level(context, content)[len(content):].strip()
+        movie_title = generate_and_stop(context, content)
         content = f"영화 추천목록\n• {movie_title}"
         gen_text_concat = ""
         sent_message = None

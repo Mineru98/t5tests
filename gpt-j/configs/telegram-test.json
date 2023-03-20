@@ -1,6 +1,6 @@
 {
-    "normal_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora-merged",
-    "test_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora-merged",
+    "normal_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-final-layers/checkpoint-80",
+    "test_model": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-final-layers/checkpoint-80",
     "deepspeed_mode": false,
     "zero_mode": false,
     "telegram": true,
