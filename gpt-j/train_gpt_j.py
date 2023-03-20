@@ -1,6 +1,6 @@
 from multiprocessing import Pool
 import sys, os, argparse, transformers, torch, random, evaluate, numpy, re, json, ftfy, glob
-from datasets import load_dataset, load_metric, load_from_disk, Dataset, concatenate_datasets
+from datasets import load_dataset, load_metric, load_from_disk, Dataset, concatenate_datasets, disable_caching
 from accelerate import Accelerator, DistributedDataParallelKwargs
 import accelerate
 from tqdm.contrib.concurrent import process_map
@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 from collections.abc import Mapping
 from gpt_j_8bit import GPTJForCausalLM8, GPTJBlock8, add_adapters
 import pandas
-import hanja
 
 from peft import get_peft_config, get_peft_model, LoraConfig, TaskType, PrefixTuningConfig
 
@@ -126,7 +125,7 @@ def preprocess_function(ss):
 
     
 def tokenizing_sample(ss):
-    if softembeddings or LoRa or PrefixTuning:
+    if softembeddings or PrefixTuning:
         return preprocess_function(ss)
     tokenized = {}
     input_ids = []
@@ -159,7 +158,7 @@ def tokenizing_sample(ss):
         pos = 0        
         text = wikitext_detokenizer(text)
         text = ftfy.fix_text(text, normalization='NFKC')
-        if softembeddings or LoRa or PrefixTuning:
+        if softembeddings or PrefixTuning:
             encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text)
             input_ids.append(input_ids_sub)
             attention_mask.append(attention_mask_sub)
@@ -811,9 +810,15 @@ def init_model():
         if LoRa:
             accelerator.print("LoRa enabled.......")
             peft_config = LoraConfig(
-                task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
-            )        
+                r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM"
+            )
+            # peft_config = LoraConfig(
+            #     task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+            # )        
             gpt = get_peft_model(gpt, peft_config)
+            for name, param in gpt.named_parameters():
+                if "embed_in" in name:
+                    param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
             gpt.print_trainable_parameters()
         elif PrefixTuning:
             peft_config = PrefixTuningConfig(task_type=TaskType.CAUSAL_LM, num_virtual_tokens = max_input_length)            

@@ -30,6 +30,15 @@
                 "configs/telegram-test.json",
             ],
             "justMyCode": false
-        }
+        },
+        {
+            "name": "Python: no arg",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [],
+            "justMyCode": true
+        },
     ]
 }
