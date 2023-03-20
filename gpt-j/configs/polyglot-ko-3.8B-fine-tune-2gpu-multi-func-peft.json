@@ -14,7 +14,7 @@
     "save_path": "./Models/polyglot-ko-3.8b-lora",
     "max_input_length": 1024,
     "batch_size": 4,
-    "gradient_acc": 32,
+    "gradient_acc": 64,
     "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
