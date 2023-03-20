@@ -31,7 +31,8 @@
         "gsm8k_ko_to_en":0.01,
         "gsm8k_en_to_ko":0.01,
         "korquad_2.1":0.01,
-        "korquad_2.1_dev":0.01
+        "korquad_2.1_dev":0.01,
+        "alpaca":1.0
     },
     "lora": true,
     "prefixtuning": false,
