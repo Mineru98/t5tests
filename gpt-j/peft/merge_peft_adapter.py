@@ -43,5 +43,5 @@ for key in key_list:
         model.base_model._replace_module(parent, target_name, new_module, target)
 
 model = model.base_model.model
-
-model.push_to_hub(f"{script_args.model_name}-adapter-merged", use_temp_dir=False)
+model.save_pretrained("./polyglot-5.8b-aaa")
+#model.push_to_hub(f"{script_args.model_name}-adapter-merged", use_temp_dir=False)

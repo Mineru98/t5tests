@@ -809,8 +809,9 @@ def init_model():
         
         if LoRa:
             accelerator.print("LoRa enabled.......")
+            target_modules = ["query_key_value", "xxx"]  # workaround to use 8bit training on this model
             peft_config = LoraConfig(
-                r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM"
+                r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM", target_modules=target_modules 
             )
             # peft_config = LoraConfig(
             #     task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
@@ -859,20 +860,24 @@ def init_model():
         pass
     else:
         if scratch:
-                if not load_in_8bit:
-                    if reset_weight:
-                        gpt.init_weights()  # from scarch
-                # for param in gpt.base_model.parameters():
-                #     if param.dtype == torch.int8:
-                #         param.has_fp16_weight = True    # for training
-                #         param.memory_efficient_backward = True
-                #         # param.requires_grad = True      # not working now
-                #     else:
-                #         param.requires_grad = True    
-                unfreeze_transformer_layer(gpt, 1000)     
+            if not load_in_8bit:
+                if reset_weight:
+                    gpt.init_weights()  # from scarch
+            # for param in gpt.base_model.parameters():
+            #     if param.dtype == torch.int8:
+            #         param.has_fp16_weight = True    # for training
+            #         param.memory_efficient_backward = True
+            #         # param.requires_grad = True      # not working now
+            #     else:
+            #         param.requires_grad = True    
+            unfreeze_transformer_layer(gpt, 1000)     
         else: 
-            unfreeze_transformer_layer(gpt, unfreeze)           
-
+            # unfreeze_transformer_layer(gpt, unfreeze)           
+            for name, param in gpt.named_parameters():
+                if "embed_out" in name:
+                    param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
+                else:
+                    param.requires_grad = False
     gpt.gradient_checkpointing_enable()
     
     gpt.config.__dict__["_name_or_path"] = f"{new_model_name}"
@@ -1457,7 +1462,8 @@ def huggingface_trainer():
     else:
         trainer.train()
     trainer.save_model()
-    model.save_pretrained("./Models/aaa")
+    if LoRa:
+        model.save_pretrained(f"{save_path}/lora")
                                     
 def main():
     global start_model_path, model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
