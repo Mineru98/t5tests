@@ -1,6 +1,6 @@
 {
     "model_file": "EleutherAI/polyglot-ko-3.8b",
-    "tokenizer": "EleutherAI/polyglot-ko-1.3b",
+    "tokenizer": "EleutherAI/polyglot-ko-3.8b",
     "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b-lora",
     "cache_folder_name": "cache-v2",
     "dataset": {
