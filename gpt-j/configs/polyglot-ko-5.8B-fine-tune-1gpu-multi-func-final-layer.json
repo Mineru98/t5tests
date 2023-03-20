@@ -1,7 +1,7 @@
 {
     "model_file": "EleutherAI/polyglot-ko-5.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
-    "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-lora",
+    "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-final-layers",
     "cache_folder_name": "cache-v2",
     "dataset": {
         "nikl_news":0.002,
@@ -33,12 +33,12 @@
         "korquad_2.1":0.01,
         "korquad_2.1_dev":0.01
     },
-    "lora": true,
+    "lora": false,
     "prefixtuning": false,
-    "scratch": true,
+    "scratch": false,
     "reset_weight": false,
-    "unfreeze": 0,
-    "save_path": "./Models/polyglot-ko-5.8b-lora",
+    "unfreeze": ["gpt_neox.embed_in.weight", "embed_out.weight", "gpt_neox.final_layer_norm.weight", "gpt_neox.final_layer_norm.bias"],
+    "save_path": "./Models/polyglot-ko-5.8b-final-layers",
     "max_input_length": 1024,
     "batch_size": 4,
     "gradient_acc": 64,
