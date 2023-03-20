@@ -817,7 +817,7 @@ def init_model():
             # )        
             gpt = get_peft_model(gpt, peft_config)
             for name, param in gpt.named_parameters():
-                if "embed_in" in name:
+                if "embed_out" in name:
                     param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
             gpt.print_trainable_parameters()
         elif PrefixTuning:
