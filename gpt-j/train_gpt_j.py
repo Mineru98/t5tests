@@ -1457,7 +1457,7 @@ def huggingface_trainer():
     else:
         trainer.train()
     trainer.save_model()
-    
+    model.save_pretrained("./Models/aaa")
                                     
 def main():
     global start_model_path, model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
