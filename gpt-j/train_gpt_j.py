@@ -22,16 +22,6 @@ import pandas
 
 from peft import get_peft_config, get_peft_model, LoraConfig, TaskType, PrefixTuningConfig
 
-"""
-# original tokenizer, not freeze, fine_tune or all
-    python train_gpt_j.py -d namu -i 256 --tokenizer tokenizer-gpt-j-6B-org --eval_sample 
-# original tokenizer, freeze except lm_head
-    python train_gpt_j.py -d namu -i 256 --tokenizer tokenizer-gpt-j-6B-org --eval_sample --tune_head_only
-# korean extended vocabulary
-    python train_gpt_j.py -d namu -i 256 -kor_voca --eval_sample --tune_head_only
-# korean extended vocabulary, reset all weight
-    python train_gpt_j.py -d namu -i 256 -kor_voca --eval_sample --scratch    
-"""
 data_build_only = False
 gpt_neo = None      
 model_file = None
@@ -43,9 +33,8 @@ start_model_path = None
 scratch = False
 kor_voca_extention = False
 eval_sample = False
-tune_head_only = False
 skip_eval = False
-unfreeze = 0     # GPT-j-6B has total 27 transformer layer
+unfreeze = []    
 
 num_train_epochs = 2
 dataset_source = ["wiki"]
@@ -737,43 +726,28 @@ def list_model_children(model):
                 #child.num_embeddings = 91238
                 accelerator.print("\n********************\nchild.num_embeddings=", child.num_embeddings, child.embedding_dim)
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
-    
-def unfreeze_transformer_layer(model, last_n_layer):
-    accelerator.print(model)
-    gpt_neox = False
-    if model.base_model_prefix == 'gpt_neox':
-        gpt_neox = True
         
-    params_source = dict(model.named_parameters());
-
-    for key in params_source.keys():
-        print(key, params_source[key].data.shape) 
-
-    for parameter in model.parameters():
-        parameter.requires_grad = True
-
-    if gpt_neox:
-        total_layer = len(model.gpt_neox.layers)
-        accelerator.print("total transformer layers=", total_layer)
-        for i, m in enumerate(model.gpt_neox.layers):        
-            if i < total_layer - last_n_layer:
-                for parameter in m.parameters():
-                    accelerator.print("freeze layer=", i)
-                    parameter.requires_grad = False 
-    else:
-        total_layer = len(model.transformer.h)
-        accelerator.print("total transformer layers=", total_layer)
-        for i, m in enumerate(model.transformer.h):        
-            if i < total_layer - last_n_layer:
-                for parameter in m.parameters():
-                    accelerator.print("freeze layer=", i)
-                    parameter.requires_grad = False 
-
-        for parameter in model.transformer.ln_f.parameters():        
-            parameter.requires_grad = True
-
-        for parameter in model.lm_head.parameters():        
-            parameter.requires_grad = True
+def unfreeze_transformer_layer(model, unfreeze_layers):
+    for name, param in model.named_parameters():
+        if name in unfreeze_layers:
+            param.requires_grad = True      
+        else:
+            param.requires_grad = False      
+            
+def print_trainable_parameters(model):
+    """
+    Prints the number of trainable parameters in the model.
+    """
+    trainable_params = 0
+    all_param = 0
+    for name, param in model.named_parameters():
+        all_param += param.numel()
+        if param.requires_grad:
+            trainable_params += param.numel()
+        accelerator.print(f"{name} = {param.requires_grad}")
+    accelerator.print(
+        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+    )
 
 from megatron.model import SoftEmbedding, SoftEmbedding2                                 
 def init_model():
@@ -870,14 +844,10 @@ def init_model():
             #         # param.requires_grad = True      # not working now
             #     else:
             #         param.requires_grad = True    
-            unfreeze_transformer_layer(gpt, 1000)     
-        else: 
-            # unfreeze_transformer_layer(gpt, unfreeze)           
-            for name, param in gpt.named_parameters():
-                if "embed_out" in name:
-                    param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
-                else:
-                    param.requires_grad = False
+        else:
+            if len(unfreeze) > 0: 
+                unfreeze_transformer_layer(gpt, unfreeze)           
+    print_trainable_parameters(gpt)
     gpt.gradient_checkpointing_enable()
     
     gpt.config.__dict__["_name_or_path"] = f"{new_model_name}"
@@ -1462,13 +1432,12 @@ def huggingface_trainer():
     else:
         trainer.train()
     trainer.save_model()
-    if LoRa:
-        model.save_pretrained(f"{save_path}/lora")
+    model.save_pretrained(f"{save_path}/final")
                                     
 def main():
     global start_model_path, model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
-            tune_head_only, unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
+            unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
             deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings
     
@@ -1486,8 +1455,7 @@ def main():
     parser.add_argument("--scratch", action='store_true', help = "training from scratch")
     parser.add_argument("--load_in_8bit", action='store_true', help = "load in 8bit")
     parser.add_argument("--kor_voca", action='store_true', help = "use extended kor tokenizer")
-    parser.add_argument("--tune_head_only", action='store_true', help = "freeze nn except head")
-    parser.add_argument("--unfreeze", help = "set num layer to unfreeze")
+    parser.add_argument("--unfreeze", help = "set layer names to unfreeze")
     parser.add_argument("--gpt_neo", help = "gpt-neo model")
     parser.add_argument("--model_file", help = "local model file path")
     parser.add_argument("--save_path", help = "model save path")
@@ -1537,10 +1505,8 @@ def main():
         load_in_8bit = True
     if args.kor_voca:
         kor_voca_extention = True
-    if args.tune_head_only:
-        tune_head_only = True
     if args.unfreeze:
-        unfreeze = int(args.unfreeze)
+        unfreeze = args.unfreeze
     if args.gpt_neo:
         gpt_neo = args.gpt_neo
     if args.model_file:
@@ -1583,8 +1549,6 @@ def main():
 
     if scratch:
         kor_voca_extention = False
-    if tune_head_only:
-        unfreeze = 0   
         
     base_model_name = new_model_name
         
@@ -1597,14 +1561,6 @@ def main():
         base_model_name += "_rebuild"
     else:
         base_model_name += "_fine-tune"
-
-    if tune_head_only:
-        base_model_name += "_tune-head-only"
-    else:
-        if unfreeze >= 0:
-            base_model_name += f"_unfreeze_{unfreeze}"
-        else:
-            base_model_name += "_tune-all"
 
     accelerator.print(f"\n---------\nmodel name: {base_model_name}")
         

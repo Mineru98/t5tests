@@ -191,9 +191,6 @@ if not zero_mode:
         low_cpu_mem_usage=True,
     ).to(device, torch.float16)
     
-    peft_config = PeftConfig.from_pretrained("/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora/checkpoint-60")
-    
-
     if latest_model_dir == latest_model_dir_on_test:
         print("**** normal == test")
         gpt_on_test = gpt
