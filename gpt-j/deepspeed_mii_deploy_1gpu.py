@@ -47,7 +47,8 @@ ds_config2 = {
     "train_micro_batch_size_per_gpu": 1,
 }
 
-model_path = "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func-v2/checkpoint-4620"
+import os
+model_path = os.environ["CURRENT_MODEL"]
 
 mii.deploy(task="text-generation",
            model=model_path,

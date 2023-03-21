@@ -278,8 +278,8 @@ generation_kwargs_beam = {
     "early_stopping":False,
     "use_cache":True,
     "num_beams":5,
-    # "length_penalty":1.0,
-    "temperature":0.6,
+    # "length_penalty":0.1,
+    "temperature":0.4,
     "top_k":4,
     "top_p":0.4,
     "no_repeat_ngram_size":2, 
@@ -771,7 +771,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #while len(chat_history) > MAX_CHAT_HISTORY:
     tokens = tokenizer(contents)['input_ids']
     print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
-    while len(tokens) > 512 or len(chat_history) > 3:
+    while len(tokens) > 512 or len(chat_history) > 7:
         chat_history.pop(0)
         _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
         tokens = tokenizer(contents)['input_ids']
