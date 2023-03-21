@@ -519,15 +519,15 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 gen_text_token = tokenizer(gen_text)['input_ids'][:generation_chunk]
                 new_gen_token_len = len(gen_text_token)
                 print(f'new_gen_token_len={new_gen_token_len}')
+                if 'stop_generation' in context.user_data:
+                    context.user_data.pop('stop_generation', None)
+                    stopped = True
                 if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
                     print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
                 gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 contents = output         
-                if 'stop_generation' in context.user_data:
-                    context.user_data.pop('stop_generation', None)
-                    break
 
         print(f'generation_count={generation_count}')
         print(f'gen_text_concat final=[{gen_text_concat}]')
