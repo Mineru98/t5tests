@@ -15,7 +15,7 @@ class ScriptArguments:
 
     # NOTE: gpt2 models use Conv1D instead of Linear layers which are not yet supported in 8 bit mode
     # models like gpt-neo* models are more suitable
-    model_name: Optional[str] = field(default="/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora/final", metadata={"help": "the model name"})
+    model_name: Optional[str] = field(default="/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-3.8b-lora/final", metadata={"help": "the model name"})
 
 
 parser = HfArgumentParser(ScriptArguments)
@@ -43,5 +43,5 @@ for key in key_list:
         model.base_model._replace_module(parent, target_name, new_module, target)
 
 model = model.base_model.model
-model.save_pretrained("./Models/polyglot-ko-5.8b-lora-merged")
+model.save_pretrained("./Models/polyglot-ko-3.8b-lora-merged-based-v2-4640")
 #model.push_to_hub(f"{script_args.model_name}-adapter-merged", use_temp_dir=False)

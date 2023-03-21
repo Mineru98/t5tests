@@ -15,10 +15,10 @@
     "max_input_length": 1024,
     "batch_size": 4,
     "gradient_acc": 64,
-    "num_epochs": 2,
-    "save_step": 20,
-    "eval_step": 20,
+    "num_epochs": 5,
+    "save_step": 1000,
+    "eval_step": 1000,
     "validation_data_size": 64,
     "ignore_data_skip": false,
-    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json"
+    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu_peft.json"
 }
