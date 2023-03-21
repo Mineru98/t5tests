@@ -277,7 +277,7 @@ generation_kwargs_beam = {
     "do_sample":False,
     "early_stopping":False,
     "use_cache":True,
-    "num_beams":5,
+    "num_beams":3,
     # "length_penalty":0.1,
     "temperature":0.4,
     "top_k":4,
@@ -314,7 +314,7 @@ generation_kwargs_temp = {
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs = generation_kwargs_contrasive
+generation_kwargs = generation_kwargs_beam
 #generation_kwargs = generation_kwargs_contrasive
 
 def generate_base(model, contents, gen_len):
@@ -361,7 +361,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n?[A-Z]\s?(?:[:;-])', generated)
+    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?(?:[:;-])', generated)
     if match is None:
         bot_message = generated
     else:
@@ -522,7 +522,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 if 'stop_generation' in context.user_data:
                     context.user_data.pop('stop_generation', None)
                     stopped = True
-                if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
+                if not force_continue and (stopped or new_gen_token_len + 1 < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
                     print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
@@ -586,16 +586,16 @@ def parse_special_input(context, message, user_input):
         return None, None, None, do_not_send_reply
     if intent_name == "ask_article":
         contents = f"{article_writing}제목: {user_input}\n기사:"
-    elif intent_name == "ask_blog":
-        contents = f"{blog_writing}제목: {user_input}\n블로그:"
-    elif intent_name == "request_receipe":
-        contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
-    elif intent_name == "movie_info":
-        contents = f"{movie_info}{user_input}"
-    elif intent_name == "request_poem":
-        content = f'{entity_extract_for_poem}{user_input} ==>'
-        title = generate_and_stop(context, content)
-        contents = f"{poem_writing}제목: {title}\n시:"
+    # elif intent_name == "ask_blog":
+    #     contents = f"{blog_writing}제목: {user_input}\n블로그:"
+    # elif intent_name == "request_receipe":
+    #     contents = f"{receipe_writing}요리 이름: {user_input}\n만드는 법:"
+    # elif intent_name == "movie_info":
+    #     contents = f"{movie_info}{user_input}"
+    # elif intent_name == "request_poem":
+    #     content = f'{entity_extract_for_poem}{user_input} ==>'
+    #     title = generate_and_stop(context, content)
+    #     contents = f"{poem_writing}제목: {title}\n시:"
     elif intent_name == "request_samhangsi":
         content = f'{entity_extract_for_poem}{user_input} ==>'
         name = generate_and_stop(context, content)

@@ -756,9 +756,10 @@ def print_trainable_parameters(model):
         if param.requires_grad:
             trainable_params += param.numel()
         accelerator.print(f"{name} = {param.requires_grad}")
-    accelerator.print(
-        f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
-    )
+    if all_param > 0:
+        accelerator.print(
+            f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param}"
+        )
 
 from megatron.model import SoftEmbedding, SoftEmbedding2                                 
 def init_model():

@@ -29,22 +29,22 @@
         }
     },
     "zero_optimization": {
-        "stage": 2,
+        "stage": 3,
         "offload_optimizer": {
-            "device": "cpu",
+            "device": "nvme",
             "nvme_path": "/home/chang/nvme/deepspeed_offload",
             "pin_memory": true
         },
         "offload_param": {
-            "device": "cpu",
+            "device": "nvme",
             "nvme_path": "/home/chang/nvme/deepspeed_offload",
             "pin_memory": true
         },        
         "allgather_partitions": true,
-        "allgather_bucket_size":5e8,
+        "allgather_bucket_size":5e7,
         "overlap_comm": true,
         "reduce_scatter": true,
-        "reduce_bucket_size": 5e8,
+        "reduce_bucket_size": 5e7,
         "contiguous_gradients": true
     },
     "gradient_accumulation_steps": 64,

@@ -79,7 +79,7 @@ chat_prompt_expert_ko_simple = """
 아래는 A와 B의 대화이다. B는 인간 A는 인공지능이다. 주로 B가 질문하고 A가 답을 한다. A의 입장에서 최대한 자연스러운 대화를 연결하시오. 질문에 맞는 적절한 답변을 하되 답변은 최대한 친절하고, 상세하게 해야 한다.
 """
 
-chat_prompt_expert_ko = chat_prompt_expert_old
+chat_prompt_expert_ko = chat_prompt_expert_ko_simple
 
 detail_answer_prompt = ""
 detail_answer_prompt_fortune = "(역술 전문가로서 성의있고 자세한 답변 바람)"
