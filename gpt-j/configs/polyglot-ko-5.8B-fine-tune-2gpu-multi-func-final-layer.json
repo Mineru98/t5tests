@@ -194,13 +194,14 @@
     ],
     "save_path": "./Models/polyglot-ko-5.8b-final-layers",
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 1,
     "gradient_acc": 64,
     "num_epochs": 4,
-    "save_step": 20,
-    "eval_step": 2000,
+    "save_step": 40,
+    "eval_step": 20,
     "validation_data_size": 64,
     "ignore_data_skip": false,
+    "skip_eval": true,
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json"
 }
 
