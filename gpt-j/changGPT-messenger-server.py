@@ -308,8 +308,8 @@ generation_kwargs_temp = {
     "use_cache":True,
     "early_stopping":False,
     "temperature":0.5,
-    "top_k":50,
-    "top_p":1.0,
+    "top_k":4,
+    "top_p":0.4,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
