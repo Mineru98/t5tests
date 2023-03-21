@@ -194,7 +194,7 @@
     ],
     "save_path": "./Models/polyglot-ko-5.8b-final-layers",
     "max_input_length": 1024,
-    "batch_size": 1,
+    "batch_size": 2,
     "gradient_acc": 64,
     "num_epochs": 4,
     "save_step": 20,
