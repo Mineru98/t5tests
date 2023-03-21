@@ -15,7 +15,7 @@ class ScriptArguments:
 
     # NOTE: gpt2 models use Conv1D instead of Linear layers which are not yet supported in 8 bit mode
     # models like gpt-neo* models are more suitable
-    model_name: Optional[str] = field(default="/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora/checkpoint-60", metadata={"help": "the model name"})
+    model_name: Optional[str] = field(default="/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora/final", metadata={"help": "the model name"})
 
 
 parser = HfArgumentParser(ScriptArguments)

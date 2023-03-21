@@ -46,11 +46,12 @@ ds_config2 = {
     },
     "train_micro_batch_size_per_gpu": 1,
 }
+model_path = "/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora-merged"
 
 mii.deploy(task="text-generation",
-           model="lcw99/polyglot-ko-3.8b-multi-func-3060",
+           model=model_path,
            #model="EleutherAI/polyglot-ko-1.3b",
-           model_path="/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-3.8b-multi-func/checkpoint-3060",
+           model_path=model_path,
            deployment_name="lcw_deployment",
            enable_deepspeed=False,
            enable_zero=True,
