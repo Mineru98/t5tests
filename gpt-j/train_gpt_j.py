@@ -43,6 +43,7 @@ continue_train = False
 training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
 validation_data_size = batch_size * 10
+train_dataset_size = 0
 load_in_8bit = False
 reset_weight = False
 LoRa = False
@@ -264,7 +265,7 @@ def get_cc100(n):
     return ds, source, text_templates
 
 def get_dataset(tokenize):
-    global text_templates, validation_data_size
+    global text_templates, validation_data_size, train_dataset_size
     data_server = os.environ['AI_DATA_SERVER']
     # data_server = "/home/chang/hd3t/dataset/text/"
     accelerator.print("reading dataset...", dataset_source)
@@ -1385,7 +1386,7 @@ def huggingface_trainer():
     warmup_steps = 0
     if is_ds:
         warmup_steps = 300
-    if LoRa:
+    if train_dataset_size < (batch_size * gradient_acc) * 500:
         warmup_steps = 10
     args = TrainingArguments(
         model_save_dir,
@@ -1453,7 +1454,7 @@ def main():
     global start_model_path, model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
             unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
-            save_step, eval_step, validation_data_size, ignore_data_skip, reset_weight, skip_eval, \
+            save_step, eval_step, validation_data_size, train_dataset_size, ignore_data_skip, reset_weight, skip_eval, \
             deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings
     
     parser_config = argparse.ArgumentParser()
