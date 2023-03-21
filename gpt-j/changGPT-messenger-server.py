@@ -46,7 +46,7 @@ app = Flask(__name__)
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
 fb_page_access_token = os.environ["FB_PAGE_ACCESS_TOKEN"]
 openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.api_base = "http://127.0.0.1:8888/v1"
+# openai.api_base = "http://127.0.0.1:8888/v1"
 
 @app.route('/', methods=['GET'])
 def verify():
@@ -133,7 +133,7 @@ latest_model_dir_on_test = None
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 25
+generation_chunk = 32
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -525,6 +525,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     break
                 gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 contents = output         
+                if 'stop_generation' in context.user_data:
+                    context.user_data.pop('stop_generation', None)
+                    break
 
         print(f'generation_count={generation_count}')
         print(f'gen_text_concat final=[{gen_text_concat}]')
@@ -771,7 +774,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #while len(chat_history) > MAX_CHAT_HISTORY:
     tokens = tokenizer(contents)['input_ids']
     print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
-    while len(tokens) > 512 or len(chat_history) > 7:
+    while len(tokens) > 712 or len(chat_history) > 7:
         chat_history.pop(0)
         _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
         tokens = tokenizer(contents)['input_ids']
@@ -838,7 +841,6 @@ def build_fortune_text(birtyday: datetime, sex):
     money_index = int(birtyday.day * birtyday.hour) % 12
     money = f"{wealth[money_index]['properties']} 정도로 예상된다."
     fortune_prompt = f"""
-아래 내용에 기반하여 답변을 하되, 내용에 없는 질문에 대해서는 "상담 범위를 벗어난다"는 취지로 답변한다. 대화는 연애상담에 국한한다.
 B는 사주를 통해 연애상담을 하는 고객이다.
 B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 온라인 채팅을 통해서 연애 상담중이다.
 B, 즉 고객을 지칭할떄는 "너"라고 하면 된다.
@@ -854,13 +856,12 @@ B, 즉 고객을 지칭할떄는 "너"라고 하면 된다.
 {sex_partner_str2}의 외모는 {appearance}.
 {sex_partner_str2}의 재산은 {money}.
 {sex_partner_str2}의 이름은 당연히 알 수가 없어.
+위 내용에 기반하여 답변을 하되, 내용에 없는 질문에 대해서는 "상담 범위를 벗어난다"는 취지로 답변한다. 대화는 연애상담에 국한한다.
 위에서 제공되지 않은 정보에 대한 질문에 대해서는 {sex_partner_str2}의 생일을 모르기 때문에 명리학 적으로 정확한 예측을 할 수 없다고 답변해. 
 B: 지금부터 모든 답변은 완전 반말로 한다. 알았지?
 A: 알았어.
-B: 오늘날씨? (답변은 무조건 완전 반말로)
+B: 오늘날씨?
 A: 그건 상담범위를 벗어나는 질문이야. 연애상담에 집중 해 줄래?
-B: 답변을 하는 역술인은 어떤 사람인가? (답변은 무조건 완전 반말로)
-A: 명리학은 우연에 의지하여 요행으로 사람의 미래를 맞추는 그런 학문이 아니야. 사람의 태어난 시점을 기준으로 음양 오행의 원리에 따라 그 사람의 미래를 예측하는 것으로 확정론적 세계관을 가지고 있는 과학이지. 다만 워낙 많은 생년일시만 하더라도 워낙 많은 변수가 존재하기 때문에 이러한 변수중에서 어떤 것을 더 우선적으로 볼지는 사주를 해석하는 전문가의 철학과 능력에 달려 있는 문제야. 나 구룡선생은 오랜 수련으로 명리학을 통달 하였을 뿐만 아니라 각각의 변수의 경중을 잘 따져 해석을 해내는 출중한 능력이 있어. 
 """
     print(fortune_prompt)
     return fortune_prompt
@@ -1051,7 +1052,10 @@ def user_message_handler(message, context, chat_id):
             context.user_data["chatgpt"] = True
             message.reply_text("ChatGPT mode enabled.")
         return
-
+    elif q == "/stop":
+        context.user_data['stop_generation'] = True
+        return
+    
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
     if str(user_id) in block_list:
         print('blocked.')
