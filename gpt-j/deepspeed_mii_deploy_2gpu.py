@@ -46,7 +46,7 @@ ds_config2 = {
     },
     "train_micro_batch_size_per_gpu": 1,
 }
-model_path = "/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-5.8b-lora-merged"
+model_path = "/home/chang/hd3t/t5tests/gpt-j/Models/polyglot-ko-3.8b-lora-merged-based-v2-4640"
 
 mii.deploy(task="text-generation",
            model=model_path,

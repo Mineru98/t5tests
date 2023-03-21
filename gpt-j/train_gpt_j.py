@@ -1382,6 +1382,11 @@ def huggingface_trainer():
         auto_find_batch_size = False
     
     is_ds = deepspeed_config_json is not None
+    warmup_steps = 0
+    if is_ds:
+        warmup_steps = 300
+    if LoRa:
+        warmup_steps = 10
     args = TrainingArguments(
         model_save_dir,
         #max_steps=max_steps,
@@ -1391,7 +1396,7 @@ def huggingface_trainer():
         logging_steps=1,
         save_strategy="steps",
         save_steps=save_step,
-        warmup_steps=300 if is_ds else 0,
+        warmup_steps=warmup_steps,
         # learning_rate=5e-5,
         per_device_train_batch_size = batch_size,
         per_device_eval_batch_size = batch_size,
