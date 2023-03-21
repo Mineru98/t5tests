@@ -1,7 +1,7 @@
 {
     "model_file": "EleutherAI/polyglot-ko-3.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
-    "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b-lora",
+    "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b-alpaca",
     "cache_folder_name": "cache-v2",
     "dataset": {
         "alpaca":1.0
