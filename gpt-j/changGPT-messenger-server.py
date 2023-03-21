@@ -277,11 +277,11 @@ generation_kwargs_beam = {
     "do_sample":False,
     "early_stopping":False,
     "use_cache":True,
-    "num_beams":3,
+    "num_beams":5,
     # "length_penalty":1.0,
     "temperature":0.6,
     "top_k":4,
-    "top_p":0.2,
+    "top_p":0.4,
     "no_repeat_ngram_size":2, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
@@ -314,7 +314,7 @@ generation_kwargs_temp = {
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs = generation_kwargs_contrasive
+generation_kwargs = generation_kwargs_beam
 #generation_kwargs = generation_kwargs_contrasive
 
 def generate_base(model, contents, gen_len):
