@@ -289,8 +289,9 @@ generation_kwargs_beam = {
 
 generation_kwargs_contrasive = {
     "do_sample":True,
-    "early_stopping":False,
+    "early_stopping":True,
     "use_cache":True,
+    "length_penalty":0.1,
     # "num_beams":3,
     # "length_penalty":1.0,
     # "temperature":0.6,
