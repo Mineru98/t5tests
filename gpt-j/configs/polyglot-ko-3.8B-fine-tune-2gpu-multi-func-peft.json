@@ -4,13 +4,13 @@
     "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b-lora",
     "cache_folder_name": "cache-v2",
     "dataset": {
-        "wikiqna":0.1
+        "alpaca":1.0
     },
     "lora": true,
     "prefixtuning": false,
     "scratch": true,
     "reset_weight": false,
-    "unfreeze": 0,
+    "unfreeze": [],
     "save_path": "./Models/polyglot-ko-3.8b-lora",
     "max_input_length": 1024,
     "batch_size": 4,
