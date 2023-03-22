@@ -608,29 +608,29 @@ def parse_special_input(context, message, user_input):
         samhangsi = generate_and_stop(context, content, 80)
         reply = re.sub(r'[0-9]', '', samhangsi)
         contents = None
-    elif intent_name == "movie_recommend":
-        content = f'{entity_extract_for_poem}{user_input} ==>'
-        movie_title = generate_and_stop(context, content)
-        content = f"영화 추천목록\n• {movie_title}"
-        gen_text_concat = ""
-        sent_message = None
-        num_recommend = 7
-        for i in range(num_recommend):
-            content += "\n•"
-            print(content)
-            recommend = generate_low_level(context, content, 50)[len(content):]
-            recommend = recommend.strip()
-            print(recommend)
-            match = re.search(r'•', recommend)
-            if match is not None:
-                recommend = recommend[:match.start()].strip()
-            gen_text_concat += f"• {recommend}\n"
-            _, sent_message = reply_text(context, message, None, gen_text_concat, sent_message, i == num_recommend - 1)
-            # message.reply_text(f"*. {recommend}")
-            content += recommend
-        contents = None
-        reply = gen_text_concat
-        do_not_send_reply = True
+    # elif intent_name == "movie_recommend":
+    #     content = f'{entity_extract_for_poem}{user_input} ==>'
+    #     movie_title = generate_and_stop(context, content)
+    #     content = f"영화 추천목록\n• {movie_title}"
+    #     gen_text_concat = ""
+    #     sent_message = None
+    #     num_recommend = 7
+    #     for i in range(num_recommend):
+    #         content += "\n•"
+    #         print(content)
+    #         recommend = generate_low_level(context, content, 50)[len(content):]
+    #         recommend = recommend.strip()
+    #         print(recommend)
+    #         match = re.search(r'•', recommend)
+    #         if match is not None:
+    #             recommend = recommend[:match.start()].strip()
+    #         gen_text_concat += f"• {recommend}\n"
+    #         _, sent_message = reply_text(context, message, None, gen_text_concat, sent_message, i == num_recommend - 1)
+    #         # message.reply_text(f"*. {recommend}")
+    #         content += recommend
+    #     contents = None
+    #     reply = gen_text_concat
+    #     do_not_send_reply = True
     elif intent_name == "english_mode":
         if context.user_data['language'] != "en":
             context.user_data['language'] = "en"

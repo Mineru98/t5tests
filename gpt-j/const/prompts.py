@@ -1,6 +1,6 @@
 HELP_TEXT = f"""
-Large Language Model chat-bot by Sempahore. V 0.1 
-3.8B parameters language model, 1/46 of chatGPT in parameter size.
+Large Language Model chat-bot by Sempahore. V 0.2
+5.8B parameters language model, 1/30 of chatGPT in parameter size.
 Internal experimental release.
 It is currently running on a server with poor performance, so the response time may reach tens of seconds.
 contacts: changlee99@gmail.com 
@@ -78,8 +78,12 @@ A: 인공지능이란 인간의 학습능력, 추론능력, 지각능력, 자연
 chat_prompt_expert_ko_simple = """
 아래는 A와 B의 대화이다. B는 인간 A는 인공지능이다. 주로 B가 질문하고 A가 답을 한다. A의 입장에서 최대한 자연스러운 대화를 연결하시오. 질문에 맞는 적절한 답변을 하되 답변은 최대한 친절하고, 상세하게 해야 한다.
 """
+chat_prompt_expert_ko_very_simple = """
+A와 B가 진지한 대화 중이다. 
+두사람의 대화를 자연스럽게 연결하시오.
+"""
 
-chat_prompt_expert_ko = chat_prompt_expert_ko_simple
+chat_prompt_expert_ko = chat_prompt_expert_ko_very_simple
 
 detail_answer_prompt = ""
 detail_answer_prompt_fortune = "(역술 전문가로서 성의있고 자세한 답변 바람)"
