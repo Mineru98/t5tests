@@ -325,11 +325,12 @@ def get_dataset(tokenize):
         "B: {s['question']}\\n{s['reasoning']}\\n{eos}한글로\\nA: {s['question_kr']}\\n{s['reasoning_kr']}",
     ]
     text_templates_summarize = [
-        "아래 지문을 요약 하시오.\\n지문:{eos}{s['passage']}\\n{eos}요약:{s['summary1']}",
         "B: {s['passage']}{eos} 이걸 요약 하면?\\nA: {s['summary1']}",
         "B: {s['passage']}\\n{eos}요약 해봐.\\nA: {s['summary1']}",
-        "B: {s['passage']}\\n{eos}위 글을 요약하면?\\nA: {s['summary1']}",
-        "B: {s['passage']}{eos} 이글을 요약하면?\\nA: {s['summary1']}",
+        "B: 아래글을 요약 해봐.\\n{s['passage']}\\n{eos}A: {s['summary1']}",
+        "A: {s['passage']}\\nB: 요약 해줘.\\nA: {s['summary1']}",
+        "A: {s['passage']}\\nB: 요약 해봐.\\nA: {s['summary1']}",
+        "A: {s['passage']}\\nB: 요약 하시오.\\nA: {s['summary1']}",
     ]
     text_templates_reasoning = [
         "질문에 답 하고 이유를 설명하시오.\\n{s['question_kr']}\\n{eos}정답은 {s['answer_kr']} 이고, 정답을 도출하는 과정은 다음과 같습니다.\\n{s['reasoning_kr']}",
