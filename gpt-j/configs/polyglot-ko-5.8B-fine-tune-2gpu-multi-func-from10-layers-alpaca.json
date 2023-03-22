@@ -275,7 +275,7 @@
     "max_input_length": 1024,
     "batch_size": 2,
     "gradient_acc": 64,
-    "num_epochs": 4,
+    "num_epochs": 1,
     "save_step": 20,
     "eval_step": 20,
     "validation_data_size": 64,
