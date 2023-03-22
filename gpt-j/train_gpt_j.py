@@ -1387,7 +1387,7 @@ def huggingface_trainer():
     is_ds = deepspeed_config_json is not None
     warmup_steps = 0
     if is_ds:
-        warmup_steps = 300
+        warmup_steps = 100
     if train_dataset_size < (batch_size * gradient_acc) * 500:
         warmup_steps = 10
     args = TrainingArguments(
