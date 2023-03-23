@@ -282,6 +282,9 @@ def get_dataset(tokenize):
     text_templates_qna_alpaca = [
         "B: {s['instruction']}\\n{s['input']}\\nA: {s['output']}",
     ]
+    text_templates_qna_doctor5k = [
+        "B: {s['instruction_kr']}\\n{s['input_kr']}\\nA: {s['output_kr']}",
+    ]
     text_templates_conversation = [
         "아래 대화를 연결해 보시오.\\n{s['conversation']}",
         "아래 대화를 잘 보고 다음 대화를 연결해 나가봐.\\n{s['conversation']}",
@@ -652,6 +655,13 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}ko_alpaca_data.zip"})
         text_templates = text_templates_qna_alpaca
         source = "alpaca"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "chatdoctor5k" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}chatdoctor5k_kr.zip"})
+        text_templates = text_templates_qna_doctor5k
+        source = "chatdoctor5k"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
