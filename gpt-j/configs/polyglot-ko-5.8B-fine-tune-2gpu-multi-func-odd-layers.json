@@ -1,8 +1,29 @@
 {
     "model_file": "EleutherAI/polyglot-ko-5.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
-    "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-final-layers-v2",
+ 
+    "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-odd-layers",
+    "save_path": "./Models/polyglot-ko-5.8b-odd-layers",
+ 
+    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
     "cache_folder_name": "cache-v2",
+
+    "num_epochs": 4,
+    "save_step": 20,
+    "eval_step": 20,
+
+    "max_input_length": 1024,
+    "batch_size": 2,
+    "gradient_acc": 64,
+    "validation_data_size": 64,
+
+    "lora": false,
+    "prefixtuning": false,
+    "scratch": false,
+    "reset_weight": false,
+    "ignore_data_skip": false,
+    "skip_eval": false,
+
     "dataset": {
         "nikl_news":0.0002,
         "nikl_news_2020":0.0002,
@@ -32,10 +53,7 @@
         "korquad_2.1_dev":0.001,
         "alpaca":1.0
     },
-    "lora": false,
-    "prefixtuning": false,
-    "scratch": false,
-    "reset_weight": false,
+    
     "unfreeze": [
         "gpt_neox.embed_in.weight", 
         "embed_out.weight",
@@ -234,18 +252,7 @@
         "gpt_neox.layers.27.mlp.dense_h_to_4h.bias",
         "gpt_neox.layers.27.mlp.dense_4h_to_h.weight",
         "gpt_neox.layers.27.mlp.dense_4h_to_h.bias"                
-    ],
-    "save_path": "./Models/polyglot-ko-5.8b-final-layers-v2",
-    "max_input_length": 1024,
-    "batch_size": 2,
-    "gradient_acc": 64,
-    "num_epochs": 4,
-    "save_step": 20,
-    "eval_step": 20,
-    "validation_data_size": 64,
-    "ignore_data_skip": false,
-    "skip_eval": false,
-    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json"
+    ]
 }
 
 
