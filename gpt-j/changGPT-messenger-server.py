@@ -737,8 +737,8 @@ def handle_story(context, message, contents, user_input):
 
 def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
-    if len(chat_history) == 0:
-        chat_history.append({"user": "너의 정체를 밝혀라.", "bot": init_bot_message.strip(), "time": datetime.today().timestamp()})
+    # if len(chat_history) == 0:
+    #     chat_history.append({"user": "너의 정체를 밝혀라.", "bot": init_bot_message.strip(), "time": datetime.today().timestamp()})
     last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
     user_input = user_input.strip()
     bot_message = None
