@@ -592,8 +592,10 @@ def parse_special_input(context, message, user_input):
     do_not_send_reply = False
     if confidence < 0.98:
         return None, None, None, do_not_send_reply
-    if intent_name == "ask_article":
-        contents = f"{article_writing}제목: {user_input}\n기사:"
+    if False:
+        pass
+    # elif intent_name == "ask_article":
+    #     contents = f"{article_writing}제목: {user_input}\n기사:"
     # elif intent_name == "ask_blog":
     #     contents = f"{blog_writing}제목: {user_input}\n블로그:"
     # elif intent_name == "request_receipe":
@@ -784,7 +786,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #while len(chat_history) > MAX_CHAT_HISTORY:
     tokens = tokenizer(contents)['input_ids']
     print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
-    while len(tokens) > 712 or len(chat_history) > 7:
+    while len(tokens) > 1024 or len(chat_history) > 5:
         chat_history.pop(0)
         _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
         tokens = tokenizer(contents)['input_ids']
