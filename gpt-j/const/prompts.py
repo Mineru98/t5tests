@@ -86,7 +86,7 @@ A와 B가 진지한 대화 중이다.
 chat_prompt_expert_ko = chat_prompt_expert_ko_very_simple
 
 detail_answer_prompt = ""
-detail_answer_prompt_fortune = "(역술 전문가로서 성의있고 자세한 답변 바람)"
+detail_answer_prompt_fortune = ""
 
 chat_prompt_expert_en = """
 아래 대화를 연결하시오.

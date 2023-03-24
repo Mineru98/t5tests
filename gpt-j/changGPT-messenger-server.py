@@ -570,6 +570,14 @@ def start_ask_birthday(context):
         reply = "생년월일시를 입력 해. 시는 모르면 입력 안해도 돼. 양식은 1988.12.12 13:12, 1999/12/13 18:12 등으로 하면 돼."
     context.user_data['fortune_data_input_state'] = 'wait_for_birthday'
     return reply
+
+init_bot_message = """
+안녕하세요. 반갑습니다. 
+저는 딥러닝 기술로 개발된 언어모델입니다. 58억개의 파라메터를 가지고 있으며 요즘 유행하는 대형 언어 모델 보다는 한참 작습니다. 
+크기는 작지만 한글에 특화된 학습을 받았습니다. 다소 지식이 부족하지만 언어모델이 대부분 그러하듯 적절한 답변을 해 드릴 수 있습니다. 
+저는 인간이 아니기 때문에 직업이나 성별, 취미등 인간이 가진 개인 신상정보는 없습니다. 물어 보셔도 답을 드릴 방법이 없습니다. 
+이름은 '창 GPT'를 쓰고 있습니다. 만든 사람의 이름을 빌렸습니다.
+"""    
     
 def parse_special_input(context, message, user_input):
     user_input = re.sub(r"[\?\.]$", "", user_input.strip())
@@ -631,25 +639,25 @@ def parse_special_input(context, message, user_input):
     #     contents = None
     #     reply = gen_text_concat
     #     do_not_send_reply = True
-    elif intent_name == "english_mode":
-        if context.user_data['language'] != "en":
-            context.user_data['language'] = "en"
-            clear_chat_history(context)
-            contents = None
-            reply = "From now on, we will speak in English."
-    elif intent_name == "korean_mode":
-        if context.user_data['language'] != "ko":
-            context.user_data['language'] = "ko"
-            clear_chat_history(context)
-            contents = None
-            reply = "지금 부터는 한국말로 이야기 합니다."
+    # elif intent_name == "english_mode":
+    #     if context.user_data['language'] != "en":
+    #         context.user_data['language'] = "en"
+    #         clear_chat_history(context)
+    #         contents = None
+    #         reply = "From now on, we will speak in English."
+    # elif intent_name == "korean_mode":
+    #     if context.user_data['language'] != "ko":
+    #         context.user_data['language'] = "ko"
+    #         clear_chat_history(context)
+    #         contents = None
+    #         reply = "지금 부터는 한국말로 이야기 합니다."
     elif intent_name == "today_fortune":
         contents = None
         reply = start_ask_birthday(context)
     elif intent_name == "greeting":
         contents = None
         if context.user_data["councelor_type"] == 'expert':
-            reply = "안녕하세요? 반갑습니다. ChangGPT입니다. 무엇이든 물어보세요."
+            reply = init_bot_message
         else:
             reply = "안녕? 반갑다. 뭐든 물어봐."
         
@@ -726,9 +734,11 @@ def handle_story(context, message, contents, user_input):
         context.user_data.pop('birthday', None)
         context.user_data.pop('sex', None)
     return contents, bot_message
-    
+
 def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_prefix="A", MAX_CHAT_HISTORY=7, CHAT_RESPONSE_LEN=generation_chunk):
     chat_history = context.user_data['chat_history'][context.user_data['mode']]
+    if len(chat_history) == 0:
+        chat_history.append({"user": "너의 정체를 밝혀라.", "bot": init_bot_message.strip(), "time": datetime.today().timestamp()})
     last_bot_message, contents = build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix)
     user_input = user_input.strip()
     bot_message = None
@@ -836,11 +846,11 @@ def build_fortune_text(birtyday: datetime, sex):
         looks = asian_man_looks
         sex_str = "여자" 
         sex_partner_str = "남자"
-        sex_partner_str2 = "그분"
+        sex_partner_str2 = "그남자"
     appearance = f"키는 {looks[appearance_index]['height']}센티미터 이고, 몸무게는 {looks[appearance_index]['weight']} 이며, {looks[appearance_index]['appearance']} 정도로 보여"
     money_index = int(birtyday.day * birtyday.hour) % 12
     money = f"{wealth[money_index]['properties']} 정도로 예상된다."
-    fortune_prompt = f"""
+    fortune_prompt1 = f"""
 B는 사주를 통해 연애상담을 하는 고객이다.
 B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 온라인 채팅을 통해서 연애 상담중이다.
 B, 즉 고객을 지칭할떄는 "너"라고 하면 된다.
@@ -862,6 +872,50 @@ B: 지금부터 모든 답변은 완전 반말로 한다. 알았지?
 A: 알았어.
 B: 오늘날씨?
 A: 그건 상담범위를 벗어나는 질문이야. 연애상담에 집중 해 줄래?
+"""
+    fortune_prompt2 = f"""
+B는 사주를 통해 연애상담을 하는 고객이다.
+B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 온라인 채팅을 통해서 연애 상담중이다.
+B: 그녀의 성격은 어때?
+A: {sex_partner_str2}의 성격은 {personality} 일 가능성이 있어.
+B: 그녀의 성별은?
+A: {sex_partner_str2}의 성별은 {sex_partner_str} 이다.
+B: 그녀의 직업은?
+A: {sex_partner_str2}의 직업은 {job} 중 하나일 가능성이 높다.
+B: 오늘날씨?
+A: 그건 상담범위를 벗어나는 질문이야. 연애상담에 집중 해 줄래?
+B: 그녀을 언제 만나게 돼?
+A: {sex_partner_str2}을 만나는 시기는 {meet_when}.
+B: 어디서 그녀을 만나게 되지?
+A: {sex_partner_str2}을 만나는 장소는 {meet_where}.
+B: 그녀의 외모는?
+A: {sex_partner_str2}의 외모는 {appearance}.
+B: 그녀의 재산은?
+A: {sex_partner_str2}의 재산은 {money}.
+B: 그녀의 이름은?
+A: {sex_partner_str2}의 이름은 당연히 알 수가 없어.
+"""
+    fortune_prompt = f"""
+B는 사주를 통해 연애상담을 하는 고객이다.
+B는 {sex_str}인데 앞으로 만날 {sex_partner_str}에 대해서 궁금해서 온라인 채팅을 통해서 연애 상담중이다.
+{sex_partner_str2}는 고객이 만날 수도 있는 미래의 연인이다.
+{sex_partner_str2}의 정보는 아래와 같다.
+{sex_partner_str2}는 싱글이다.
+{sex_partner_str2}의 성별은 {sex_partner_str} 이다.
+{sex_partner_str2}의 직업은 {job} 중 하나일 가능성이 높다.
+{sex_partner_str2}의 성격은 {personality} 일 가능성이 있어.
+{sex_partner_str2}을 만나는 시기는 {meet_when}.
+{sex_partner_str2}을 만나는 장소는 {meet_where}.
+{sex_partner_str2}의 외모는 {appearance}.
+{sex_partner_str2}의 재산은 {money}.
+{sex_partner_str2}의 이름은 당연히 알 수가 없어.
+###
+B: 누구세요?
+A: 나는 명리학에 통달한 도사야. 너의 미래 파트너를 점지해 주는 중이지. 니가 미래에 만날 사람에 대해서 알려 주려는 거야.
+B: {sex_partner_str2}는 어떤 사람이야?
+A: {sex_partner_str2}의 성격은 {personality} 으로 보이네, 그리고 외모는 {appearance}. 또한 {sex_partner_str2}의 직업은 {job} 정도로 예상이 돼. 
+B: {sex_partner_str2}에 대해서 말해줘.
+A: {sex_partner_str2}의 재산은 {money} 그리고 성격은 {personality} 로 보여. 그리고 {sex_partner_str2}의 외모는 {appearance}
 """
     print(fortune_prompt)
     return fortune_prompt
@@ -1129,11 +1183,11 @@ def user_message_handler(message, context, chat_id):
     
     if len(a) == 0 or prompt=='error!':
         a = "음..."
-        clear_chat_history(context)
-        print('no generation, retry with clear chat history.')
-        message.reply_text("잠깐만... 오류났다...")
-        prompt, a = query(context, message, q)
-        a = a.strip()
+        print('no generation or generation error******************')
+        # clear_chat_history(context)
+        # message.reply_text("잠깐만... 오류났다...")
+        # prompt, a = query(context, message, q)
+        # a = a.strip()
     else:
         if show_normal:
             message.reply_text(a)

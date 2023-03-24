@@ -250,6 +250,9 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
 
     if rate < 1.0:
         ds_train = ds_train.shuffle().train_test_split(test_size=(1.0 - rate))["train"]
+    elif rate > 1.0:
+        ds_train = ds_train.shuffle().select(range(int(rate)))
+
     accelerator.print(f'train dataset len, {source}: ', len(ds_train))
     accelerator.print(f'eval  dataset len, {source}: ', len(ds_eval))
     return ds_eval, ds_train
@@ -649,7 +652,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "alpaca" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"})
         text_templates = text_templates_qna_alpaca
         source = "alpaca"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
