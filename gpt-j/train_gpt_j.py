@@ -211,7 +211,10 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
     use_data_cache_file = True 
     if PrefixTuning:
         use_data_cache_file = False
-    val_size = int(validation_data_size * rate)
+    if rate <= 1.0:
+        val_size = int(validation_data_size * rate)
+    else:
+        val_size = int(rate / 100)
     if val_size < 1:
         val_size = 1
     if len(dss) > 1:
