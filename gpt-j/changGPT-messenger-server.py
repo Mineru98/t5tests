@@ -283,7 +283,7 @@ generation_kwargs_beam = {
     "temperature":0.4,
     # "top_k":4,
     # "top_p":0.6,
-    "no_repeat_ngram_size":3, 
+    "no_repeat_ngram_size":2, # if change to 3, normally very short generation
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
@@ -299,7 +299,7 @@ generation_kwargs_contrasive = {
     "penalty_alpha":0.6,     
     "top_k":6,
     # "top_p":0.4,
-    "no_repeat_ngram_size":2, 
+    "no_repeat_ngram_size":2,       
     "repetition_penalty":0.8,
     "pad_token_id":tokenizer.eos_token_id,
 }
