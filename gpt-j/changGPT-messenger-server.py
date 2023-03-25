@@ -1112,6 +1112,11 @@ def user_message_handler(message, context, chat_id):
     elif q == "/stop":
         context.user_data['stop_generation'] = True
         return
+    elif q == "/newchat":
+        context.user_data['stop_generation'] = True
+        clear_chat_history(context)
+        message.reply_text("새로운 대화를 시작합니다.")
+        return
     
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
     if str(user_id) in block_list:

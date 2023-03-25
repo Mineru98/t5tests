@@ -6,7 +6,7 @@ It is currently running on a server with poor performance, so the response time 
 contacts: changlee99@gmail.com 
 
 명령어.
-/clear - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
+/newchat - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
 """
 
 chat_prompt_normal = """
