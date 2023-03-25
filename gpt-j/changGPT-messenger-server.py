@@ -279,7 +279,7 @@ generation_kwargs_beam = {
     "early_stopping":False,
     "use_cache":True,
     "num_beams":3,
-    "length_penalty":12.0,
+    "length_penalty":9.9,
     "temperature":0.4,
     # "top_k":4,
     # "top_p":0.6,
