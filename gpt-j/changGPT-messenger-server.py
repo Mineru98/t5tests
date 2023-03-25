@@ -273,13 +273,27 @@ def query(context, message, user_input):
         return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
         return prompt_query(context, message, user_input)
+
+generation_kwargs_beam1 = {
+    "do_sample":False,
+    "early_stopping":False,
+    "use_cache":True,
+    "num_beams":3,
+    # "length_penalty":5.0,
+    "temperature":0.4,
+    # "top_k":4,
+    # "top_p":0.6,
+    "no_repeat_ngram_size":2, # if change to 3, normally very short generation
+    "repetition_penalty":1.2,
+    "pad_token_id":tokenizer.eos_token_id,
+}
         
 generation_kwargs_beam = {
     "do_sample":False,
     "early_stopping":False,
     "use_cache":True,
     "num_beams":3,
-    "length_penalty":9.9,
+    "length_penalty":5.0,
     "temperature":0.4,
     # "top_k":4,
     # "top_p":0.6,
