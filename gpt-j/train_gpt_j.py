@@ -208,6 +208,8 @@ def wikitext_detokenizer(string):
     return string
 
 def preprocess_dataset(source, rate, dss, tokenize: bool = True):
+    print("****************************")
+    print(f"processing data: {source}")
     use_data_cache_file = True 
     if PrefixTuning:
         use_data_cache_file = False
@@ -657,7 +659,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "alpaca" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"}, download_mode='force_redownload')
         text_templates = text_templates_qna_alpaca
         source = "alpaca"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
@@ -674,7 +676,7 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}tarot_conv_text.zip"})
         text_templates = ["{s['text']}"]
         source = "tarot_conv"
-        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize, download_mode='force_redownload')
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
                 
