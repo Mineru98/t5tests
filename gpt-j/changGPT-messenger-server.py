@@ -531,8 +531,12 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     stopped = True
                 if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0):
                     print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}, stopped={stopped}')
-                    reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
-                    break
+                    if new_gen_token_len == generation_chunk - 1:
+                        print("**** 1 token small case, do not stop!")
+                        pass
+                    else:
+                        reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
+                        break
                 gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 contents = output         
 
