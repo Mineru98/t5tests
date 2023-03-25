@@ -673,10 +673,10 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "tarot_conv" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}tarot_conv_text.zip"})
+        ds = load_dataset("json", data_files={'train': f"{data_server}tarot_conv_text.zip"}, download_mode='force_redownload')
         text_templates = ["{s['text']}"]
         source = "tarot_conv"
-        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize, download_mode='force_redownload')
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
                 
