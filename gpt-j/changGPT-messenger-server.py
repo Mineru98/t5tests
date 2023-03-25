@@ -279,11 +279,11 @@ generation_kwargs_beam = {
     "early_stopping":False,
     "use_cache":True,
     "num_beams":3,
-    # "length_penalty":0.1,
+    "length_penalty":18.0,
     "temperature":0.4,
     # "top_k":4,
     # "top_p":0.6,
-    "no_repeat_ngram_size":2, # if change to 3, normally very short generation
+    "no_repeat_ngram_size":3, # if change to 3, normally very short generation
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
@@ -309,15 +309,14 @@ generation_kwargs_sampling = {
     "use_cache":False,
     "early_stopping":False,
     "temperature":0.6,
-    "top_k":9,
-    "top_p":0.6,
-    "no_repeat_ngram_size":2, 
+    # "top_k":32,
+    "top_p":0.98,
+    "no_repeat_ngram_size":3, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
 generation_kwargs = generation_kwargs_beam
-#generation_kwargs = generation_kwargs_contrasive
 
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
