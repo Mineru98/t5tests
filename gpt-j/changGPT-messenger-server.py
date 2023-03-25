@@ -299,7 +299,7 @@ generation_kwargs_contrasive = {
     "top_k":6,
     # "top_p":0.4,
     "no_repeat_ngram_size":2, 
-    "repetition_penalty":1.2,
+    "repetition_penalty":0.8,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -502,6 +502,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
         else:
+            context.user_data.pop('stop_generation', None)
             while True:
                 send_typing(context, context.user_data['chat_id'])
                 output = generate_low_level(context, contents, gen_len)
@@ -521,10 +522,11 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 new_gen_token_len = len(gen_text_token)
                 print(f'new_gen_token_len={new_gen_token_len}')
                 if 'stop_generation' in context.user_data:
+                    print('stop_generation detected...')
                     context.user_data.pop('stop_generation', None)
                     stopped = True
-                if not force_continue and (stopped or new_gen_token_len + 1 < generation_chunk or len(gen_text.strip()) == 0 or len(gen_text_concat) > 1200):
-                    print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}')
+                if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0):
+                    print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}, stopped={stopped}')
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
                 gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
@@ -554,9 +556,9 @@ def prompt_query(context, message, user_input):
 def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix):
     contents = chat_prompt
     last_bot_message = None
-    duplicated = next((item for item in chat_history if item["user"] == user_input), None)
-    if duplicated is not None:
-        chat_history.remove(duplicated)
+    # duplicated = next((item for item in chat_history if item["user"] == user_input), None)
+    # if duplicated is not None:
+    #     chat_history.remove(duplicated)
     for ch in chat_history:
         contents += f"{user_prefix}: {ch['user']}\n"
         last_bot_message = ch['bot']
@@ -1133,7 +1135,7 @@ def user_message_handler(message, context, chat_id):
 
         message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
         message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
-        message.reply_text("Language model restarted.")
+        message.reply_text("언어모델이 재시작 되었습니다. 이전의 대화는 더이상 유효하지 않습니다.")
         # update.message.reply_text(HELP_TEXT)
         if username == 'ninedra9ons':
             status_sub(message, context)
