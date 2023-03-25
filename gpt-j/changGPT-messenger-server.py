@@ -289,28 +289,29 @@ generation_kwargs_beam = {
 
 generation_kwargs_contrasive = {
     "do_sample":True,
-    "early_stopping":True,
-    "use_cache":True,
-    "length_penalty":0.1,
+    "early_stopping":False,
+    "use_cache":False,
+    # "length_penalty":0.1,
     # "num_beams":3,
     # "length_penalty":1.0,
-    # "temperature":0.6,
+    "temperature":0.2,
     "penalty_alpha":0.6,     
-    "top_k":4,
+    "top_k":6,
     # "top_p":0.4,
-    # "no_repeat_ngram_size":2, 
-    # "repetition_penalty":1.2,
+    "no_repeat_ngram_size":2, 
+    "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs_temp = {
-    "repetition_penalty":1.1,
+generation_kwargs_sampling = {
     "do_sample":True,
-    "use_cache":True,
+    "use_cache":False,
     "early_stopping":False,
-    "temperature":0.5,
-    "top_k":4,
+    "temperature":0.6,
+    "top_k":9,
     "top_p":0.6,
+    "no_repeat_ngram_size":2, 
+    "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
