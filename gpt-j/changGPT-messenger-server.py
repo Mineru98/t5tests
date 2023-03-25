@@ -35,7 +35,8 @@ import asyncio
 from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, chat_prompt_doctor, \
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
-            entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt, detail_answer_prompt_fortune
+            entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt, detail_answer_prompt_fortune, \
+            entity_extract_name, entity_extract_name_for_samhangsi
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -420,6 +421,7 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         return remain_text, None
     
 def generate_low_level(context, contents, gen_len = generation_chunk):
+    contents = contents.strip()
     if 'chatgpt' in context.user_data:
         chatgpt_output = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
@@ -449,7 +451,9 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
     return output
 
 def generate_and_stop(context, contents, gen_len = generation_chunk):
+    #print(f"generate_and_stop input=[{contents}]")
     output = generate_low_level(context, contents, gen_len)
+    #print(f"generate_and_stop output=[{output}]")
     output = output[len(contents):].strip()
     output, stopped = search_stop_word(output)
     return output
@@ -610,16 +614,12 @@ def parse_special_input(context, message, user_input):
     #     title = generate_and_stop(context, content)
     #     contents = f"{poem_writing}제목: {title}\n시:"
     elif intent_name == "request_samhangsi":
-        content = f'{entity_extract_for_poem}{user_input} ==>'
+        content = f'{entity_extract_name_for_samhangsi}{user_input} =>'
         name = generate_and_stop(context, content)
-        name_comma = ""
-        for c in name:
-            name_comma += f"{c},"
-        name_comma = name_comma[:-1]
-        content = f"{samhangsi_writing}{name_comma} ="
+        content = f"{samhangsi_writing}이름: {name}"
         print(content)
         samhangsi = generate_and_stop(context, content, 80)
-        reply = re.sub(r'[0-9]', '', samhangsi)
+        reply = samhangsi
         contents = None
     # elif intent_name == "movie_recommend":
     #     content = f'{entity_extract_for_poem}{user_input} ==>'
