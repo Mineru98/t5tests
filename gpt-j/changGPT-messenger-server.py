@@ -653,7 +653,7 @@ def parse_special_input(context, message, user_input):
     #         clear_chat_history(context)
     #         contents = None
     #         reply = "지금 부터는 한국말로 이야기 합니다."
-    elif intent_name == "today_fortune":
+    elif intent_name == "today_fortune" and user_input.startswith("오늘의 운세"):
         contents = None
         reply = start_ask_birthday(context)
     elif intent_name == "greeting":
