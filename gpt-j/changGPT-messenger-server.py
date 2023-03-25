@@ -1139,7 +1139,8 @@ def user_message_handler(message, context, chat_id):
 
         message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
         message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
-        message.reply_text("언어모델이 재시작 되었습니다. 이전의 대화는 더이상 유효하지 않습니다.")
+        message.reply_text("언어모델이 재시작 되었습니다. 이전의 대화는 더이상 유효하지 않으며 새로운 대화가 시작 됩니다.")
+        message.reply_text("모델-2023.3.25.21.40")
         # update.message.reply_text(HELP_TEXT)
         if username == 'ninedra9ons':
             status_sub(message, context)
