@@ -47,7 +47,7 @@ app = Flask(__name__)
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
 fb_page_access_token = os.environ["FB_PAGE_ACCESS_TOKEN"]
 openai.api_key = os.environ["OPENAI_API_KEY"]
-# openai.api_base = "http://127.0.0.1:8888/v1"
+openai.api_base = "http://127.0.0.1:8888/v1"
 
 @app.route('/', methods=['GET'])
 def verify():
@@ -134,7 +134,7 @@ latest_model_dir_on_test = None
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 32
+generation_chunk = 48
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -323,15 +323,15 @@ generation_kwargs_sampling = {
     "use_cache":False,
     "early_stopping":False,
     # "length_penalty":7.0,
-    "temperature":0.99,
+    "temperature":1.0,
     "top_k":40,
     "top_p":0.9,
-    "no_repeat_ngram_size":5, 
+    "no_repeat_ngram_size":3, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs = generation_kwargs_beam
+generation_kwargs = generation_kwargs_sampling
 
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
@@ -486,8 +486,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         start_time = datetime.today().timestamp()
         prompt = contents
         print(f'prompt={prompt}')
-        if False:
-            speed = 0.001 #smaller is faster
+        if True:
+            speed = 0.1 #smaller is faster
             max_response_length = 512
             start_time = time.time()
             # Generate Answer
@@ -500,27 +500,35 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             )
 
             # Stream Answer
+            temp_gen_text_concat = ""
             for event in response:
                 event_time = time.time() - start_time  # calculate the time delay of the event
                 gen_text = event['choices'][0]['text']  # extract the text
-                if len(gen_text) > 0:
-                    print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}, {ord(gen_text[0])}")
+                # if len(gen_text) > 0:
+                #     print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}, {ord(gen_text[0])}")
                 time.sleep(speed)
                 if len(gen_text) == 0:
-                    continue
+                    print("no gen text.")
+                    reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
+                    break
                 prev_len = len(gen_text_concat)
                 gen_text_concat += gen_text
                 gen_text_concat, stopped = search_stop_word(gen_text_concat)
                 gen_text = gen_text_concat[prev_len:]
                 if len(gen_text) > 0:
-                    gen_text_to_reply += gen_text
+                    temp_gen_text_concat += gen_text
+                    if len(temp_gen_text_concat) < 10:
+                        continue
+                    print(f"[{temp_gen_text_concat}]")
+                    gen_text_to_reply += temp_gen_text_concat
+                    temp_gen_text_concat = ""
                     gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 if stopped:
                     print(f'**stop pos={len(gen_text)}')
+                    gen_text_to_reply = gen_text_concat
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
         else:
-            context.user_data.pop('stop_generation', None)
             while True:
                 send_typing(context, context.user_data['chat_id'])
                 output = generate_low_level(context, contents, gen_len)
@@ -546,7 +554,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     stopped = True
                 if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0):
                     print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}, stopped={stopped}')
-                    if new_gen_token_len >= generation_chunk - 3:
+                    if not stopped and new_gen_token_len >= generation_chunk - 3:
                         print("**** 3 token small case, do not stop!")
                         pass
                     else:

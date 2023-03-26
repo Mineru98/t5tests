@@ -1,0 +1,24 @@
+{
+    "model_file": "EleutherAI/polyglot-ko-1.3b",
+    "tokenizer": "EleutherAI/polyglot-ko-1.3b",
+    "new_model_name": "lcw99/multi-function-polyglot-ko-3.8b-prefixtuning",
+    "cache_folder_name": "cache-v2",
+    "dataset": {
+        "aihub_summary":0.1
+    },
+    "lora": false,
+    "prefixtuning": true,
+    "scratch": true,
+    "reset_weight": false,
+    "unfreeze": 0,
+    "save_path": "./Models/polyglot-ko-3.8b-multi-func-prefixtuning",
+    "max_input_length": 1024,
+    "batch_size": 4,
+    "gradient_acc": 32,
+    "num_epochs": 1,
+    "save_step": 20,
+    "eval_step": 20,
+    "validation_data_size": 64,
+    "ignore_data_skip": false,
+    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json"
+}
