@@ -324,13 +324,13 @@ generation_kwargs_contrasive = {
 
 generation_kwargs_sampling = {
     "do_sample":False,
-    "use_cache":False,
+    "use_cache":True,
     "early_stopping":False,
-    # "length_penalty":7.0,
+    # "length_penalty":5.0,
     "temperature":0.7,
     # "top_k":40,
     "top_p":0.98,
-    "no_repeat_ngram_size":4, 
+    "no_repeat_ngram_size":5, 
     "repetition_penalty":1.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
