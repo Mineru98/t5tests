@@ -292,13 +292,13 @@ generation_kwargs_beam = {
     "do_sample":False,
     "early_stopping":False,
     "use_cache":True,
-    "num_beams":3,
-    "length_penalty":5.0,
+    "num_beams":2,
+    "length_penalty":7.0,
     "temperature":0.4,
     # "top_k":4,
     # "top_p":0.6,
-    "no_repeat_ngram_size":3, # if change to 3, normally very short generation
-    "repetition_penalty":1.2,
+    "no_repeat_ngram_size":3, 
+    "repetition_penalty":1.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -309,12 +309,12 @@ generation_kwargs_contrasive = {
     # "length_penalty":0.1,
     # "num_beams":3,
     # "length_penalty":1.0,
-    "temperature":0.2,
+    "temperature":0.5,
     "penalty_alpha":0.6,     
-    "top_k":6,
+    "top_k":40,
     # "top_p":0.4,
-    "no_repeat_ngram_size":2,       
-    "repetition_penalty":0.8,
+    "no_repeat_ngram_size":3,       
+    "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -322,9 +322,9 @@ generation_kwargs_sampling = {
     "do_sample":True,
     "use_cache":False,
     "early_stopping":False,
-    "temperature":0.6,
+    "temperature":0.3,
     # "top_k":32,
-    "top_p":0.98,
+    "top_p":0.3,
     "no_repeat_ngram_size":3, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
@@ -376,7 +376,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?(?:[:;-])', generated)
+    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
     if match is None:
         bot_message = generated
     else:
@@ -544,8 +544,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     stopped = True
                 if not force_continue and (stopped or new_gen_token_len < generation_chunk or len(gen_text.strip()) == 0):
                     print(f'**stop pos={len(gen_text)}, new_gen_token_len={new_gen_token_len}, stopped={stopped}')
-                    if new_gen_token_len == generation_chunk - 1:
-                        print("**** 1 token small case, do not stop!")
+                    if new_gen_token_len >= generation_chunk - 3:
+                        print("**** 3 token small case, do not stop!")
                         pass
                     else:
                         reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
