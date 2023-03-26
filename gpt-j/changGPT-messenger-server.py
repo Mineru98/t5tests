@@ -327,11 +327,11 @@ generation_kwargs_sampling = {
     "use_cache":False,
     "early_stopping":False,
     # "length_penalty":7.0,
-    "temperature":1.1,
+    "temperature":0.7,
     # "top_k":40,
-    "top_p":0.6,
-    "no_repeat_ngram_size":3, 
-    "repetition_penalty":0.8,
+    "top_p":0.98,
+    "no_repeat_ngram_size":4, 
+    "repetition_penalty":1.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -448,9 +448,22 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         )
         msg = json.dumps(chatgpt_output, ensure_ascii=False)
         out = chatgpt_output['choices'][0]['message']['content']
-        print(f'---chatgpt---in={len(contents)},out={len(out)}\n{msg}')
+        # print(f'---chatgpt---in={len(contents)},out={len(out)}\n{msg}')
 
         output = contents +  out + '<|endoftext|>'
+        return output
+    elif barasan_mode:
+        response = openai.Completion.create(
+            model='chang',
+            prompt=contents,
+            max_tokens=gen_len,
+            stream=False,  # this time, we set stream=True
+            **generation_kwargs,
+        )
+        msg = json.dumps(response, ensure_ascii=False)
+        # print(f'---barasan---out={msg}')
+        out = response['choices'][0]['text']
+        output = contents + out + '<|endoftext|>'
         return output
 
     if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
