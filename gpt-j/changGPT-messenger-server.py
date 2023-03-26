@@ -130,6 +130,8 @@ def fb_messenger_start():
     
 latest_model_dir = None
 latest_model_dir_on_test = None
+openai_api_base = None
+basaran_api_base = "http://127.0.0.1:8888/v1"
 
 max_output_length = 2048
 min_output_length = 512
@@ -139,7 +141,7 @@ tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 deepspeed_mode = False
 zero_mode = False
-barasan_mode = False
+basaran_mode = False
 telegram = False
 facebook = False
 telegram_test_mode = False
@@ -181,11 +183,11 @@ gpt = None
 gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
 zero_mode = args.zero_mode
-barasan_mode = args.barasan_mode
+basaran_mode = args.basaran_mode
 telegram = args.telegram
 facebook = args.facebook
 
-if not (zero_mode or barasan_mode):
+if not (zero_mode or basaran_mode):
     print(f'normal loading... {latest_model_dir}')
     gpt = AutoModelForCausalLM.from_pretrained(
         latest_model_dir,
@@ -227,8 +229,9 @@ elif zero_mode:
     except:
         print("zeromode: no generator on test")
         generator_on_test = generator
-elif barasan_mode:
-    openai.api_base = "http://127.0.0.1:8888/v1"
+elif basaran_mode:
+    openai_api_base = openai.api_base
+    openai.api_base = basaran_api_base
 
 asyncio_loop = asyncio.get_event_loop()
 
@@ -326,16 +329,19 @@ generation_kwargs_sampling = {
     "do_sample":False,
     "use_cache":True,
     "early_stopping":False,
-    # "length_penalty":5.0,
+    # "length_penalty":9.0,
     "temperature":0.7,
     # "top_k":40,
-    "top_p":0.98,
-    "no_repeat_ngram_size":5, 
-    "repetition_penalty":1.0,
+    "top_p":0.90,
+    "no_repeat_ngram_size":3, 
+    "repetition_penalty":5.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs = generation_kwargs_sampling
+if basaran_mode:
+    generation_kwargs = generation_kwargs_sampling
+else:
+    generation_kwargs = generation_kwargs_beam1
 
 def generate_base(model, contents, gen_len):
     encoded_input = tokenizer(contents, return_tensors='pt').to(device)
@@ -452,7 +458,7 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
 
         output = contents +  out + '<|endoftext|>'
         return output
-    elif barasan_mode:
+    elif basaran_mode:
         response = openai.Completion.create(
             model='chang',
             prompt=contents,
@@ -461,7 +467,7 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
             **generation_kwargs,
         )
         msg = json.dumps(response, ensure_ascii=False)
-        # print(f'---barasan---out={msg}')
+        # print(f'---basaran---out={msg}')
         out = response['choices'][0]['text']
         output = contents + out + '<|endoftext|>'
         return output
@@ -502,17 +508,20 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         start_time = datetime.today().timestamp()
         prompt = contents
         print(f'prompt={prompt}')
-        if barasan_mode:
+        if basaran_mode or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
             max_response_length = 512
             start_time = time.time()
             # Generate Answer
+            kwargs = generation_kwargs
+            if 'chatgpt' in context.user_data:
+                kwargs = {}
             response = openai.Completion.create(
-                model='chang',
+                model='text-davinci-003',
                 prompt=prompt,
                 max_tokens=max_response_length,
                 stream=True,  # this time, we set stream=True
-                **generation_kwargs,
+                **kwargs,
             )
 
             # Stream Answer
@@ -669,7 +678,7 @@ def parse_special_input(context, message, user_input):
         #name = generate_and_stop(context, content)
         match = re.search(r'^\S+', user_input)
         name = match.group(0)
-        content = f"{samhangsi_writing}이름:{name}"
+        content = f"{samhangsi_writing}{name}\n{name[:1]}:"
         print(content)
         samhangsi = generate_and_stop(context, content, 80)
         reply = samhangsi
@@ -1158,9 +1167,11 @@ def user_message_handler(message, context, chat_id):
         
     if q == "/chatgpt":
         if 'chatgpt' in context.user_data:
+            openai.api_base = basaran_api_base
             context.user_data.pop('chatgpt', None)
             message.reply_text("ChatGPT mode disabled.")
         else:
+            openai.api_base = openai_api_base
             context.user_data["chatgpt"] = True
             message.reply_text("ChatGPT mode enabled.")
         return
