@@ -47,7 +47,6 @@ app = Flask(__name__)
 fb_veryfy_token = os.environ["FB_VERIFY_TOKEN"]
 fb_page_access_token = os.environ["FB_PAGE_ACCESS_TOKEN"]
 openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.api_base = "http://127.0.0.1:8888/v1"
 
 @app.route('/', methods=['GET'])
 def verify():
@@ -140,6 +139,7 @@ tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 deepspeed_mode = False
 zero_mode = False
+barasan_mode = False
 telegram = False
 facebook = False
 telegram_test_mode = False
@@ -181,10 +181,11 @@ gpt = None
 gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
 zero_mode = args.zero_mode
+barasan_mode = args.barasan_mode
 telegram = args.telegram
 facebook = args.facebook
 
-if not zero_mode:
+if not (zero_mode or barasan_mode):
     print(f'normal loading... {latest_model_dir}')
     gpt = AutoModelForCausalLM.from_pretrained(
         latest_model_dir,
@@ -226,6 +227,9 @@ elif zero_mode:
     except:
         print("zeromode: no generator on test")
         generator_on_test = generator
+elif barasan_mode:
+    openai.api_base = "http://127.0.0.1:8888/v1"
+
 asyncio_loop = asyncio.get_event_loop()
 
 sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
@@ -323,11 +327,11 @@ generation_kwargs_sampling = {
     "use_cache":False,
     "early_stopping":False,
     # "length_penalty":7.0,
-    "temperature":1.0,
-    # "top_k":20,
-    "top_p":0.8,
+    "temperature":1.1,
+    # "top_k":40,
+    "top_p":0.5,
     "no_repeat_ngram_size":3, 
-    "repetition_penalty":1.2,
+    "repetition_penalty":0.8,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -486,7 +490,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         start_time = datetime.today().timestamp()
         prompt = contents
         print(f'prompt={prompt}')
-        if True:
+        if barasan_mode:
             speed = 0.1 #smaller is faster
             max_response_length = 512
             start_time = time.time()
@@ -501,6 +505,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
 
             # Stream Answer
             temp_gen_text_concat = ""
+            no_gen_count = 0
             for event in response:
                 event_time = time.time() - start_time  # calculate the time delay of the event
                 gen_text = event['choices'][0]['text']  # extract the text
@@ -508,9 +513,12 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 #     print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}, {ord(gen_text[0])}")
                 time.sleep(speed)
                 if len(gen_text) == 0:
-                    print("no gen text.")
-                    reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
-                    break
+                    no_gen_count += 1
+                    print(f"no gen text={no_gen_count}")
+                    if no_gen_count > 5:
+                        reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
+                        break
+                    continue
                 prev_len = len(gen_text_concat)
                 gen_text_concat += gen_text
                 gen_text_concat, stopped = search_stop_word(gen_text_concat)
@@ -523,6 +531,10 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     gen_text_to_reply += temp_gen_text_concat
                     temp_gen_text_concat = ""
                     gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
+                if 'stop_generation' in context.user_data:
+                    print('stop_generation detected...')
+                    context.user_data.pop('stop_generation', None)
+                    stopped = True
                 if stopped:
                     print(f'**stop pos={len(gen_text)}')
                     gen_text_to_reply = gen_text_concat
