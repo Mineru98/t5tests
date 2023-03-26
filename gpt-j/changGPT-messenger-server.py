@@ -278,7 +278,7 @@ generation_kwargs_beam1 = {
     "do_sample":False,
     "early_stopping":False,
     "use_cache":True,
-    "num_beams":3,
+    "num_beams":4,
     # "length_penalty":5.0,
     "temperature":0.4,
     # "top_k":4,
@@ -292,13 +292,13 @@ generation_kwargs_beam = {
     "do_sample":False,
     "early_stopping":False,
     "use_cache":True,
-    "num_beams":2,
-    "length_penalty":7.0,
+    "num_beams":4,
+    "length_penalty":5.0,
     "temperature":0.4,
     # "top_k":4,
     # "top_p":0.6,
     "no_repeat_ngram_size":3, 
-    "repetition_penalty":1.0,
+    # "repetition_penalty":0.7,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -319,13 +319,14 @@ generation_kwargs_contrasive = {
 }
 
 generation_kwargs_sampling = {
-    "do_sample":True,
+    "do_sample":False,
     "use_cache":False,
     "early_stopping":False,
-    "temperature":0.3,
-    # "top_k":32,
-    "top_p":0.3,
-    "no_repeat_ngram_size":3, 
+    # "length_penalty":7.0,
+    "temperature":0.99,
+    "top_k":40,
+    "top_p":0.9,
+    "no_repeat_ngram_size":5, 
     "repetition_penalty":1.2,
     "pad_token_id":tokenizer.eos_token_id,
 }
@@ -528,6 +529,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 print(f'new generated=[{gen_text}]')
                 force_continue = False
                 if gen_text.endswith('�'):
+                    output = output[:-1]
                     gen_text = gen_text[:-1]
                     force_continue = True
                 prev_len = len(gen_text_concat)
@@ -631,9 +633,11 @@ def parse_special_input(context, message, user_input):
     #     title = generate_and_stop(context, content)
     #     contents = f"{poem_writing}제목: {title}\n시:"
     elif intent_name == "request_samhangsi":
-        content = f'{entity_extract_name_for_samhangsi}{user_input} =>'
-        name = generate_and_stop(context, content)
-        content = f"{samhangsi_writing}이름: {name}"
+        #content = f'{entity_extract_name_for_samhangsi}{user_input} =>'
+        #name = generate_and_stop(context, content)
+        match = re.search(r'^\S+', user_input)
+        name = match.group(0)
+        content = f"{samhangsi_writing}이름:{name}"
         print(content)
         samhangsi = generate_and_stop(context, content, 80)
         reply = samhangsi
