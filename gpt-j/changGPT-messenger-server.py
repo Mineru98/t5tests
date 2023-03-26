@@ -329,7 +329,7 @@ generation_kwargs_sampling = {
     # "length_penalty":7.0,
     "temperature":1.1,
     # "top_k":40,
-    "top_p":0.5,
+    "top_p":0.6,
     "no_repeat_ngram_size":3, 
     "repetition_penalty":0.8,
     "pad_token_id":tokenizer.eos_token_id,
@@ -404,7 +404,7 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
             full_text = full_text.strip() + "◈"
         if last_sent_msg is None:
             last_sent_msg = message.reply_text(full_text)
-            print("$$replay_text called.")
+            print("$$reply_text called.")
         else:
             #print(f"$$edit_text called=[{full_text}]")
             try:
@@ -416,7 +416,7 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         text = remove_trash(text)
         if flush:
             message.reply_text(text.strip() + "◈")
-            print("$$replay_text called. flushed.")
+            print("$$reply_text called. flushed.")
             return None, None
         match = re.search('[\n\.\?\!][\s\n]', text)
         stop_index = -1
@@ -433,9 +433,8 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         text_to_reply = text[:stop_index+1].strip()
         if len(text_to_reply) > 0:
             message.reply_text(text_to_reply)
-            print("$$replay_text called. remained")
         remain_text = text[stop_index+1:]
-        # print(f'remain_text=[{remain_text}]')
+        print(f'**reply text, remain_text=[{remain_text}]')
         return remain_text, None
     
 def generate_low_level(context, contents, gen_len = generation_chunk):
@@ -537,7 +536,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     stopped = True
                 if stopped:
                     print(f'**stop pos={len(gen_text)}')
-                    gen_text_to_reply = gen_text_concat
+                    gen_text_to_reply += temp_gen_text_concat
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
         else:
