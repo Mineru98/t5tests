@@ -135,7 +135,7 @@ basaran_api_base = "http://127.0.0.1:8888/v1"
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 48
+generation_chunk = 24
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -157,8 +157,8 @@ if args_config.config_file:
     parser.set_defaults(**config)
 
 args = parser.parse_args()
-latest_model_dir = args.normal_model
-latest_model_dir_on_test = args.test_model
+latest_model_dir = os.environ['CURRENT_MODEL']
+latest_model_dir_on_test = os.environ['CURRENT_MODEL']
 telegram_test_mode = args.telegram_test_mode
 
 tokenizer_dir = latest_model_dir
@@ -211,7 +211,7 @@ if not (zero_mode or basaran_mode):
 if deepspeed_mode:
     print("****************deepspeed_mode enabled!")
     ds_engine = deepspeed.init_inference(
-        gpt_on_test,
+        gpt,
         tensor_parallel={"enabled":True, "tp_size":1},
         dtype=torch.float16,
         # replace_method='auto',
@@ -219,7 +219,7 @@ if deepspeed_mode:
         replace_with_kernel_inject=False,
         injection_policy={GPTNeoXLayer: (GPTNEOXLayerPolicy, )}
     )
-    gpt_on_test = ds_engine.module
+    gpt = ds_engine.module
 elif zero_mode:
     print("****************zero_mode enabled!")
     generator = mii.mii_query_handle("lcw_deployment")
@@ -333,8 +333,8 @@ generation_kwargs_sampling = {
     "temperature":0.7,
     # "top_k":40,
     "top_p":0.90,
-    "no_repeat_ngram_size":3, 
-    "repetition_penalty":5.0,
+    # "no_repeat_ngram_size":3, 
+    # "repetition_penalty":5.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
