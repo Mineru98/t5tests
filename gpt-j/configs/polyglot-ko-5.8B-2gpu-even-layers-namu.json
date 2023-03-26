@@ -214,7 +214,7 @@
         "gpt_neox.layers.26.mlp.dense_h_to_4h.weight",
         "gpt_neox.layers.26.mlp.dense_h_to_4h.bias",
         "gpt_neox.layers.26.mlp.dense_4h_to_h.weight",
-        "gpt_neox.layers.26.mlp.dense_4h_to_h.bias",
+        "gpt_neox.layers.26.mlp.dense_4h_to_h.bias"
     ]
 }
 
