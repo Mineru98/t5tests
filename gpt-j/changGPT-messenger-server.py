@@ -328,7 +328,7 @@ generation_kwargs_contrasive = {
 generation_kwargs_sampling = {
     "do_sample":False,
     "use_cache":True,
-    "early_stopping":False,
+    "early_stopping":True,
     # "length_penalty":9.0,
     "temperature":0.5,
     # "top_k":40,
