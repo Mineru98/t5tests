@@ -330,11 +330,11 @@ generation_kwargs_sampling = {
     "use_cache":True,
     "early_stopping":False,
     # "length_penalty":9.0,
-    "temperature":0.7,
+    "temperature":0.5,
     # "top_k":40,
     "top_p":0.90,
-    # "no_repeat_ngram_size":3, 
-    # "repetition_penalty":5.0,
+    "no_repeat_ngram_size":5, 
+    "repetition_penalty":4.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -415,8 +415,8 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
             #print(f"$$edit_text called=[{full_text}]")
             try:
                 last_sent_msg.edit_text(full_text)
-            except:
-                pass
+            except Exception as e:
+                print(f"reply_text exception = {e}")
         return "", last_sent_msg
     else:
         text = remove_trash(text)
@@ -546,7 +546,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 gen_text = gen_text_concat[prev_len:]
                 if len(gen_text) > 0:
                     temp_gen_text_concat += gen_text
-                    if len(temp_gen_text_concat) < 10:
+                    if len(temp_gen_text_concat) < generation_chunk:
                         continue
                     print(f"[{temp_gen_text_concat}]")
                     gen_text_to_reply += temp_gen_text_concat
