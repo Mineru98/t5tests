@@ -791,7 +791,6 @@ def init_model():
     global start_model_path
     kwarg = {
         "torch_dtype": torch.float16,
-        "low_cpu_mem_usage": True
     }
     
     if load_in_8bit:

@@ -29,14 +29,14 @@
         }
     },
     "zero_optimization": {
-        "stage": 3,
+        "stage": 2,
         "offload_optimizer": {
-            "device": "nvme",
+            "device": "cpu",
             "nvme_path": "/home/chang/nvme/deepspeed_offload",
             "pin_memory": true
         },
         "offload_param": {
-            "device": "nvme",
+            "device": "cpu",
             "nvme_path": "/home/chang/nvme/deepspeed_offload",
             "pin_memory": true
         },        
