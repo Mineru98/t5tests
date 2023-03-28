@@ -789,7 +789,11 @@ def print_trainable_parameters(model):
 from megatron.model import SoftEmbedding, SoftEmbedding2                                 
 def init_model():
     global start_model_path
-    kwarg = {}
+    kwarg = {
+        "torch_dtype": torch.float16,
+        "low_cpu_mem_usage": True
+    }
+    
     if load_in_8bit:
         kwarg["device_map"] = 'auto'
         kwarg["load_in_8bit"] = True
