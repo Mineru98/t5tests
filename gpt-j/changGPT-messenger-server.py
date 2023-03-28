@@ -14,6 +14,7 @@ from telegram import (ChatAction)
 from telegram.ext.dispatcher import run_async
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackQueryHandler
+from telegram.bot import Bot, BotCommand
 
 from transformers import AutoTokenizer, logging, pipeline, AutoModelForCausalLM
 import torch
@@ -1358,6 +1359,10 @@ updater.dispatcher.add_handler(MessageHandler(
 # Filters out unknown messages.
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
 updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
+
+command = [BotCommand("newchat","생성을 중단하고 새로운 대화 시작"),BotCommand("stop", "생성 중단")]
+bot = Bot(os.environ['TELEGRAM_LM_CHAT'])
+bot.set_my_commands(command)
 
 if not telegram and not facebook:
     print('error: no messenger server setted.')
