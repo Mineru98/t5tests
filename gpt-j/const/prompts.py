@@ -7,6 +7,7 @@ contacts: changlee99@gmail.com
 
 명령어.
 /newchat - 채팅 히스토리 삭제, 완전히 새로운 주제로 대화를 시작할 때
+/stop - 생성 중지
 """
 
 chat_prompt_normal = """

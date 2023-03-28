@@ -325,21 +325,21 @@ generation_kwargs_contrasive = {
     "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs_sampling = {
+generation_kwargs_basaran = {
     "do_sample":False,
-    "use_cache":True,
+    "use_cache":False,
     "early_stopping":True,
     # "length_penalty":9.0,
-    "temperature":0.5,
+    "temperature":0.8,
     # "top_k":40,
     "top_p":0.90,
-    "no_repeat_ngram_size":5, 
-    "repetition_penalty":4.0,
+    # "no_repeat_ngram_size":2, 
+    # "repetition_penalty":50.0,
     "pad_token_id":tokenizer.eos_token_id,
 }
 
 if basaran_mode:
-    generation_kwargs = generation_kwargs_sampling
+    generation_kwargs = generation_kwargs_basaran
 else:
     generation_kwargs = generation_kwargs_beam1
 
@@ -508,6 +508,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         start_time = datetime.today().timestamp()
         prompt = contents
         print(f'prompt={prompt}')
+        context.user_data.pop('stop_generation', None)
         if basaran_mode or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
             max_response_length = 512
@@ -1197,10 +1198,9 @@ def user_message_handler(message, context, chat_id):
         #     context.user_data["mode"] = "testmode"
         #     #context.user_data["shownormal"] = True
 
-        message.reply_text(f"현재 {context.user_data['councelor_type']} 모드입니다. 가능한 명령을 보려면 /help 를 치세요.")
-        message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
         message.reply_text("언어모델이 재시작 되었습니다. 이전의 대화는 더이상 유효하지 않으며 새로운 대화가 시작 됩니다.")
-        message.reply_text("모델-2023.3.25.21.40")
+        message.reply_text(f"/help 도움말\n/stop 생성 중지\n/newchat 새로운 대화 시작\n\nChangGPT-2023.3.25.21.40")
+        # message.reply_text("저사양 GPU에서 동작중이라 응답속도가 느립니다. 긴 문장 생성에는 10초 이상이 걸릴 수도 있습니다.")
         # update.message.reply_text(HELP_TEXT)
         if username == 'ninedra9ons':
             status_sub(message, context)
