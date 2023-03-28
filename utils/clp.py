@@ -57,21 +57,14 @@ def apply_clp(
         raise FileExistsError(f'Output exists already at {target_model_path} fix with --override')
 
     logger.info(f'Loading source model: {source_model_name_or_path}')
-
-    source_model = AutoModelForCausalLM.from_pretrained(source_model_name_or_path)
-    source_tokenizer = LlamaTokenizer.from_pretrained(source_model_name_or_path)
-    source_embeddings = source_model.get_input_embeddings().weight.detach().numpy()
-
-
     if not helper_tokenizer_name_or_path:
         helper_tokenizer_name_or_path = helper_model_name_or_path
 
+    source_tokenizer = AutoTokenizer.from_pretrained(source_model_name_or_path)
+    helper_tokenizer = AutoTokenizer.from_pretrained(helper_tokenizer_name_or_path)
+
     logger.info(f'Loading helper model: {helper_model_name_or_path}')
     logger.info(f'Loading helper tokenizer: {helper_tokenizer_name_or_path}')
-
-    helper_model = AutoModelForCausalLM.from_pretrained(helper_model_name_or_path)
-    helper_tokenizer = AutoTokenizer.from_pretrained(helper_tokenizer_name_or_path)
-    helper_embeddings = helper_model.get_input_embeddings().weight.detach().numpy()
 
     # Overlapping tokens
     target_tokens = set(helper_tokenizer.get_vocab().keys())
@@ -89,6 +82,11 @@ def apply_clp(
 
     if not overlapping_tokens:
         raise ValueError('No overlapping tokens found')
+
+    source_model = AutoModelForCausalLM.from_pretrained(source_model_name_or_path)
+    helper_model = AutoModelForCausalLM.from_pretrained(helper_model_name_or_path)
+    source_embeddings = source_model.get_input_embeddings().weight.detach().numpy()
+    helper_embeddings = helper_model.get_input_embeddings().weight.detach().numpy()
 
     source_token_to_idx = {t: i for t, i in source_tokenizer.get_vocab().items()}
     # target_token_to_idx = {t: i for t, i in target_tokenizer.get_vocab().items()}
