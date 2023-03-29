@@ -3,7 +3,7 @@
     "tokenizer": "./StockModels/llama-7B-ko-wechsel",
  
     "new_model_name": "lcw99/llama-7B-ko",
-    "save_path": "./Models/llama-7B-ko-odd-layer",
+    "save_path": "./Models/llama-7B-ko-full-layer",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
     "cache_folder_name": "cache-polyglot-wiki-namu",
