@@ -1384,14 +1384,11 @@ def preprocess_logits_for_metrics(logits, labels):
 def huggingface_trainer():
     global batch_size, train_dataloader, eval_dataloader
 
-    model = init_model()
-    # model = accelerator.prepare(
-    #     model
-    # )
-
     train_dataloader, eval_dataloader = get_dataloaders(tokenize=True, loader_batch_size=batch_size)
     if data_build_only:
         return
+    
+    model = init_model()
     
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
