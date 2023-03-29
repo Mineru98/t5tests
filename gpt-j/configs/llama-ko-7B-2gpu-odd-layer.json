@@ -26,7 +26,22 @@
     "optimizer_8bit": false,
 
     "dataset": {
-        "wiki":1.0
+        "wiki":1.0,
+        "alpaca":1.0,
+        "alpaca_ko_to_en":1.0,
+        "alpaca_en_to_ko":1.0,
+        "aihub_translation_to_english":5000,
+        "aihub_translation_to_korean":5000,
+        "aihub_tech_domain_translation_to_english":5000,
+        "aihub_tech_domain_translation_to_korean":5000,
+        "aihub_social_science_translation_to_english":5000,
+        "aihub_social_science_translation_to_korean":5000,
+        "aihub_technology_science_translation_to_english":5000,
+        "aihub_technology_science_translation_to_korean":5000,
+        "gsm8k_train":5000,
+        "gsm8k_train_en":5000,
+        "gsm8k_ko_to_en":5000,
+        "gsm8k_en_to_ko":5000
     },
     
     "unfreeze": [
