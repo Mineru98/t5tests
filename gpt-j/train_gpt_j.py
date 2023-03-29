@@ -793,9 +793,9 @@ def init_model():
         "torch_dtype": torch.float16,
     }
     
-    if load_in_8bit:
-        kwarg["device_map"] = 'auto'
-        kwarg["load_in_8bit"] = True
+    # if load_in_8bit:
+        # kwarg["device_map"] = 'auto'
+        # kwarg["load_in_8bit"] = True
     # else:
     #     kwarg["torch_dtype"] = torch.float16
         
@@ -930,9 +930,12 @@ def petf_trainer():
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
         lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
     else:
-        optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+        if load_in_8bit:
+            optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+        else:
+            optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         lr_scheduler = transformers.get_linear_schedule_with_warmup(
-            optimizer, 3000, num_training_steps
+            optimizer, 100, num_training_steps
         )
 
     # lr_scheduler = AdafactorSchedule(optimizer)    
@@ -997,9 +1000,10 @@ def trainer():
         optimizer, int(num_training_steps*0.1), num_training_steps
     )
 
-    model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
-        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
-    )
+    if not load_in_8bit:
+        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+            model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
+        )
     
     scaler = torch.cuda.amp.GradScaler()
     
@@ -1396,9 +1400,12 @@ def huggingface_trainer():
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
         lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
     else:
-        optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+        if load_in_8bit:
+            optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+        else:
+            optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         lr_scheduler = transformers.get_linear_schedule_with_warmup(
-            optimizer, 3000, num_training_steps
+            optimizer, 100, num_training_steps
         )
 
     # lr_scheduler = AdafactorSchedule(optimizer)    
@@ -1454,8 +1461,12 @@ def huggingface_trainer():
     
     print(args)
     
+    hf_trainer = MyTrainer
+    if load_in_8bit:
+        hf_trainer = Trainer
+        
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
-    trainer = MyTrainer(
+    trainer = hf_trainer(
         model=model,
         args=args,
         train_dataset = train_dataloader.dataset,
@@ -1466,9 +1477,11 @@ def huggingface_trainer():
         preprocess_logits_for_metrics = preprocess_logits_for_metrics
     )
 
-    trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
-        trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
-    )
+    if not load_in_8bit:
+        trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+            trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+        )
+
     trainer.optimizers=(optimizer, lr_scheduler)
 
     accelerator.print("start trainning -----------------------------")

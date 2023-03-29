@@ -1360,7 +1360,7 @@ updater.dispatcher.add_handler(MessageHandler(
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
 updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
 
-command = [BotCommand("newchat","생성을 중단하고 새로운 대화 시작"),BotCommand("stop", "생성 중단")]
+command = [BotCommand("newchat","생성을 중단하고 새로운 대화 시작"), BotCommand("stop", "생성 중단")]
 bot = Bot(os.environ['TELEGRAM_LM_CHAT'])
 bot.set_my_commands(command)
 
