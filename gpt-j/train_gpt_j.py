@@ -994,10 +994,10 @@ def trainer():
         optimizer, int(num_training_steps*0.1), num_training_steps
     )
 
-    if not optimizer_8bit:
-        model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
-            model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
-        )
+    # if not optimizer_8bit:
+    #     model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
+    #         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
+    #     )
     
     scaler = torch.cuda.amp.GradScaler()
     
@@ -1387,16 +1387,23 @@ def huggingface_trainer():
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
 
-    if deepspeed_config_json is not None:
+    is_ds = deepspeed_config_json is not None
+    warmup_steps = 0
+    if is_ds:
+        warmup_steps = 200
+    if train_dataset_size < (batch_size * gradient_acc) * 500:
+        warmup_steps = 30
+
+    if is_ds:
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
-        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
+        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=warmup_steps)
     else:
         if optimizer_8bit:
             optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         else:
             optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         lr_scheduler = transformers.get_linear_schedule_with_warmup(
-            optimizer, 100, num_training_steps
+            optimizer, warmup_steps, num_training_steps
         )
 
     # lr_scheduler = AdafactorSchedule(optimizer)    
@@ -1409,12 +1416,6 @@ def huggingface_trainer():
     else:
         auto_find_batch_size = False
     
-    is_ds = deepspeed_config_json is not None
-    warmup_steps = 0
-    if is_ds:
-        warmup_steps = 100
-    if train_dataset_size < (batch_size * gradient_acc) * 500:
-        warmup_steps = 10
     args = TrainingArguments(
         model_save_dir,
         #max_steps=max_steps,
@@ -1453,8 +1454,8 @@ def huggingface_trainer():
     print(args)
     
     hf_trainer = Trainer
-    if not optimizer_8bit:
-        hf_trainer = MyTrainer
+    # if not optimizer_8bit:
+    #     hf_trainer = MyTrainer
         
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
     trainer = hf_trainer(
@@ -1468,10 +1469,9 @@ def huggingface_trainer():
         preprocess_logits_for_metrics = preprocess_logits_for_metrics
     )
 
-    if not optimizer_8bit:
-        trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
-            trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
-        )
+    # trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+    #     trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+    # )
 
     trainer.optimizers=(optimizer, lr_scheduler)
 
