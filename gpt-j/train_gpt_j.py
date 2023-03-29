@@ -44,7 +44,7 @@ training_size = 0  # 0 means all
 batch_size = 8    # 0 means auto
 validation_data_size = batch_size * 10
 train_dataset_size = 0
-load_in_8bit = False
+optimizer_8bit = False
 reset_weight = False
 LoRa = False
 PrefixTuning = False
@@ -792,13 +792,7 @@ def init_model():
     kwarg = {
         "torch_dtype": torch.float16,
     }
-    
-    # if load_in_8bit:
-        # kwarg["device_map"] = 'auto'
-        # kwarg["load_in_8bit"] = True
-    # else:
-    #     kwarg["torch_dtype"] = torch.float16
-        
+            
     if gpt_neo is not None:
         if model_file is None:
             model = f"EleutherAI/{gpt_neo}"
@@ -874,7 +868,7 @@ def init_model():
         pass
     else:
         if scratch:
-            if not load_in_8bit:
+            if not optimizer_8bit:
                 if reset_weight:
                     gpt.init_weights()  # from scarch
             # for param in gpt.base_model.parameters():
@@ -930,7 +924,7 @@ def petf_trainer():
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
         lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
     else:
-        if load_in_8bit:
+        if optimizer_8bit:
             optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         else:
             optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
@@ -1000,7 +994,7 @@ def trainer():
         optimizer, int(num_training_steps*0.1), num_training_steps
     )
 
-    if not load_in_8bit:
+    if not optimizer_8bit:
         model, optimizer, train_dataloader, eval_dataloader, lr_scheduler = accelerator.prepare(
             model, optimizer, train_dataloader, eval_dataloader, lr_scheduler
         )
@@ -1397,7 +1391,7 @@ def huggingface_trainer():
         optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
         lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
     else:
-        if load_in_8bit:
+        if optimizer_8bit:
             optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         else:
             optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
@@ -1458,9 +1452,9 @@ def huggingface_trainer():
     
     print(args)
     
-    hf_trainer = MyTrainer
-    if load_in_8bit:
-        hf_trainer = Trainer
+    hf_trainer = Trainer
+    if not optimizer_8bit or is_ds:
+        hf_trainer = MyTrainer
         
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
     trainer = hf_trainer(
@@ -1474,7 +1468,7 @@ def huggingface_trainer():
         preprocess_logits_for_metrics = preprocess_logits_for_metrics
     )
 
-    if not load_in_8bit:
+    if not optimizer_8bit or is_ds:
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
             trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
         )
@@ -1492,7 +1486,7 @@ def huggingface_trainer():
                                     
 def main():
     global start_model_path, model_save_dir, dataset_source, tokenizer_name, max_input_length, continue_train, \
-            training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, load_in_8bit, \
+            training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, optimizer_8bit, \
             unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, train_dataset_size, ignore_data_skip, reset_weight, skip_eval, \
             deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings
@@ -1509,7 +1503,7 @@ def main():
     parser.add_argument("-b", "--batch_size", help = "batch size, 0 for auto")
     parser.add_argument("--eval_sample", action='store_true', help = "eval sample")
     parser.add_argument("--scratch", action='store_true', help = "training from scratch")
-    parser.add_argument("--load_in_8bit", action='store_true', help = "load in 8bit")
+    parser.add_argument("--optimizer_8bit", action='store_true', help = "load in 8bit")
     parser.add_argument("--kor_voca", action='store_true', help = "use extended kor tokenizer")
     parser.add_argument("--unfreeze", help = "set layer names to unfreeze")
     parser.add_argument("--gpt_neo", help = "gpt-neo model")
@@ -1557,8 +1551,8 @@ def main():
         eval_sample = True
     if args.scratch:
         scratch = True
-    if args.load_in_8bit:
-        load_in_8bit = True
+    if args.optimizer_8bit:
+        optimizer_8bit = True
     if args.kor_voca:
         kor_voca_extention = True
     if args.unfreeze:
