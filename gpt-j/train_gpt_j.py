@@ -1453,7 +1453,7 @@ def huggingface_trainer():
     print(args)
     
     hf_trainer = Trainer
-    if not optimizer_8bit or is_ds:
+    if not optimizer_8bit:
         hf_trainer = MyTrainer
         
     data_collator = DataCollatorForLanguageModeling(tokenizer, return_tensors="pt", mlm=False)
@@ -1468,7 +1468,7 @@ def huggingface_trainer():
         preprocess_logits_for_metrics = preprocess_logits_for_metrics
     )
 
-    if not optimizer_8bit or is_ds:
+    if not optimizer_8bit:
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
             trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
         )

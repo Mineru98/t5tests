@@ -13,7 +13,7 @@
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 4,
+    "batch_size": 2,
     "gradient_acc": 64,
     "validation_data_size": 64,
 
