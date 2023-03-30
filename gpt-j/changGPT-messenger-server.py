@@ -37,7 +37,7 @@ from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, 
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
             entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt, detail_answer_prompt_fortune, \
-            entity_extract_name, entity_extract_name_for_samhangsi
+            entity_extract_name, entity_extract_name_for_samhangsi, prompt_saju_consulting
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -263,8 +263,6 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "doctor":
         return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
-        if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + ""
         if 'language' not in context.user_data:
             context.user_data['language'] = 'ko'
         if context.user_data['language'] == 'ko':
@@ -272,11 +270,11 @@ def query(context, message, user_input):
         elif context.user_data['language'] == 'en':
             return chat_query(context, message, user_input, chat_prompt_expert_en, "B", "A", 5)
     elif context.user_data['councelor_type'] == "expert2":
-        if not user_input.endswith(('?', ".", "!")):
-            user_input = user_input + ""
         return chat_query(context, message, user_input, chat_prompt_expert2, "B", "A", 5)
     elif context.user_data['councelor_type'] == "mbti":
         return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
+    elif context.user_data['councelor_type'] == "saju":
+        return chat_query(context, message, user_input, prompt_saju_consulting, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
         return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
@@ -518,24 +516,44 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
             kwargs = generation_kwargs
             if 'chatgpt' in context.user_data:
                 kwargs = {}
-            response = openai.Completion.create(
-                model='text-davinci-003',
-                prompt=prompt,
-                max_tokens=max_response_length,
-                stream=True,  # this time, we set stream=True
-                **kwargs,
-            )
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    stream=True,
+                    messages=[
+                        {"role": "user", "content": contents}
+                    ]
+                )
+                # msg = json.dumps(chatgpt_output, ensure_ascii=False)
+                # out = chatgpt_output['choices'][0]['message']['content']
+            else:
+                response = openai.Completion.create(
+                    model='text-davinci-003',
+                    prompt=prompt,
+                    max_tokens=max_response_length,
+                    stream=True,  # this time, we set stream=True
+                    **kwargs,
+                )
 
             # Stream Answer
             temp_gen_text_concat = ""
             no_gen_count = 0
+            stopped = False
             for event in response:
                 event_time = time.time() - start_time  # calculate the time delay of the event
-                gen_text = event['choices'][0]['text']  # extract the text
+                if 'chatgpt' in context.user_data:
+                    # print(event)
+                    gen_text = ""
+                    d0 = event['choices'][0]
+                    if 'content' in d0['delta']:
+                        gen_text = d0['delta']['content']
+                    if 'finish_reason' in d0 and d0['finish_reason'] == "stop":
+                        stopped = True
+                else:
+                    gen_text = event['choices'][0]['text']  # extract the text
                 # if len(gen_text) > 0:
                 #     print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}, {ord(gen_text[0])}")
                 time.sleep(speed)
-                if len(gen_text) == 0:
+                if len(gen_text) == 0 and not stopped:
                     no_gen_count += 1
                     print(f"no gen text={no_gen_count}")
                     if no_gen_count > 5:
@@ -544,7 +562,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     continue
                 prev_len = len(gen_text_concat)
                 gen_text_concat += gen_text
-                gen_text_concat, stopped = search_stop_word(gen_text_concat)
+                if not stopped:
+                    gen_text_concat, stopped = search_stop_word(gen_text_concat)
                 gen_text = gen_text_concat[prev_len:]
                 if len(gen_text) > 0:
                     temp_gen_text_concat += gen_text
@@ -813,21 +832,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     bot_message = None
 
     prompt = ""
-    # match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히", user_input)
-    # match2 = re.search(r"대해서", user_input)
-    # if match is not None:
-    #     #contents += detail_answer_prompt
-    #     #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-    #contents += f"{user_prefix}: {user_input}\n{detail_answer_prompt}\n{bot_prefix}: "
-    #contents += f"{user_prefix}: {user_input}\n{bot_prefix}: "
-    match = re.search(r"알려줘|말해봐|말해줘|설명|자세히|상세히|이유는", user_input)
-    if match is not None and 'chatgpt' not in context.user_data:
-        if context.user_data['councelor_type'] == 'fortune':
-            contents += f"{user_prefix}: {user_input}{detail_answer_prompt_fortune}\n{bot_prefix}:"
-        else:
-            contents += f"{user_prefix}: {user_input}{detail_answer_prompt}\n{bot_prefix}:"
-    else:
-        contents += f"{user_prefix}: {user_input}\n{bot_prefix}:"
+    contents += f"{user_prefix}: {user_input}\n{bot_prefix}:"
         
     contents, bot_message = handle_story(context, message, contents, user_input)
     if bot_message is None:
@@ -1185,7 +1190,21 @@ def user_message_handler(message, context, chat_id):
         clear_chat_history(context)
         message.reply_text("새로운 대화를 시작합니다.")
         return
-    
+    elif q == "/regen":
+        if 'last_user_input' in context.user_data:
+            context.user_data['stop_generation'] = True
+            clear_chat_history(context)
+            q = context.user_data['last_user_input']
+        else:
+            message.reply_text("저장된 입력이 없습니다.")
+            return
+        
+    elif q == "/saju":
+        context.user_data["councelor_type"] = "saju"  
+        init_user_data(context)  
+        message.reply_text("사주 모드로 전환 되었습니다.")
+        return
+            
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
     if str(user_id) in block_list:
         print('blocked.')
@@ -1246,6 +1265,7 @@ def user_message_handler(message, context, chat_id):
     q_start_time = datetime.today()
     q_start_time_str = q_start_time.strftime('%Y.%m.%d %H:%M:%S')
     prompt, a = query(context, message, q)
+    context.user_data['last_user_input'] = q
     q_end_time = datetime.today()
     q_end_time_str = q_end_time.strftime('%Y.%m.%d %H:%M:%S')
     duration = q_end_time - q_start_time 
@@ -1360,7 +1380,11 @@ updater.dispatcher.add_handler(MessageHandler(
 updater.dispatcher.add_handler(MessageHandler(Filters.text, unknown_text))
 updater.dispatcher.add_handler(CallbackQueryHandler(keyboard_callback))
 
-command = [BotCommand("newchat","생성을 중단하고 새로운 대화 시작"), BotCommand("stop", "생성 중단")]
+command = [
+    BotCommand("newchat","생성을 중단하고 새로운 대화 시작"), 
+    BotCommand("regen","답변 새로 생성"), 
+    BotCommand("stop", "생성 중단")
+]
 bot = Bot(os.environ['TELEGRAM_LM_CHAT'])
 bot.set_my_commands(command)
 
