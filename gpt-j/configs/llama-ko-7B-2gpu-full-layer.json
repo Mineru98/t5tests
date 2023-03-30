@@ -1,12 +1,12 @@
 {
-    "model_file": "./StockModels/llama-7B-ko-wechsel",
-    "tokenizer": "./StockModels/llama-7B-ko-wechsel",
+    "model_file": "./StockModels/llama-7B-ko-wechsel-v2",
+    "tokenizer": "./StockModels/llama-7B-ko-wechsel-v2",
  
     "new_model_name": "lcw99/llama-7B-ko",
     "save_path": "./Models/llama-7B-ko-full-layer",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
-    "cache_folder_name": "cache-polyglot-wiki-namu",
+    "cache_folder_name": "cache-llama-wiki",
 
     "num_epochs": 1,
     "save_step": 20,
@@ -23,10 +23,25 @@
     "reset_weight": false,
     "ignore_data_skip": false,
     "skip_eval": false,
-    "optimizer_8bit": true,
+    "optimizer_8bit": false,
 
     "dataset": {
-        "wiki":1.0
+        "wiki":1.0,
+        "alpaca":1.0,
+        "alpaca_ko_to_en":1.0,
+        "alpaca_en_to_ko":1.0,
+        "aihub_translation_to_english":5000,
+        "aihub_translation_to_korean":5000,
+        "aihub_tech_domain_translation_to_english":5000,
+        "aihub_tech_domain_translation_to_korean":5000,
+        "aihub_social_science_translation_to_english":5000,
+        "aihub_social_science_translation_to_korean":5000,
+        "aihub_technology_science_translation_to_english":5000,
+        "aihub_technology_science_translation_to_korean":5000,
+        "gsm8k_train":5000,
+        "gsm8k_train_en":5000,
+        "gsm8k_ko_to_en":5000,
+        "gsm8k_en_to_ko":5000
     },
     
     "unfreeze": [
