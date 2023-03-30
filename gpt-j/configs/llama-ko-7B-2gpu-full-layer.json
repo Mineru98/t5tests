@@ -1,12 +1,12 @@
 {
-    "model_file": "./StockModels/llama-7B-ko-wechsel-v2",
-    "tokenizer": "./StockModels/llama-7B-ko-wechsel-v2",
+    "model_file": "./StockModels/llama-7B-ko-wechsel",
+    "tokenizer": "./StockModels/llama-7B-ko-wechsel",
  
     "new_model_name": "lcw99/llama-7B-ko",
     "save_path": "./Models/llama-7B-ko-full-layer",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
-    "cache_folder_name": "cache-llama-wiki",
+    "cache_folder_name": "cache-polyglot-wiki-namu",
 
     "num_epochs": 1,
     "save_step": 20,
