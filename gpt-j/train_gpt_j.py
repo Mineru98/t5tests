@@ -742,6 +742,7 @@ def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size,
 def build_tokenizer():
     accelerator.print("\n-----------------------\ntokenizer name = ", tokenizer_name)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    print(f"{tokenizer.pad_token=}\n{tokenizer.eos_token=}")
     tokenizer.pad_token = tokenizer.eos_token
     return tokenizer
 
