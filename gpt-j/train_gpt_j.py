@@ -160,7 +160,7 @@ def tokenizing_sample(ss):
                     attention_mask_part = attention_mask_concat[:max_input_length]
                     if len(input_ids_part) < max_input_length:
                         input_ids_part = (input_ids_part + max_input_length * [tokenizer.pad_token_id])[:max_input_length]
-                        attention_mask_part = (attention_mask_part + max_input_length * [1])[:max_input_length]
+                        attention_mask_part = (attention_mask_part + max_input_length * [0])[:max_input_length]
                     input_ids.append(input_ids_part)
                     attention_mask.append(attention_mask_part)
                     input_ids_concat = input_ids_concat[max_input_length:]
