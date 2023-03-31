@@ -6,7 +6,7 @@
     "save_path": "./Models/llama-7B-ko-embed-only",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
-    "cache_folder_name": "cache-llama-wiki",
+    "cache_folder_name": "cache-llama-7B-kor-extended",
 
     "num_epochs": 1,
     "save_step": 20,
