@@ -747,8 +747,8 @@ def build_tokenizer():
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
     accelerator.print(f"{tokenizer.pad_token=}\n{tokenizer.eos_token=}")
     accelerator.print(f"{tokenizer.pad_token_id=}\n{tokenizer.eos_token_id=}")
-    # if tokenizer.eos_token != '' and tokenizer.pad_token == '':
-    #     tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.pad_token = tokenizer.eos_token
+    accelerator.print(f"pad token setted = {tokenizer.pad_token_id=}\n{tokenizer.eos_token_id=}")
     return tokenizer
 
 def build_adam8bit_optimizer(model):

@@ -1,7 +1,7 @@
 import sentencepiece_model_pb2 as model
 from transformers import LlamaForCausalLM, LlamaTokenizer, AutoTokenizer
 
-train = False
+train = True
 if train:
     m_org = model.ModelProto()
     m_org.ParseFromString(open('./StockModels/llama-7B-origianal/tokenizer.model', 'rb').read())
