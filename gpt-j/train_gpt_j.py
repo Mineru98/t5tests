@@ -1506,9 +1506,9 @@ def huggingface_trainer():
 
     trainer.optimizers=(optimizer, lr_scheduler)
 
-    model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
-        model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
-    )
+    # model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+    #     model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+    # )
 
     accelerator.print("start trainning -----------------------------")
     if continue_train:
