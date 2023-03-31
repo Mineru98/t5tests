@@ -8,13 +8,13 @@ m_kor.ParseFromString(open('./StockModels/sentencepiece_wiki_kor_tokenizer/token
 
 set_org = set()
 for p in m_org.pieces:
-    set_org.add(str(p))
+    set_org.add(p.piece)
 count = 0
 print(f"{len(m_org.pieces)=}")
 for k_piece in m_kor.pieces:
     print(count)
     count += 1
-    if str(k_piece) not in set_org:
+    if str(k_piece.piece) not in set_org:
         m_org.pieces.append(k_piece)                     
 print(f"{len(m_org.pieces)=}")
 with open('./StockModels/llama_kor_entended_tokenizer/tokenizer.model', 'wb') as f:
