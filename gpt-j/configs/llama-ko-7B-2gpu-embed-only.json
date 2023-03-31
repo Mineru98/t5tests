@@ -3,7 +3,7 @@
     "tokenizer": "./StockModels/llama-7B-kor-extended",
  
     "new_model_name": "lcw99/llama-7B-ko",
-    "save_path": "./Models/llama-7B-ko-full-layer-v2",
+    "save_path": "./Models/llama-7B-ko-embed-only",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
     "cache_folder_name": "cache-llama-wiki",
