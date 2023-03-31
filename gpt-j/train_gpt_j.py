@@ -74,16 +74,9 @@ def name_to_filename(name):
     return name.replace("/", "_").replace(".", "_")
 
 def tokenize_string(s):
-    tt = tokenizer(f"{s}\n{tokenizer.eos_token}{tokenizer.eos_token}", max_length=max_input_length, truncation=True, padding=True)
-    # if softembeddings:
-    #     n_tokens = 10
-    #     tt['input_ids'] = torch.cat((torch.full((1,n_tokens), 50256), tt['input_ids']), 1).tolist()
-    #     tt['attention_mask'] = torch.cat((torch.full((1,n_tokens), 1), tt['attention_mask']), 1).tolist()    
-    if tt.encodings is not None:
-        encoded_len = tt.encodings[0].offsets[-1][1]
-    else:
-        encoded_len = len(tt['input_ids'])
-    return encoded_len, tt['input_ids'], tt['attention_mask']
+    tt = tokenizer(f"{s}\n{tokenizer.eos_token}{tokenizer.eos_token}")
+    encode_len = len(tt['input_ids']) 
+    return encode_len, tt['input_ids'], tt['attention_mask']
     
 def preprocess_function(ss):
     max_length = 128
@@ -136,7 +129,7 @@ def tokenizing_sample(ss):
     num_text_templates = len(text_templates)
     tt = 0
     eos = tokenizer.eos_token
-    sep = '<|sep|>'
+    sep = eos
     while i < l:
         s = ss[i]
         i += 1
@@ -148,29 +141,33 @@ def tokenizing_sample(ss):
         if tt >= num_text_templates:
             tt = 0
 
-        pos = 0        
         text = wikitext_detokenizer(text)
         text = ftfy.fix_text(text, normalization='NFKC')
         if softembeddings or PrefixTuning:
-            encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text)
+            encode_len, input_ids_sub, attention_mask_sub = tokenize_string(text)
             input_ids.append(input_ids_sub)
             attention_mask.append(attention_mask_sub)
         else:
-            while pos < len(text):
-                encoded_len, input_ids_sub, attention_mask_sub = tokenize_string(text[pos:])
-                pos += encoded_len
-                if len(input_ids_concat) + len(input_ids_sub) < max_input_length:
-                    input_ids_concat += input_ids_sub
-                    attention_mask_concat += attention_mask_sub
+            encode_len, input_ids_txt, attention_mask_txt = tokenize_string(text)
+            input_ids_concat += input_ids_txt[:encode_len+1]
+            attention_mask_concat += attention_mask_txt[:encode_len+1]
+            if len(input_ids_concat) < max_input_length:
+                continue
+            
+            while True:
+                if len(input_ids_concat) > 0:
+                    input_ids_part = input_ids_concat[:max_input_length]
+                    attention_mask_part = attention_mask_concat[:max_input_length]
+                    if len(input_ids_part) < max_input_length:
+                        input_ids_part = (input_ids_part + max_input_length * [tokenizer.pad_token_id])[:max_input_length]
+                        attention_mask_part = (attention_mask_part + max_input_length * [1])[:max_input_length]
+                    input_ids.append(input_ids_part)
+                    attention_mask.append(attention_mask_part)
+                    input_ids_concat = input_ids_concat[max_input_length:]
+                    attention_mask_concat = attention_mask_concat[max_input_length:]
                 else:
-                    input_ids.append(input_ids_concat)
-                    attention_mask.append(attention_mask_concat)
-                    input_ids_concat = input_ids_sub
-                    attention_mask_concat = attention_mask_sub
-    if len(input_ids_concat) > 0:
-        input_ids.append(input_ids_concat)
-        attention_mask.append(attention_mask_concat)
-        
+                    break
+                                
     tokenized['input_ids'] = input_ids
     tokenized['attention_mask'] = attention_mask
     if PrefixTuning:
@@ -669,7 +666,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "alpaca" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"}, download_mode='force_redownload')
+        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"})
         text_templates = text_templates_qna_alpaca
         source = "alpaca"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
@@ -1443,8 +1440,6 @@ def huggingface_trainer():
         
         optimizer = optimizer_cls(model.parameters(), lr=0.0006)
         lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=warmup_steps)
-
-    accelerator.register_for_checkpointing(lr_scheduler)
 
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
