@@ -79,7 +79,10 @@ def tokenize_string(s):
     #     n_tokens = 10
     #     tt['input_ids'] = torch.cat((torch.full((1,n_tokens), 50256), tt['input_ids']), 1).tolist()
     #     tt['attention_mask'] = torch.cat((torch.full((1,n_tokens), 1), tt['attention_mask']), 1).tolist()    
-    encoded_len = tt.encodings[0].offsets[-1][1]
+    if tt.encodings is not None:
+        encoded_len = tt.encodings[0].offsets[-1][1]
+    else:
+        encoded_len = len(tt['input_ids'])
     return encoded_len, tt['input_ids'], tt['attention_mask']
     
 def preprocess_function(ss):
