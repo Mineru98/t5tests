@@ -3,17 +3,17 @@
     "tokenizer": "./StockModels/llama-7B-kor-extended",
  
     "new_model_name": "lcw99/llama-7B-ko",
-    "save_path": "./Models/llama-7B-ko-embed-only",
+    "save_path": "./Models/llama-7B-ko-kor-pretrain",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
     "cache_folder_name": "cache-llama-7B-kor-extended",
 
-    "num_epochs": 1,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 4,
     "gradient_acc": 64,
     "validation_data_size": 64,
 
