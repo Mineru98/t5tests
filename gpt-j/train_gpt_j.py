@@ -947,18 +947,25 @@ def petf_trainer():
     num_training_steps = len(train_dataloader.dataset)
     max_steps = -1
 
-    if deepspeed_config_json is not None:
-        optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
-        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
-    else:
-        if optimizer_8bit:
-            optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
-        else:
-            optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+
+    if optimizer_8bit:
+        optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         lr_scheduler = transformers.get_linear_schedule_with_warmup(
             optimizer, 100, num_training_steps
         )
+    else:
+        optimizer_cls = (
+            torch.optim.AdamW
+            if accelerator.state.deepspeed_plugin is None
+            or "optimizer" not in accelerator.state.deepspeed_plugin.deepspeed_config
+            else accelerate.utils.DummyOptim
+        )
+        
+        optimizer = optimizer_cls(model.parameters(), lr=0.0006)
+        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=300)
 
+    accelerator.register_for_checkpointing(lr_scheduler)
+ 
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
     
@@ -1421,17 +1428,23 @@ def huggingface_trainer():
     if train_dataset_size < (batch_size * gradient_acc) * 500:
         warmup_steps = 30
 
-    if is_ds:
-        optimizer = accelerate.utils.DummyOptim(model.parameters(), lr=0.0006)
-        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=warmup_steps)
-    else:
-        if optimizer_8bit:
-            optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
-        else:
-            optimizer = transformers.AdamW(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
+    if optimizer_8bit:
+        optimizer = Adam8bit(model.parameters(), lr=0.0006, betas=(0.9, 0.95), eps=1e-8, weight_decay=0)
         lr_scheduler = transformers.get_linear_schedule_with_warmup(
-            optimizer, warmup_steps, num_training_steps
+            optimizer, 100, num_training_steps
         )
+    else:
+        optimizer_cls = (
+            torch.optim.AdamW
+            if accelerator.state.deepspeed_plugin is None
+            or "optimizer" not in accelerator.state.deepspeed_plugin.deepspeed_config
+            else accelerate.utils.DummyOptim
+        )
+        
+        optimizer = optimizer_cls(model.parameters(), lr=0.0006)
+        lr_scheduler = accelerate.utils.DummyScheduler(optimizer, total_num_steps=num_training_steps, warmup_num_steps=warmup_steps)
+
+    accelerator.register_for_checkpointing(lr_scheduler)
 
     # lr_scheduler = AdafactorSchedule(optimizer)    
     # optimizer._get_lr = _get_lr
@@ -1496,11 +1509,11 @@ def huggingface_trainer():
         preprocess_logits_for_metrics = preprocess_logits_for_metrics
     )
 
-    # trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
-    #     trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
-    # )
-
     trainer.optimizers=(optimizer, lr_scheduler)
+
+    model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+        model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+    )
 
     accelerator.print("start trainning -----------------------------")
     if continue_train:
