@@ -1506,9 +1506,11 @@ def huggingface_trainer():
 
     trainer.optimizers=(optimizer, lr_scheduler)
 
-    # model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
-    #     model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
-    # )
+    # llama case prepare consume more GPU mem, and cause OOM. don't know why.
+    if False:
+        trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
+            trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
+        )
 
     accelerator.print("start trainning -----------------------------")
     if continue_train:
