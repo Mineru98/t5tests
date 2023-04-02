@@ -742,10 +742,11 @@ def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size,
 def build_tokenizer():
     accelerator.print("\n-----------------------\ntokenizer name = ", tokenizer_name)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-    accelerator.print(f"{tokenizer.pad_token=}\n{tokenizer.eos_token=}")
-    accelerator.print(f"{tokenizer.pad_token_id=}\n{tokenizer.eos_token_id=}")
+    accelerator.print(f"{tokenizer.pad_token=}\n{tokenizer.pad_token_id=}")
+    accelerator.print(f"{tokenizer.eos_token=}\n{tokenizer.eos_token_id=}")
+    tokenizer.pad_token_id = tokenizer.eos_token_id
     tokenizer.pad_token = tokenizer.eos_token
-    accelerator.print(f"pad token setted = {tokenizer.pad_token_id=}\n{tokenizer.eos_token_id=}")
+    accelerator.print(f"after pad token setted\n{tokenizer.pad_token_id=}\n{tokenizer.pad_token=}")
     return tokenizer
 
 def build_adam8bit_optimizer(model):
