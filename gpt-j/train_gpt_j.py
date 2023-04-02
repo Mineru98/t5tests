@@ -276,6 +276,17 @@ def get_cc100(n):
 
 def get_dataset(tokenize):
     global text_templates, validation_data_size, train_dataset_size
+
+    saved_dataet_path = f"{save_path}/dataset"
+    if os.path.exists(saved_dataet_path):
+        ds_train = load_from_disk(f"{saved_dataet_path}/train")
+        ds_eval = load_from_disk(f"{saved_dataet_path}/eval")
+        if train_resume > 0.0:
+            start_row = int(len(ds_train) * train_resume)
+            ds_train = ds_train[start_row:]
+            accelerator.print(f"\n---------\nresume training {start_row=}")
+        return ds_eval, ds_train
+        
     data_server = os.environ['AI_DATA_SERVER']
     # data_server = "/home/chang/hd3t/dataset/text/"
     accelerator.print("reading dataset...", dataset_source)
@@ -715,7 +726,12 @@ def get_dataset(tokenize):
         train_dataset_size = len(ds_concat_train)
     ds_train = ds_concat_train.shuffle().select(range(train_dataset_size))
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
-    return ds_eval, ds_train, text_templates
+    
+    if save_dataset:
+        ds_train.save_to_disk(f"{saved_dataet_path}/train")
+        ds_eval.save_to_disk(f"{saved_dataet_path}/eval")
+    
+    return ds_eval, ds_train
     
 text_templates = None
 glo_tokenize = None
@@ -726,9 +742,9 @@ glo_tokenize = None
 #     return [data]
     
 def get_dataloaders(tokenize: bool = False, loader_batch_size: int = batch_size, def_data_collator = False):
-    global text_templates, glo_tokenize
+    global glo_tokenize
     glo_tokenize = tokenize
-    eval_dataset, train_dataset, text_templates = get_dataset(tokenize)
+    eval_dataset, train_dataset = get_dataset(tokenize)
     accelerator.print(train_dataset)
     accelerator.print(eval_dataset)
     if def_data_collator:
@@ -1527,7 +1543,8 @@ def main():
             training_size, batch_size, tokenizer, eval_sample, scratch, kor_voca_extention, optimizer_8bit, \
             unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, train_dataset_size, ignore_data_skip, reset_weight, skip_eval, \
-            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings
+            deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings, \
+            save_dataset, train_resume
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1560,6 +1577,8 @@ def main():
     parser.add_argument("--lora", action='store_true', help = "using LoRa in training")
     parser.add_argument("--prefixtuning", action='store_true', help = "using PrefixTuning in training")
     parser.add_argument("--softembeddings", action='store_true', help = "using softembeddings")
+    parser.add_argument("--save_dataset", action='store_true', help = "save_dataset")
+    parser.add_argument("--train_resume", help = "resume epochs")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1631,6 +1650,10 @@ def main():
         PrefixTuning = True
     if args.softembeddings:
         softembeddings = True
+    if args.save_dataset:
+        save_dataset = True
+    if args.train_resume:
+        train_resume = int(args.train_resume)
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")
