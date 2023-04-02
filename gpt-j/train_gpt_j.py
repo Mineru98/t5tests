@@ -49,6 +49,8 @@ reset_weight = False
 LoRa = False
 PrefixTuning = False
 softembeddings = False
+save_dataset = False
+train_resume = 0.0
 
 model_name = None 
 model_save_dir = None
@@ -1653,7 +1655,7 @@ def main():
     if args.save_dataset:
         save_dataset = True
     if args.train_resume:
-        train_resume = int(args.train_resume)
+        train_resume = args.train_resume
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")
