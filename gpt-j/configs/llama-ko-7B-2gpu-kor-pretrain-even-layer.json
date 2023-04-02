@@ -207,7 +207,7 @@
         "model.layers.30.mlp.down_proj.weight",
         "model.layers.30.mlp.up_proj.weight",
         "model.layers.30.input_layernorm.weight",
-        "model.layers.30.post_attention_layernorm.weight",
+        "model.layers.30.post_attention_layernorm.weight"
     ]
 }
 
