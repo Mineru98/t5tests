@@ -24,6 +24,8 @@
     "ignore_data_skip": false,
     "skip_eval": false,
     "optimizer_8bit": false,
+    "save_dataset": true,
+    "train_resume": 0.0,
 
     "dataset": {
         "alpaca":1.0,
