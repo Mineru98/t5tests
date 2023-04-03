@@ -42,6 +42,7 @@ from const.fortune import job_list, Personality_types, places_to_meet, asian_man
 
 from plugin.todays_fortune import get_todays_fortune
 import openai
+from text_generation import Client
 
 app = Flask(__name__)
 
@@ -143,6 +144,7 @@ device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 deepspeed_mode = False
 zero_mode = False
 basaran_mode = False
+hf_tgi_mode = False
 telegram = False
 facebook = False
 telegram_test_mode = False
@@ -158,8 +160,9 @@ if args_config.config_file:
     parser.set_defaults(**config)
 
 args = parser.parse_args()
-latest_model_dir = os.environ['CURRENT_MODEL']
-latest_model_dir_on_test = os.environ['CURRENT_MODEL']
+if not (basaran_mode or hf_tgi_mode):
+    latest_model_dir = os.environ['CURRENT_MODEL']
+    latest_model_dir_on_test = os.environ['CURRENT_MODEL']
 telegram_test_mode = args.telegram_test_mode
 
 tokenizer_dir = latest_model_dir
@@ -185,10 +188,11 @@ gpt_on_test = None
 deepspeed_mode = args.deepspeed_mode
 zero_mode = args.zero_mode
 basaran_mode = args.basaran_mode
+hf_tgi_mode = args.hf_tgi_mode
 telegram = args.telegram
 facebook = args.facebook
 
-if not (zero_mode or basaran_mode):
+if not (zero_mode or basaran_mode or hf_tgi_mode):
     print(f'normal loading... {latest_model_dir}')
     gpt = AutoModelForCausalLM.from_pretrained(
         latest_model_dir,
@@ -337,8 +341,27 @@ generation_kwargs_basaran = {
     "pad_token_id":tokenizer.eos_token_id,
 }
 
+generation_kwargs_hf_tgi = {
+    # "best_of": 1,
+    # "details": True,
+    "do_sample": True,
+    "repetition_penalty": 1.03,
+    "return_full_text": False,
+    "seed": None,
+    # "stop": [
+    # ],
+    "temperature": 0.5,
+    "top_k": 10,
+    "top_p": 0.95,
+    "truncate": None,
+    "typical_p": 0.95,
+    "watermark": True
+}
+
 if basaran_mode:
     generation_kwargs = generation_kwargs_basaran
+elif hf_tgi_mode:
+    generation_kwargs = generation_kwargs_hf_tgi
 else:
     generation_kwargs = generation_kwargs_beam1
 
@@ -386,7 +409,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
+    match = re.search(r'<\|endoftext\|>|</s>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
     if match is None:
         bot_message = generated
     else:
@@ -470,6 +493,14 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         out = response['choices'][0]['text']
         output = contents + out + '<|endoftext|>'
         return output
+    elif hf_tgi_mode:
+        client = Client("http://127.0.0.1:8080")
+        response = client.generate(contents, max_new_tokens=gen_len)
+        msg = json.dumps(response, ensure_ascii=False)
+        print(f'---hf-tgi---out={msg}')
+        out = response.generated_text
+        output = contents + out + '<|endoftext|>'
+        return output
 
     if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
         model = gpt
@@ -508,7 +539,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         prompt = contents
         print(f'prompt={prompt}')
         context.user_data.pop('stop_generation', None)
-        if basaran_mode or 'chatgpt' in context.user_data:
+        if basaran_mode or hf_tgi_mode or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
             max_response_length = 512
             start_time = time.time()
@@ -525,7 +556,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 )
                 # msg = json.dumps(chatgpt_output, ensure_ascii=False)
                 # out = chatgpt_output['choices'][0]['message']['content']
-            else:
+            elif basaran_mode:
                 response = openai.Completion.create(
                     model='text-davinci-003',
                     prompt=prompt,
@@ -533,6 +564,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     stream=True,  # this time, we set stream=True
                     **kwargs,
                 )
+            elif hf_tgi_mode:
+                client = Client("http://127.0.0.1:8080")
+                response = client.generate_stream(contents, max_new_tokens=500, **kwargs)
 
             # Stream Answer
             temp_gen_text_concat = ""
@@ -548,8 +582,15 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                         gen_text = d0['delta']['content']
                     if 'finish_reason' in d0 and d0['finish_reason'] == "stop":
                         stopped = True
-                else:
+                elif basaran_mode:
                     gen_text = event['choices'][0]['text']  # extract the text
+                elif hf_tgi_mode:
+                    print(event)
+                    # if not event.token.special:
+                    gen_text = event.token.text
+                else:
+                    print(f"mode error----------------")
+                    break
                 # if len(gen_text) > 0:
                 #     print(f"finish_reason = {event['choices'][0]['finish_reason']}, {gen_text}, {ord(gen_text[0])}")
                 time.sleep(speed)

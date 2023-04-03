@@ -144,11 +144,11 @@ while True:
         output_sequences = gpt.generate(
             encoded_input["input_ids"], 
             do_sample=False,
-            num_beams=3,
+            # num_beams=3,
             temperature=0.7,
-            top_k=40,
-            top_p=0.95,
-            repetition_penalty=2.0,
+            # top_k=40,
+            top_p=0.90,
+            # repetition_penalty=2.0,
             max_length=max_length
         )
         # print(output_sequences)
