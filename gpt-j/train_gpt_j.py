@@ -731,8 +731,8 @@ def get_dataset(tokenize):
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
     
     if save_dataset:
-        ds_train.save_to_disk(f"{saved_dataet_path}/train")
-        ds_eval.save_to_disk(f"{saved_dataet_path}/eval")
+        ds_train.save_to_disk(f"{saved_dataset_path}/train")
+        ds_eval.save_to_disk(f"{saved_dataset_path}/eval")
     
     return ds_eval, ds_train
     
@@ -886,10 +886,10 @@ def init_model():
                     task_type="CAUSAL_LM",
                 )
             gpt = get_peft_model(gpt, peft_config)
-            for name, param in gpt.named_parameters():
-                if "embed" in name:
-                    accelerator.print(f"set requre_grad = {name}")
-                    param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
+            # for name, param in gpt.named_parameters():
+            #     if "embed" in name:
+            #         accelerator.print(f"set requre_grad = {name}")
+            #         param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
             gpt.print_trainable_parameters()
         elif PrefixTuning:
             peft_config = PrefixTuningConfig(task_type=TaskType.CAUSAL_LM, num_virtual_tokens = max_input_length)            
