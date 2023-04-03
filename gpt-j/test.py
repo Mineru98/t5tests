@@ -1,7 +1,6 @@
 import os, glob
 import transformers
 import torch
-#from gpt_j_8bit import GPTJBlock8, GPTJForCausalLM8, GPTJModel8, add_adapters
 from transformers import AutoTokenizer, logging, pipeline, AutoModel, AutoModelForCausalLM
 import argparse, evaluate
 from datasets import load_dataset, load_from_disk 
@@ -11,7 +10,7 @@ compute_perplexity = False
 max_output_length = 1024
 min_output_length = 500
 
-model_name = "GPT-j-6B-8bit-wikipedia-finetune"
+model_name = "llama-7B-ko-org-even"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 print(f"device={device}")
 parser = argparse.ArgumentParser()
@@ -74,8 +73,7 @@ tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 gpt = AutoModelForCausalLM.from_pretrained(
     latest_model_dir,
     torch_dtype=torch.float16,
-    low_cpu_mem_usage=True,
-    # device_map='auto',
+    device_map='auto',
     # load_in_8bit=True,
 ).to(device, torch.float16)
 
@@ -88,9 +86,9 @@ text_generation = pipeline(
 
 
 chat_history = []
-chat_prompt = "A는 35세, 성별은 남자이고, 이름은 박길동, 삼성전자 다니는 직장인이다. 애인은 없고, 부모님과 같이 살고 있다.\n아래 대화를 연결해 보시오.\n"
-user_prefix = "A"
-bot_prefix = "B"
+chat_prompt = "아래 대화를 연결해 보시오.\n"
+user_prefix = "B"
+bot_prefix = "A"
 while True:
     if num_chat_history == 0:
         print("\n")
@@ -126,7 +124,7 @@ while True:
         else:
             max_length = max_output_length
     else:
-        max_length = input_length + 100
+        max_length = input_length + 300
     print(f'max_length={max_length}')
     if pipe:
         generated = text_generation(
@@ -136,20 +134,19 @@ while True:
             min_length=100,
             num_return_sequences=1,
             early_stopping=True,
-            num_beams=3,
-            # top_p=0.95,
-            # top_k=50
+            temperature=0.78,
+            top_p=0.95,
+            top_k=50
         )
         print("\n")
         print(generated[0]['generated_text'])
     else:
         output_sequences = gpt.generate(
             encoded_input["input_ids"], 
-            do_sample=True,
+            do_sample=False,
             num_beams=3,
-            length_penalty=1.0,
-            temperature=1.1,
-            top_k=50,
+            temperature=0.7,
+            top_k=40,
             top_p=0.95,
             repetition_penalty=2.0,
             max_length=max_length

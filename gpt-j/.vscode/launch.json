@@ -6,7 +6,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["-l", "polyglot-ko-1.3b-multi-func", "-c", "10"],
+            "args": ["-l", "llama-7B-ko-org-even", "-c", "3"],
             "justMyCode": true
         },
         {
