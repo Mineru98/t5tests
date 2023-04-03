@@ -342,20 +342,20 @@ generation_kwargs_basaran = {
 }
 
 generation_kwargs_hf_tgi = {
-    # "best_of": 1,
+    # "best_of": 2,
     # "details": True,
-    "do_sample": True,
-    "repetition_penalty": 1.03,
+    "do_sample": False,
+    # "repetition_penalty": 1.5,
     "return_full_text": False,
     "seed": None,
     # "stop": [
     # ],
     "temperature": 0.5,
-    "top_k": 10,
-    "top_p": 0.95,
+    # "top_k": 10,
+    "top_p": 0.90,
     "truncate": None,
     "typical_p": 0.95,
-    "watermark": True
+    "watermark": False
 }
 
 if basaran_mode:
