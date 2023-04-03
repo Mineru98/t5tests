@@ -17,7 +17,7 @@
     "gradient_acc": 64,
     "validation_data_size": 64,
 
-    "lora": true,
+    "lora": false,
     "prefixtuning": false,
     "scratch": false,
     "reset_weight": false,
