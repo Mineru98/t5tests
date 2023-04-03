@@ -306,6 +306,9 @@ def get_dataset(tokenize):
     text_templates_qna_alpaca = [
         "B: {s['instruction_kr']}\\n{s['input_kr']}\\nA: {s['output_kr']}",
     ]
+    text_templates_qna_alpaca_en = [
+        "B: {s['instruction']}\\n{s['input']}\\nA: {s['output']}",
+    ]
     text_templates_alpaca_ko_to_en = [
         "한글원문:{eos}{s['instruction_kr']}\\n{s['input_kr']}\\n{s['output_kr']}\\n{eos}영어번역:{s['instruction']}\\n{s['input']}\\n{s['output']}\\n",
     ]
@@ -711,6 +714,13 @@ def get_dataset(tokenize):
         ds = load_dataset("json", data_files={'train': f"{data_server}tarot_conv_text.zip"})
         text_templates = ["{s['text']}"]
         source = "tarot_conv"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
+    if "alpaca_cleaned_eng" in dataset_source.keys():
+        ds = load_dataset("yahma/alpaca-cleaned")
+        text_templates = text_templates_qna_alpaca_en
+        source = "alpaca_cleaned_eng"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
@@ -1430,14 +1440,14 @@ def preprocess_logits_for_metrics(logits, labels):
         batch = len(logits)
         ii = random.randint(0, batch-1)
         pred_str = tokenizer.batch_decode(pred_list[ii], skip_special_tokens=False)
-        pred_str = " ".join([str(i) for i in pred_str])
+        # pred_str = " ".join([str(i) for i in pred_str])
         pred_str = pred_str.replace("\n", "/")
         accelerator.print(f"\n**{ii} ", pred_str)
         if len(labels) > ii:
             labels_ids = labels[ii]
             labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-            decoded_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
-            label_str = "_".join([str(i) for i in decoded_str])
+            label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
+            # label_str = "_".join([str(i) for i in label_str])
             label_str = label_str.replace("\n", "/")
             accelerator.print(f"\n=={ii} ", label_str)
     except Exception as e:
