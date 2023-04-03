@@ -22,7 +22,7 @@
     "scheduler": {
         "type": "WarmupDecayLR",
         "params": {
-            "warmup_min_lr": 2e-7,
+            "warmup_min_lr": 2e-4,
             "warmup_max_lr": "auto",
             "warmup_num_steps": "auto",
             "total_num_steps": "auto"
@@ -31,11 +31,11 @@
     "zero_optimization": {
         "stage": 2,
         "offload_optimizer": {
-            "device": "cpu",
+            "device": "none",
             "pin_memory": true
         },
         "offload_param": {
-            "device": "cpu",
+            "device": "none",
             "pin_memory": true
         },        
         "allgather_partitions": true,

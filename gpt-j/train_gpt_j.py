@@ -866,7 +866,7 @@ def init_model():
             #     r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM" 
             # )
             # peft_config = LoraConfig(
-            #     task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
+            #     task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1, target_modules=TARGET_MODULES
             # )
             if True:    # llama case 
                 LORA_R = 8

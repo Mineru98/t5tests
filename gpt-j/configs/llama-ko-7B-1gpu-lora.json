@@ -5,7 +5,7 @@
     "new_model_name": "lcw99/llama-7B-ko-lora",
     "save_path": "./Models/llama-7B-ko-lora",
  
-    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
+    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu_lora.json",
     "cache_folder_name": "cache-llama-7B-origianal",
 
     "num_epochs": 3,
