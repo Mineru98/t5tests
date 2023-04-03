@@ -279,10 +279,11 @@ def get_cc100(n):
 def get_dataset(tokenize):
     global text_templates, validation_data_size, train_dataset_size
 
-    saved_dataet_path = f"{save_path}/dataset"
-    if os.path.exists(saved_dataet_path):
-        ds_train = load_from_disk(f"{saved_dataet_path}/train")
-        ds_eval = load_from_disk(f"{saved_dataet_path}/eval")
+    saved_dataset_path = f"{save_path}/dataset"
+    if os.path.exists(saved_dataset_path):
+        accelerator.print(f"\n----------------------\nloading dataset from {saved_dataset_path}")
+        ds_train = load_from_disk(f"{saved_dataset_path}/train")
+        ds_eval = load_from_disk(f"{saved_dataset_path}/eval")
         if train_resume > 0.0:
             start_row = int(len(ds_train) * train_resume)
             ds_train = ds_train[start_row:]
@@ -861,12 +862,29 @@ def init_model():
         if LoRa:
             accelerator.print("LoRa enabled.......")
             # target_modules = ["query_key_value", "xxx"]  # workaround to use 8bit training on this model
-            peft_config = LoraConfig(
-                r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM", target_modules=target_modules 
-            )
+            # peft_config = LoraConfig(
+            #     r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM" 
+            # )
             # peft_config = LoraConfig(
             #     task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1
-            # )        
+            # )
+            if True:    # llama case 
+                LORA_R = 8
+                LORA_ALPHA = 16
+                LORA_DROPOUT = 0.05
+                VAL_SET_SIZE = 2000
+                TARGET_MODULES = [
+                    "q_proj",
+                    "v_proj",
+                ]
+                peft_config = LoraConfig(
+                    r=LORA_R,
+                    lora_alpha=LORA_ALPHA,
+                    target_modules=TARGET_MODULES,
+                    lora_dropout=LORA_DROPOUT,
+                    bias="none",
+                    task_type="CAUSAL_LM",
+                )
             gpt = get_peft_model(gpt, peft_config)
             for name, param in gpt.named_parameters():
                 if "embed" in name:
