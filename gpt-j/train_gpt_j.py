@@ -860,7 +860,7 @@ def init_model():
         
         if LoRa:
             accelerator.print("LoRa enabled.......")
-            target_modules = ["query_key_value", "xxx"]  # workaround to use 8bit training on this model
+            # target_modules = ["query_key_value", "xxx"]  # workaround to use 8bit training on this model
             peft_config = LoraConfig(
                 r=16, lora_alpha=32, lora_dropout=0.05, bias="none", task_type="CAUSAL_LM", target_modules=target_modules 
             )
@@ -869,7 +869,8 @@ def init_model():
             # )        
             gpt = get_peft_model(gpt, peft_config)
             for name, param in gpt.named_parameters():
-                if "embed_out" in name:
+                if "embed" in name:
+                    accelerator.print(f"set requre_grad = {name}")
                     param.requires_grad = True      # just temporary patch for 'None of the inputs have requires_grad' error
             gpt.print_trainable_parameters()
         elif PrefixTuning:
