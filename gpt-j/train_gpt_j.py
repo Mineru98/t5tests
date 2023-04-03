@@ -51,6 +51,7 @@ PrefixTuning = False
 softembeddings = False
 save_dataset = False
 train_resume = 0.0
+zero_prepare = False
 
 model_name = None 
 model_save_dir = None
@@ -1439,16 +1440,16 @@ def preprocess_logits_for_metrics(logits, labels):
     try:
         batch = len(logits)
         ii = random.randint(0, batch-1)
-        pred_str = tokenizer.batch_decode(pred_list[ii], skip_special_tokens=False)
+        pred_str = tokenizer.decode(pred_list[ii], skip_special_tokens=False)
         # pred_str = " ".join([str(i) for i in pred_str])
-        pred_str = pred_str.replace("\n", "/")
+        pred_str = pred_str.replace("\n", "//")
         accelerator.print(f"\n**{ii} ", pred_str)
         if len(labels) > ii:
             labels_ids = labels[ii]
             labels_ids[labels_ids == -100] = tokenizer.pad_token_id
-            label_str = tokenizer.batch_decode(labels_ids, skip_special_tokens=False)
+            label_str = tokenizer.decode(labels_ids, skip_special_tokens=False)
             # label_str = "_".join([str(i) for i in label_str])
-            label_str = label_str.replace("\n", "/")
+            label_str = label_str.replace("\n", "//")
             accelerator.print(f"\n=={ii} ", label_str)
     except Exception as e:
         accelerator.print("\n!! ", e, ii, len(labels))
@@ -1555,7 +1556,7 @@ def huggingface_trainer():
     trainer.optimizers=(optimizer, lr_scheduler)
 
     # llama case prepare consume more GPU mem, and cause OOM. don't know why.
-    if False:
+    if zero_prepare:
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
             trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
         )
@@ -1575,7 +1576,7 @@ def main():
             unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, train_dataset_size, ignore_data_skip, reset_weight, skip_eval, \
             deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings, \
-            save_dataset, train_resume
+            save_dataset, train_resume, zero_prepare
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1610,6 +1611,7 @@ def main():
     parser.add_argument("--softembeddings", action='store_true', help = "using softembeddings")
     parser.add_argument("--save_dataset", action='store_true', help = "save_dataset")
     parser.add_argument("--train_resume", help = "resume epochs")
+    parser.add_argument("--zero_prepare", action='store_true', help = "zero_prepare")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1685,6 +1687,8 @@ def main():
         save_dataset = True
     if args.train_resume:
         train_resume = args.train_resume
+    if args.zero_prepare:
+        zero_prepare = True
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")

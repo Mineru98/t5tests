@@ -26,6 +26,7 @@
     "optimizer_8bit": false,
     "save_dataset": true,
     "train_resume": 0.0,
+    "zero_prepare": false,
     
     "dataset": {
         "alpaca_cleaned_eng":1.0
@@ -46,16 +47,6 @@
         "model.layers.1.input_layernorm.weight",
         "model.layers.1.post_attention_layernorm.weight",
 
-        "model.layers.3.self_attn.q_proj.weight",
-        "model.layers.3.self_attn.k_proj.weight",
-        "model.layers.3.self_attn.v_proj.weight",
-        "model.layers.3.self_attn.o_proj.weight",
-        "model.layers.3.mlp.gate_proj.weight",
-        "model.layers.3.mlp.down_proj.weight",
-        "model.layers.3.mlp.up_proj.weight",
-        "model.layers.3.input_layernorm.weight",
-        "model.layers.3.post_attention_layernorm.weight",
-
         "model.layers.5.self_attn.q_proj.weight",
         "model.layers.5.self_attn.k_proj.weight",
         "model.layers.5.self_attn.v_proj.weight",
@@ -65,16 +56,6 @@
         "model.layers.5.mlp.up_proj.weight",
         "model.layers.5.input_layernorm.weight",
         "model.layers.5.post_attention_layernorm.weight",
-
-        "model.layers.7.self_attn.q_proj.weight",
-        "model.layers.7.self_attn.k_proj.weight",
-        "model.layers.7.self_attn.v_proj.weight",
-        "model.layers.7.self_attn.o_proj.weight",
-        "model.layers.7.mlp.gate_proj.weight",
-        "model.layers.7.mlp.down_proj.weight",
-        "model.layers.7.mlp.up_proj.weight",
-        "model.layers.7.input_layernorm.weight",
-        "model.layers.7.post_attention_layernorm.weight",
 
         "model.layers.9.self_attn.q_proj.weight",
         "model.layers.9.self_attn.k_proj.weight",
@@ -86,16 +67,6 @@
         "model.layers.9.input_layernorm.weight",
         "model.layers.9.post_attention_layernorm.weight",
 
-        "model.layers.11.self_attn.q_proj.weight",
-        "model.layers.11.self_attn.k_proj.weight",
-        "model.layers.11.self_attn.v_proj.weight",
-        "model.layers.11.self_attn.o_proj.weight",
-        "model.layers.11.mlp.gate_proj.weight",
-        "model.layers.11.mlp.down_proj.weight",
-        "model.layers.11.mlp.up_proj.weight",
-        "model.layers.11.input_layernorm.weight",
-        "model.layers.11.post_attention_layernorm.weight",
-
         "model.layers.13.self_attn.q_proj.weight",
         "model.layers.13.self_attn.k_proj.weight",
         "model.layers.13.self_attn.v_proj.weight",
@@ -105,16 +76,6 @@
         "model.layers.13.mlp.up_proj.weight",
         "model.layers.13.input_layernorm.weight",
         "model.layers.13.post_attention_layernorm.weight",
-
-        "model.layers.15.self_attn.q_proj.weight",
-        "model.layers.15.self_attn.k_proj.weight",
-        "model.layers.15.self_attn.v_proj.weight",
-        "model.layers.15.self_attn.o_proj.weight",
-        "model.layers.15.mlp.gate_proj.weight",
-        "model.layers.15.mlp.down_proj.weight",
-        "model.layers.15.mlp.up_proj.weight",
-        "model.layers.15.input_layernorm.weight",
-        "model.layers.15.post_attention_layernorm.weight",
 
         "model.layers.17.self_attn.q_proj.weight",
         "model.layers.17.self_attn.k_proj.weight",
@@ -126,16 +87,6 @@
         "model.layers.17.input_layernorm.weight",
         "model.layers.17.post_attention_layernorm.weight",
 
-        "model.layers.19.self_attn.q_proj.weight",
-        "model.layers.19.self_attn.k_proj.weight",
-        "model.layers.19.self_attn.v_proj.weight",
-        "model.layers.19.self_attn.o_proj.weight",
-        "model.layers.19.mlp.gate_proj.weight",
-        "model.layers.19.mlp.down_proj.weight",
-        "model.layers.19.mlp.up_proj.weight",
-        "model.layers.19.input_layernorm.weight",
-        "model.layers.19.post_attention_layernorm.weight",
-
         "model.layers.21.self_attn.q_proj.weight",
         "model.layers.21.self_attn.k_proj.weight",
         "model.layers.21.self_attn.v_proj.weight",
@@ -146,16 +97,6 @@
         "model.layers.21.input_layernorm.weight",
         "model.layers.21.post_attention_layernorm.weight",
 
-        "model.layers.23.self_attn.q_proj.weight",
-        "model.layers.23.self_attn.k_proj.weight",
-        "model.layers.23.self_attn.v_proj.weight",
-        "model.layers.23.self_attn.o_proj.weight",
-        "model.layers.23.mlp.gate_proj.weight",
-        "model.layers.23.mlp.down_proj.weight",
-        "model.layers.23.mlp.up_proj.weight",
-        "model.layers.23.input_layernorm.weight",
-        "model.layers.23.post_attention_layernorm.weight",
-
         "model.layers.25.self_attn.q_proj.weight",
         "model.layers.25.self_attn.k_proj.weight",
         "model.layers.25.self_attn.v_proj.weight",
@@ -165,16 +106,6 @@
         "model.layers.25.mlp.up_proj.weight",
         "model.layers.25.input_layernorm.weight",
         "model.layers.25.post_attention_layernorm.weight",
-
-        "model.layers.27.self_attn.q_proj.weight",
-        "model.layers.27.self_attn.k_proj.weight",
-        "model.layers.27.self_attn.v_proj.weight",
-        "model.layers.27.self_attn.o_proj.weight",
-        "model.layers.27.mlp.gate_proj.weight",
-        "model.layers.27.mlp.down_proj.weight",
-        "model.layers.27.mlp.up_proj.weight",
-        "model.layers.27.input_layernorm.weight",
-        "model.layers.27.post_attention_layernorm.weight",
 
         "model.layers.29.self_attn.q_proj.weight",
         "model.layers.29.self_attn.k_proj.weight",
