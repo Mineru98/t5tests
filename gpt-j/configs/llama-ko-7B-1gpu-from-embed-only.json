@@ -45,7 +45,8 @@
     },
     
     "unfreeze": [
-        "model.embed_tokens.weight"
+        "model.embed_tokens.weight",
+        "lm_head.weight"
     ]
 }
 
