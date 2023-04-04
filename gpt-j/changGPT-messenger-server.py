@@ -134,6 +134,7 @@ latest_model_dir = None
 latest_model_dir_on_test = None
 openai_api_base = None
 basaran_api_base = "http://127.0.0.1:8888/v1"
+hf_tgi_api_base = "http://127.0.0.1:8080"
 
 max_output_length = 2048
 min_output_length = 512
@@ -342,14 +343,12 @@ generation_kwargs_basaran = {
 }
 
 generation_kwargs_hf_tgi = {
-    # "best_of": 2,
-    # "details": True,
     "do_sample": False,
     "repetition_penalty": 1.1,
     "return_full_text": False,
     "seed": None,
-    # "stop": [
-    # ],
+    "stop_sequences": [
+    ],
     "temperature": 0.5,
     # "top_k": 10,
     "top_p": 0.90,
@@ -494,10 +493,9 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         output = contents + out + '<|endoftext|>'
         return output
     elif hf_tgi_mode:
-        client = Client("http://127.0.0.1:8080")
+        client = Client(hf_tgi_api_base)
         response = client.generate(contents, max_new_tokens=gen_len)
-        msg = json.dumps(response, ensure_ascii=False)
-        print(f'---hf-tgi---out={msg}')
+        print(f'---hf-tgi---out={response}')
         out = response.generated_text
         output = contents + out + '<|endoftext|>'
         return output
@@ -565,8 +563,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     **kwargs,
                 )
             elif hf_tgi_mode:
-                client = Client("http://127.0.0.1:8080")
-                response = client.generate_stream(contents, max_new_tokens=500, **kwargs)
+                client = Client(hf_tgi_api_base)
+                response = client.generate_stream(contents, max_new_tokens=1024, **kwargs)
 
             # Stream Answer
             temp_gen_text_concat = ""
@@ -743,7 +741,7 @@ def parse_special_input(context, message, user_input):
         content = f"{samhangsi_writing}{name}\n{name[:1]}:"
         print(content)
         samhangsi = generate_and_stop(context, content, 80)
-        reply = samhangsi
+        reply = f"{name[:1]}:{name[:1]}{samhangsi}"
         contents = None
     # elif intent_name == "movie_recommend":
     #     content = f'{entity_extract_for_poem}{user_input} ==>'
