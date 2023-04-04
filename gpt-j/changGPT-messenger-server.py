@@ -347,7 +347,7 @@ generation_kwargs_basaran = {
 generation_kwargs_hf_tgi = {
     "do_sample": False,
     "repetition_penalty": 1.1,
-    "return_full_text": False,
+    "return_full_text": True,
     "seed": None,
     "stop_sequences": [
     ],
@@ -867,8 +867,9 @@ def handle_story(context, message, contents, user_input):
             fortune = re.sub(r"[\.\?\!]", "", fortune)
             ff = fortune.split(' ')
             len_ff = len(ff)
-            pos_sel = datetime.today().day % (len_ff - 4)
-            fortune_keyword = ' '.join(ff[pos_sel:pos_sel+4])
+            sel_len = 8
+            pos_sel = datetime.today().day % (len_ff - sel_len)
+            fortune_keyword = ' '.join(ff[pos_sel:pos_sel+sel_len])
             contents = f"{today_fortune_writing}운세 키워드: {fortune_keyword}\n오늘의 운세:"
         context.user_data.pop('fortune_data_input_state', None)
         context.user_data.pop('birthday', None)
