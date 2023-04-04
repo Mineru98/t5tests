@@ -345,7 +345,7 @@ generation_kwargs_hf_tgi = {
     # "best_of": 2,
     # "details": True,
     "do_sample": False,
-    # "repetition_penalty": 1.5,
+    "repetition_penalty": 1.1,
     "return_full_text": False,
     "seed": None,
     # "stop": [
