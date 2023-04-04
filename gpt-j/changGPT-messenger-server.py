@@ -347,7 +347,7 @@ generation_kwargs_basaran = {
 generation_kwargs_hf_tgi = {
     "do_sample": False,
     "repetition_penalty": 1.1,
-    "return_full_text": True,
+    "return_full_text": False,
     "seed": None,
     "stop_sequences": [
     ],
