@@ -547,7 +547,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         print(f'prompt={prompt}')
         context.user_data.pop('stop_generation', None)
         if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
-            speed = 0.1 #smaller is faster
+            speed = 0.01 #smaller is faster
             max_response_length = 512
             start_time = time.time()
             # Generate Answer
@@ -592,7 +592,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 elif basaran_mode:
                     gen_text = event['choices'][0]['text']  # extract the text
                 elif hf_tgi_mode:
-                    print(f"{event.token.text=}")
+                    id_str = tokenizer.decode([event.token.id])
+                    print(f"{event.token.text=} {event.token.id}={id_str}")
                     # if not event.token.special:
                     gen_text = event.token.text
                 else:
