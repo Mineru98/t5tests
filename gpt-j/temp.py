@@ -1,41 +1,32 @@
-server {
-        listen 80;
-        listen [::]:80;
-        server_name messenger.plan4.house;
+tokenizer_id = "/home/chang/AI/llm/t5tests/gpt-j/Models/llama-7B-en-alpaca"
 
-        location ~ /.well-known {
-               root /home/sunnyville/content/well;
-        }
-        location / {
-                return 301 https://messenger.plan4.house;
-        }
-}
+from transformers.convert_slow_tokenizer import convert_slow_tokenizer
+from transformers import AutoTokenizer
+from tokenizers import Tokenizer
 
-server {
-        listen 443 ssl http2;
-        listen [::]:443 ssl http2;
+tokenizer = AutoTokenizer.from_pretrained("/home/chang/AI/llm/t5tests/gpt-j/StockModels/llama-7B-origianal")
 
-        server_name messenger.plan4.house;
+if False:
+    new_tokenizer = Tokenizer.from_file("tok.json")
+else:
+    new_tokenizer = convert_slow_tokenizer(tokenizer)
+    new_tokenizer.save("tok.json")
 
-        ssl_certificate      /etc/letsencrypt/live/plan4.house/fullchain.pem;
-        ssl_certificate_key  /etc/letsencrypt/live/plan4.house/privkey.pem;
-	ssl_trusted_certificate /etc/letsencrypt/live/plan4.house/fullchain.pem;
+strings = [
+    "This is a test",
+    "生活的真谛是",
+    "生活的真谛是[MASK]。",
+    # XXX: This one is problematic because of special tokens
+    # "<s> Something something",
+]
 
-        location ~ /.well-known {
-               root /home/sunnyville/content/well;
-        }
-        location / {
-		proxy_set_header Host $host;
-		proxy_set_header X-Real-IP $remote_addr;
+for string in strings:
+    encoded = tokenizer(string)["input_ids"]
+    encoded2 = new_tokenizer.encode(string).ids
 
-		proxy_set_header X-Forwarded-Host $host;
-		proxy_set_header X-Forwarded-Server $host;
-		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    assert encoded == encoded2, f"{encoded} != {encoded2}"
 
-		proxy_http_version 1.1;
+    decoded = tokenizer.decode(encoded)
+    decoded2 = new_tokenizer.decode(encoded2)
 
-		proxy_pass http://localhost:8091;
-		proxy_redirect off;
-		proxy_buffering off;
-        }
-}
+    assert decoded.strip() == decoded2, f"{repr(decoded)} != {repr(decoded2)}"

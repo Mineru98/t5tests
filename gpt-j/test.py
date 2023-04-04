@@ -148,7 +148,7 @@ while True:
             temperature=0.7,
             # top_k=40,
             top_p=0.90,
-            # repetition_penalty=2.0,
+            repetition_penalty=1.1,
             max_length=max_length
         )
         # print(output_sequences)

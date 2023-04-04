@@ -161,9 +161,17 @@ if args_config.config_file:
     parser.set_defaults(**config)
 
 args = parser.parse_args()
-if not (basaran_mode or hf_tgi_mode):
-    latest_model_dir = os.environ['CURRENT_MODEL']
-    latest_model_dir_on_test = os.environ['CURRENT_MODEL']
+
+deepspeed_mode = args.deepspeed_mode
+zero_mode = args.zero_mode
+basaran_mode = args.basaran_mode
+hf_tgi_mode = args.hf_tgi_mode
+telegram = args.telegram
+facebook = args.facebook
+hf_tgi_api_base = args.hf_tgi_api_base
+
+latest_model_dir = os.environ['CURRENT_MODEL']
+latest_model_dir_on_test = os.environ['CURRENT_MODEL']
 telegram_test_mode = args.telegram_test_mode
 
 tokenizer_dir = latest_model_dir
@@ -179,21 +187,24 @@ if telegram_test_mode:
 else:
     updater = Updater(os.environ['TELEGRAM_LM_CHAT'], use_context=True)
 
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-error_display_token_output = tokenizer('*.*', return_tensors='pt').to(device)['input_ids']
-
 generator = None
 generator_on_test = None
 gpt = None
 gpt_on_test = None
-deepspeed_mode = args.deepspeed_mode
-zero_mode = args.zero_mode
-basaran_mode = args.basaran_mode
-hf_tgi_mode = args.hf_tgi_mode
-telegram = args.telegram
-facebook = args.facebook
+
+tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 
 if not (zero_mode or basaran_mode or hf_tgi_mode):
+    error_display_token_output = tokenizer('*.*', return_tensors='pt').to(device)['input_ids']
+    sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
+    sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
+    tt = tokenizer("\n?.")
+    newline_token_id = tt['input_ids'][0]
+    question_mark_token_id = tt['input_ids'][1]
+    period_token_id = tt['input_ids'][2]
+    print(f'sep_token_id={sep_token_id}\nnewline_token_id={newline_token_id}\nquestion_mark_token_id={question_mark_token_id}\nperiod_token_id={period_token_id}')
+    # print(tokenizer.decode([224]))
+
     print(f'normal loading... {latest_model_dir}')
     gpt = AutoModelForCausalLM.from_pretrained(
         latest_model_dir,
@@ -241,15 +252,6 @@ elif basaran_mode:
 
 asyncio_loop = asyncio.get_event_loop()
 
-sep_index = tokenizer.additional_special_tokens.index('<|sep|>')
-sep_token_id = tokenizer.additional_special_tokens_ids[sep_index]
-tt = tokenizer("\n?.")
-newline_token_id = tt['input_ids'][0]
-question_mark_token_id = tt['input_ids'][1]
-period_token_id = tt['input_ids'][2]
-print(f'sep_token_id={sep_token_id}\nnewline_token_id={newline_token_id}\nquestion_mark_token_id={question_mark_token_id}\nperiod_token_id={period_token_id}')
-# print(tokenizer.decode([224]))
-
 def start(update: Update, context: CallbackContext):
 	update.message.reply_text(HELP_TEXT)
 
@@ -296,7 +298,7 @@ generation_kwargs_beam1 = {
     # "top_p":0.6,
     "no_repeat_ngram_size":2, # if change to 3, normally very short generation
     "repetition_penalty":1.2,
-    "pad_token_id":tokenizer.eos_token_id,
+    # "pad_token_id":tokenizer.eos_token_id,
 }
         
 generation_kwargs_beam = {
@@ -310,7 +312,7 @@ generation_kwargs_beam = {
     # "top_p":0.6,
     "no_repeat_ngram_size":3, 
     # "repetition_penalty":0.7,
-    "pad_token_id":tokenizer.eos_token_id,
+    # "pad_token_id":tokenizer.eos_token_id,
 }
 
 generation_kwargs_contrasive = {
@@ -326,7 +328,7 @@ generation_kwargs_contrasive = {
     # "top_p":0.4,
     "no_repeat_ngram_size":3,       
     "repetition_penalty":1.2,
-    "pad_token_id":tokenizer.eos_token_id,
+    # "pad_token_id":tokenizer.eos_token_id,
 }
 
 generation_kwargs_basaran = {
@@ -339,7 +341,7 @@ generation_kwargs_basaran = {
     "top_p":0.90,
     # "no_repeat_ngram_size":2, 
     # "repetition_penalty":50.0,
-    "pad_token_id":tokenizer.eos_token_id,
+    # "pad_token_id":tokenizer.eos_token_id,
 }
 
 generation_kwargs_hf_tgi = {
@@ -464,7 +466,7 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
         print(f'**reply text, remain_text=[{remain_text}]')
         return remain_text, None
     
-def generate_low_level(context, contents, gen_len = generation_chunk):
+def generate_low_level(context, contents, gen_len = generation_chunk, add_eos = True):
     contents = contents.strip()
     if 'chatgpt' in context.user_data:
         chatgpt_output = openai.ChatCompletion.create(
@@ -477,7 +479,9 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         out = chatgpt_output['choices'][0]['message']['content']
         # print(f'---chatgpt---in={len(contents)},out={len(out)}\n{msg}')
 
-        output = contents +  out + '<|endoftext|>'
+        output = contents + out
+        if add_eos:
+            output += '<|endoftext|>'
         return output
     elif basaran_mode:
         response = openai.Completion.create(
@@ -490,14 +494,19 @@ def generate_low_level(context, contents, gen_len = generation_chunk):
         msg = json.dumps(response, ensure_ascii=False)
         # print(f'---basaran---out={msg}')
         out = response['choices'][0]['text']
-        output = contents + out + '<|endoftext|>'
+        
+        output = contents + out
+        if add_eos:
+            output += '<|endoftext|>'
         return output
     elif hf_tgi_mode:
         client = Client(hf_tgi_api_base)
-        response = client.generate(contents, max_new_tokens=gen_len)
-        print(f'---hf-tgi---out={response}')
+        response = client.generate(contents, max_new_tokens=gen_len, **generation_kwargs)
+        # print(f'---hf-tgi---out={response}')
         out = response.generated_text
-        output = contents + out + '<|endoftext|>'
+        output = contents + out
+        if add_eos:
+            output += '<|endoftext|>'
         return output
 
     if 'mode' not in context.user_data or context.user_data['mode'] == "normalmode":
@@ -537,7 +546,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         prompt = contents
         print(f'prompt={prompt}')
         context.user_data.pop('stop_generation', None)
-        if basaran_mode or hf_tgi_mode or 'chatgpt' in context.user_data:
+        if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
             max_response_length = 512
             start_time = time.time()
@@ -583,7 +592,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 elif basaran_mode:
                     gen_text = event['choices'][0]['text']  # extract the text
                 elif hf_tgi_mode:
-                    print(event)
+                    print(f"{event.token.text=}")
                     # if not event.token.special:
                     gen_text = event.token.text
                 else:
@@ -624,7 +633,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         else:
             while True:
                 send_typing(context, context.user_data['chat_id'])
-                output = generate_low_level(context, contents, gen_len)
+                output = generate_low_level(context, contents, gen_len, False)
                 generation_count += 1
                 gen_text = output[len(contents):]
                 print(f'new generated=[{gen_text}]')
@@ -632,6 +641,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 if gen_text.endswith('�'):
                     output = output[:-1]
                     gen_text = gen_text[:-1]
+                    if gen_text.endswith('�'):
+                        output = output[:-1]
+                        gen_text = gen_text[:-1]
                     force_continue = True
                 prev_len = len(gen_text_concat)
                 gen_text_concat += gen_text
@@ -1425,6 +1437,8 @@ command = [
     BotCommand("stop", "생성 중단")
 ]
 bot = Bot(os.environ['TELEGRAM_LM_CHAT'])
+if telegram_test_mode:
+    bot = Bot(os.environ['TELEGRAM_LM_CHAT_TEST'])
 bot.set_my_commands(command)
 
 if not telegram and not facebook:

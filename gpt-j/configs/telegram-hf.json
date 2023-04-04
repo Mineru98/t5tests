@@ -5,6 +5,7 @@
     "zero_mode": false,
     "basaran_mode": false,
     "hf_tgi_mode": true,
+    "hf_tgi_api_base": "http://127.0.0.1:8080",
     "telegram": true,
     "facebook": true,
     "telegram_test_mode": false,
