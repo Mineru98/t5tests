@@ -819,11 +819,22 @@ def list_model_children(model):
                 accelerator.print(f'name = {name}, child = {child}, child.weight.shape = {child.weight.shape}')
         
 def unfreeze_transformer_layer(model, unfreeze_layers):
-    for name, param in model.named_parameters():
-        if name in unfreeze_layers:
-            param.requires_grad = True      
-        else:
-            param.requires_grad = False      
+    for param in model.parameters():
+        param.requires_grad = False
+    if "*" in unfreeze_layers[0]:
+        for unf in unfreeze_layers:
+            for name, param in model.named_parameters():
+                if "*" in unf and unf.replace("*", "") in name:
+                    param.requires_grad = True      
+                    accelerator.print(f"set requires_grad by {unf} = {name}")
+                elif unf == name:
+                    param.requires_grad = True      
+                    accelerator.print(f"set requires_grad by {unf} = {name}")
+    else:
+        for name, param in model.named_parameters():
+            if name in unfreeze_layers:
+                param.requires_grad = True      
+                accelerator.print(f"set requires_grad = {name}")
             
 def print_trainable_parameters(model):
     """

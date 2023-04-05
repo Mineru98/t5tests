@@ -4,11 +4,12 @@ import torch
 from transformers import AutoTokenizer, logging, pipeline, AutoModel, AutoModelForCausalLM
 import argparse, evaluate
 from datasets import load_dataset, load_from_disk 
+from peft import PeftModel, PeftConfig
 
 pipe = False
 compute_perplexity = False
 max_output_length = 1024
-min_output_length = 500
+min_output_length = 300
 
 model_name = "llama-7B-ko-org-even"
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -18,6 +19,7 @@ parser.add_argument("-m", "--model", help = "model name")
 parser.add_argument("-l", "--local_model", help = "local model name")
 parser.add_argument("-t", "--tokenizer", help = "tokenizer")
 parser.add_argument("-p", "--path", help = "model path with tokenizer")
+parser.add_argument("-a", "--adapter", help = "lora adapter")
 parser.add_argument("-c", "--chat_mode", help = "chatting mode")
 args = parser.parse_args()
 latest_model_dir = "none"
@@ -45,14 +47,33 @@ if args.path:
     latest_model_dir = args.path
     tokenizer_dir = latest_model_dir
     
+if args.adapter:
+    peft_model_id = args.adapter
+    config = PeftConfig.from_pretrained(peft_model_id)
+    model = AutoModelForCausalLM.from_pretrained(config.base_model_name_or_path, return_dict=True, load_in_8bit=True, device_map='auto')
+    tokenizer = AutoTokenizer.from_pretrained(config.base_model_name_or_path)
+    gpt = PeftModel.from_pretrained(model, peft_model_id)    
+    print("\nLora---------------------------")
+    print("base model =\t", config.base_model_name_or_path)
+    print("adatper =\t", peft_model_id)
+    print("---------------------------\n")
+else:
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+    gpt = AutoModelForCausalLM.from_pretrained(
+        latest_model_dir,
+        torch_dtype=torch.float16,
+        device_map='auto',
+        # load_in_8bit=True,
+    ).to(device, torch.float16)
+    print("\n---------------------------")
+    print("model dir =\t", latest_model_dir)
+    print("tokenizer dir =\t", tokenizer_dir)
+    print("---------------------------\n")
+        
 num_chat_history = 0
 if args.chat_mode:
     num_chat_history = int(args.chat_mode) 
 
-print("\n---------------------------")
-print("model dir =\t", latest_model_dir)
-print("tokenizer dir =\t", tokenizer_dir)
-print("---------------------------\n")
 
 logging.set_verbosity_error()
 
@@ -69,24 +90,10 @@ if compute_perplexity:
     result = perplexity.compute(model_id=latest_model_dir, predictions=input_texts, device="cuda")
     print(result)
 
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
-gpt = AutoModelForCausalLM.from_pretrained(
-    latest_model_dir,
-    torch_dtype=torch.float16,
-    device_map='auto',
-    # load_in_8bit=True,
-).to(device, torch.float16)
-
-text_generation = pipeline(
-    "text-generation",
-    model=gpt,
-    tokenizer=tokenizer,
-    device=0
-)
-
 
 chat_history = []
-chat_prompt = "아래 대화를 연결해 보시오.\n"
+# chat_prompt = "아래 대화를 연결해 보시오.\n"
+chat_prompt = ""
 user_prefix = "B"
 bot_prefix = "A"
 while True:
@@ -126,57 +133,42 @@ while True:
     else:
         max_length = input_length + 300
     print(f'max_length={max_length}')
-    if pipe:
-        generated = text_generation(
-            contents,
-            max_length=max_length,
-            do_sample=True,
-            min_length=100,
-            num_return_sequences=1,
-            early_stopping=True,
-            temperature=0.78,
-            top_p=0.95,
-            top_k=50
-        )
-        print("\n")
-        print(generated[0]['generated_text'])
-    else:
-        output_sequences = gpt.generate(
-            encoded_input["input_ids"], 
-            do_sample=False,
-            # num_beams=3,
-            temperature=0.7,
-            # top_k=40,
-            top_p=0.90,
-            repetition_penalty=1.1,
-            max_length=max_length
-        )
-        # print(output_sequences)
-        output = output_sequences[0].tolist()
-        try:
-            stop = output.index(tokenizer.eos_token_id)
-        except:
-            stop = len(output)
-        # print(output, stop)
-        garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
-        print(garbage)        
+    output_sequences = gpt.generate(
+        input_ids=encoded_input["input_ids"], 
+        do_sample=False,
+        # num_beams=3,
+        temperature=0.7,
+        # top_k=40,
+        top_p=0.90,
+        repetition_penalty=1.1,
+        max_length=max_length
+    )
+    # print(output_sequences)
+    output = output_sequences[0].tolist()
+    try:
+        stop = output.index(tokenizer.eos_token_id)
+    except:
+        stop = len(output)
+    # print(output, stop)
+    garbage = tokenizer.decode(output[stop:], skip_special_tokens=False)        
+    print(garbage)        
+    print("----")        
+    prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
+    generated = tokenizer.decode(output[input_length:stop], skip_special_tokens=False).strip()
+    if num_chat_history == 0:        
+        print(prompt)
         print("----")        
-        prompt = tokenizer.decode(output[:input_length], skip_special_tokens=False)
-        generated = tokenizer.decode(output[input_length:stop], skip_special_tokens=False).strip()
-        if num_chat_history == 0:        
-            print(prompt)
-            print("----")        
-            print(generated)
+        print(generated)
+    else:
+        stop_index_user = generated.find(f"{user_prefix}:")
+        stop_index_bot = generated.find(f"{bot_prefix}:")
+        stop_index = min(stop_index_bot, stop_index_user)
+        if stop_index < 0:
+            bot_message = generated
         else:
-            stop_index_user = generated.find(f"{user_prefix}:")
-            stop_index_bot = generated.find(f"{bot_prefix}:")
-            stop_index = min(stop_index_bot, stop_index_user)
-            if stop_index < 0:
-                bot_message = generated
-            else:
-                bot_message = generated[:stop_index].strip()
-            chat_history.append({"user": user_input, "bot": bot_message})
-            while len(chat_history) > num_chat_history:
-                chat_history.pop(0)
-            print(f"{prompt} {bot_message}")
+            bot_message = generated[:stop_index].strip()
+        chat_history.append({"user": user_input, "bot": bot_message})
+        while len(chat_history) > num_chat_history:
+            chat_history.pop(0)
+        print(f"{prompt} {bot_message}")
             

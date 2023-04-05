@@ -1,0 +1,43 @@
+{
+    "model_file": "KoboldAI/OPT-6.7B-Erebus",
+    "tokenizer": "KoboldAI/OPT-6.7B-Erebus",
+ 
+    "new_model_name": "lcw99/OPT-6.7B-Erebus-instruct",
+    "save_path": "./Models/OPT-6.7B-Erebus-instruct-native",
+ 
+    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
+    "cache_folder_name": "cache-OPT-en",
+
+    "num_epochs": 3,
+    "save_step": 60,
+    "eval_step": 20,
+
+    "max_input_length": 1024,
+    "batch_size": 2,
+    "gradient_acc": 64,
+    "validation_data_size": 64,
+
+    "lora": false,
+    "prefixtuning": false,
+    "scratch": false,
+    "reset_weight": false,
+    "ignore_data_skip": false,
+    "skip_eval": false,
+    "optimizer_8bit": false,
+    "save_dataset": true,
+    "train_resume": 0.0,
+    "zero_prepare": false,
+    
+    "dataset": {
+        "alpaca_cleaned_eng":1.0
+    },
+    
+    "unfreeze": [
+        "q_proj.weight*", 
+        "v_proj.weight*",
+        "model.decoder.embed_tokens.weight",
+        "model.decoder.final_layer_norm.weight"
+    ]
+}
+
+

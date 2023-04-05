@@ -37,7 +37,7 @@ from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, 
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
             entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt, detail_answer_prompt_fortune, \
-            entity_extract_name, entity_extract_name_for_samhangsi, prompt_saju_consulting
+            entity_extract_name, entity_extract_name_for_samhangsi, prompt_saju_consulting, prompt_dirty_OPT
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -138,7 +138,7 @@ hf_tgi_api_base = "http://127.0.0.1:8080"
 
 max_output_length = 2048
 min_output_length = 512
-generation_chunk = 24
+generation_chunk = 48
 
 tokenizer_dir = latest_model_dir
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
@@ -282,6 +282,8 @@ def query(context, message, user_input):
         return chat_query(context, message, user_input, chat_prompt_mbti, "B", "A", 6)
     elif context.user_data['councelor_type'] == "saju":
         return chat_query(context, message, user_input, prompt_saju_consulting, "B", "A", 6)
+    elif context.user_data['councelor_type'] == "dirty":
+        return chat_query(context, message, user_input, prompt_dirty_OPT, "B", "A", 6)
     elif context.user_data['councelor_type'] == "fortune":
         return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
@@ -344,6 +346,19 @@ generation_kwargs_basaran = {
     # "pad_token_id":tokenizer.eos_token_id,
 }
 
+generation_kwargs_basaran_high_temp = {
+    "do_sample":False,
+    "use_cache":False,
+    "early_stopping":True,
+    # "length_penalty":9.0,
+    "temperature":1.0,
+    # "top_k":40,
+    "top_p":0.90,
+    # "no_repeat_ngram_size":2, 
+    # "repetition_penalty":50.0,
+    # "pad_token_id":tokenizer.eos_token_id,
+}
+
 generation_kwargs_hf_tgi = {
     "do_sample": False,
     "repetition_penalty": 1.1,
@@ -360,7 +375,7 @@ generation_kwargs_hf_tgi = {
 }
 
 if basaran_mode:
-    generation_kwargs = generation_kwargs_basaran
+    generation_kwargs = generation_kwargs_basaran_high_temp
 elif hf_tgi_mode:
     generation_kwargs = generation_kwargs_hf_tgi
 else:
@@ -547,8 +562,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         print(f'prompt={prompt}')
         context.user_data.pop('stop_generation', None)
         if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
-            speed = 0.01 #smaller is faster
-            max_response_length = 512
+            speed = 0.1 #smaller is faster
+            max_response_length = 1024
             start_time = time.time()
             # Generate Answer
             kwargs = generation_kwargs
@@ -1256,6 +1271,11 @@ def user_message_handler(message, context, chat_id):
         context.user_data["councelor_type"] = "saju"  
         init_user_data(context)  
         message.reply_text("사주 모드로 전환 되었습니다.")
+        return
+    elif q == "/dirty":
+        context.user_data["councelor_type"] = "dirty"  
+        init_user_data(context)  
+        message.reply_text("OPT-Erebus story mode.")
         return
             
     #print(f'{user_id}, {block_list}, {user_id in block_list}')
