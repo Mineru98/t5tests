@@ -879,7 +879,7 @@ def init_model():
             # peft_config = LoraConfig(
             #     task_type=TaskType.CAUSAL_LM, inference_mode=False, r=8, lora_alpha=32, lora_dropout=0.1, target_modules=TARGET_MODULES
             # )
-            if True:    # llama case 
+            if 'llama' in model.lower():    # llama case 
                 LORA_R = 8
                 LORA_ALPHA = 16
                 LORA_DROPOUT = 0.05
@@ -896,6 +896,19 @@ def init_model():
                     bias="none",
                     task_type="CAUSAL_LM",
                 )
+            elif 'opt' in model.lower():
+                peft_config = LoraConfig(
+                    r=16,
+                    lora_alpha=32,
+                    target_modules=["q_proj", "v_proj"],
+                    lora_dropout=0.05,
+                    bias="none",
+                    task_type="CAUSAL_LM"
+                )                
+            else:
+                accelerator.print("not defined LoRa!!")
+                exit()
+                
             gpt = get_peft_model(gpt, peft_config)
             for name, param in gpt.named_parameters():
                 if "embed" in name:
