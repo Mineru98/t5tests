@@ -9,5 +9,6 @@
     "telegram": true,
     "facebook": false,
     "telegram_test_mode": true,
-    "rasa_agent": true
+    "rasa_agent": true,
+    "streaming": true
 }

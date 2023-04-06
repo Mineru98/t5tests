@@ -169,6 +169,7 @@ hf_tgi_mode = args.hf_tgi_mode
 telegram = args.telegram
 facebook = args.facebook
 hf_tgi_api_base = args.hf_tgi_api_base
+streaming = args.streaming
 
 latest_model_dir = os.environ['CURRENT_MODEL']
 latest_model_dir_on_test = os.environ['CURRENT_MODEL']
@@ -561,7 +562,8 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         prompt = contents
         print(f'prompt={prompt}')
         context.user_data.pop('stop_generation', None)
-        if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
+        # if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
+        if streaming or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
             max_response_length = 1024
             start_time = time.time()
@@ -1272,7 +1274,7 @@ def user_message_handler(message, context, chat_id):
         init_user_data(context)  
         message.reply_text("사주 모드로 전환 되었습니다.")
         return
-    elif q == "/dirty":
+    elif q == "/adult":
         context.user_data["councelor_type"] = "dirty"  
         init_user_data(context)  
         message.reply_text("OPT-Erebus story mode.")
