@@ -347,11 +347,11 @@ generation_kwargs_basaran = {
     # "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs_basaran_high_temp = {
+generation_kwargs_basaran_test_opt = {
     "do_sample":False,
     "use_cache":False,
     "early_stopping":True,
-    # "length_penalty":9.0,
+    "length_penalty":9.0,
     "temperature":1.0,
     # "top_k":40,
     "top_p":0.90,
@@ -376,7 +376,7 @@ generation_kwargs_hf_tgi = {
 }
 
 if basaran_mode:
-    generation_kwargs = generation_kwargs_basaran_high_temp
+    generation_kwargs = generation_kwargs_basaran_test_opt
 elif hf_tgi_mode:
     generation_kwargs = generation_kwargs_hf_tgi
 else:
