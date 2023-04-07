@@ -284,7 +284,7 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "saju":
         return chat_query(context, message, user_input, prompt_saju_consulting, "B", "A", 6)
     elif context.user_data['councelor_type'] == "dirty":
-        return chat_query(context, message, user_input, prompt_dirty_OPT, "B", "A", 6)
+        return chat_query(context, message, user_input, prompt_dirty_OPT, "B", "A", 12)
     elif context.user_data['councelor_type'] == "fortune":
         return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
@@ -928,7 +928,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
     #while len(chat_history) > MAX_CHAT_HISTORY:
     tokens = tokenizer(contents)['input_ids']
     print(f'len(tokens) = {len(tokens)}, len(text) = {len(contents)}')
-    while len(tokens) > 1024 or len(chat_history) > 5:
+    while len(tokens) > 1024 or len(chat_history) > MAX_CHAT_HISTORY:
         chat_history.pop(0)
         _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
         tokens = tokenizer(contents)['input_ids']
