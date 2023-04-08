@@ -351,8 +351,8 @@ generation_kwargs_basaran_test_opt = {
     "do_sample":False,
     "use_cache":False,
     "early_stopping":True,
-    "length_penalty":9.0,
-    "temperature":1.0,
+    # "length_penalty":10.0,
+    "temperature":1.1,
     # "top_k":40,
     "top_p":0.90,
     # "no_repeat_ngram_size":2, 
@@ -565,7 +565,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         # if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
         if streaming or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
-            max_response_length = 1024
+            max_response_length = 1500
             start_time = time.time()
             # Generate Answer
             kwargs = generation_kwargs
