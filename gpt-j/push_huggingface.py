@@ -8,11 +8,10 @@ import torch
 
 notebook_login()
 
-checkpoint = 3060
-repo_id = f"llama-7B-alpaca-30p"
+repo_id = f"OPT-6.7B-Erebus-instruct-follow"
 
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
-latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/llama-7B-en-alpaca"
+latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/OPT-6.7B-Erebus-instruct-native"
 tokenizer_dir = latest_model_dir
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 

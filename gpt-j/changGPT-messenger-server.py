@@ -284,7 +284,7 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "saju":
         return chat_query(context, message, user_input, prompt_saju_consulting, "B", "A", 6)
     elif context.user_data['councelor_type'] == "dirty":
-        return chat_query(context, message, user_input, prompt_dirty_OPT, "B", "A", 12)
+        return chat_query(context, message, user_input, prompt_dirty_OPT, "B", "Emma", 12)
     elif context.user_data['councelor_type'] == "fortune":
         return chat_query(context, message, user_input, context.user_data["prompt"], "B", "A", 2)
     elif context.user_data['councelor_type'] == "prompt":
