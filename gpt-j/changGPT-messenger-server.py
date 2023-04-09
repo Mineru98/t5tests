@@ -350,9 +350,9 @@ generation_kwargs_basaran = {
 generation_kwargs_basaran_test_opt = {
     "do_sample":False,
     "use_cache":False,
-    "early_stopping":True,
+    "early_stopping":False,
     # "length_penalty":10.0,
-    "temperature":1.1,
+    "temperature":0.7,
     # "top_k":40,
     "top_p":0.90,
     # "no_repeat_ngram_size":2, 
@@ -446,17 +446,21 @@ def reply_text(context, message, text, full_text, last_sent_msg, flush=False):
     if "facebook" not in context.user_data:
         # print(f'reply_text:full_text=[{full_text}]')
         if flush:
-            full_text = full_text.strip() + "◈"
+            text = text.strip() + "◈"
+        remain_text = text
         if last_sent_msg is None:
-            last_sent_msg = message.reply_text(full_text)
+            last_sent_msg = message.reply_text(text)
             print("$$reply_text called.")
         else:
             #print(f"$$edit_text called=[{full_text}]")
             try:
-                last_sent_msg.edit_text(full_text)
+                last_sent_msg.edit_text(text)
+                if len(text) > 3000:
+                    last_sent_msg = None
+                    remain_text = ""
             except Exception as e:
                 print(f"reply_text exception = {e}")
-        return "", last_sent_msg
+        return remain_text, last_sent_msg
     else:
         text = remove_trash(text)
         if flush:
