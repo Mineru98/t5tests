@@ -5,7 +5,7 @@
     "new_model_name": "lcw99/OPT-13B-Erebus-instruct",
     "save_path": "./Models/OPT-13B-Erebus-instruct-native",
  
-    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
+    "deepspeed_config_json": "./deepspeed_config_2gpu_test.json",
     "cache_folder_name": "cache-OPT-en",
 
     "num_epochs": 3,
