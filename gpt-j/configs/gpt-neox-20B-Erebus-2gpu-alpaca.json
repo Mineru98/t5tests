@@ -9,7 +9,7 @@
     "cache_folder_name": "cache-GPT-NeoX",
 
     "num_epochs": 3,
-    "save_step": 60,
+    "save_step": 20,
     "eval_step": 20,
 
     "max_input_length": 1024,
