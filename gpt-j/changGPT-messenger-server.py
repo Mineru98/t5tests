@@ -350,13 +350,13 @@ generation_kwargs_basaran = {
 generation_kwargs_basaran_test_opt = {
     "do_sample":False,
     "use_cache":False,
-    "early_stopping":False,
+    "early_stopping":True,
     # "length_penalty":10.0,
-    "temperature":0.7,
+    "temperature":0.9,
     # "top_k":40,
     "top_p":0.90,
-    # "no_repeat_ngram_size":2, 
-    # "repetition_penalty":50.0,
+    "no_repeat_ngram_size":10, 
+    "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
 }
 
