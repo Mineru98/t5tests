@@ -169,6 +169,7 @@ hf_tgi_mode = args.hf_tgi_mode
 telegram = args.telegram
 facebook = args.facebook
 hf_tgi_api_base = args.hf_tgi_api_base
+basaran_api_base = args.basaran_api_base
 streaming = args.streaming
 
 latest_model_dir = os.environ['CURRENT_MODEL']
@@ -352,10 +353,10 @@ generation_kwargs_basaran_test_opt = {
     "use_cache":False,
     "early_stopping":True,
     # "length_penalty":10.0,
-    "temperature":0.9,
+    "temperature":1.0,
     # "top_k":40,
     "top_p":0.90,
-    "no_repeat_ngram_size":10, 
+    "no_repeat_ngram_size":20, 
     "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
 }
