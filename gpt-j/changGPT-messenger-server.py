@@ -37,7 +37,8 @@ from const.prompts import HELP_TEXT, chat_prompt_normal, chat_prompt_therapist, 
             chat_prompt_mbti, chat_prompt_expert_ko, chat_prompt_expert_en, chat_prompt_expert2, article_writing, \
             blog_writing, receipe_writing, poem_writing, today_fortune_writing, today_fortune_keyword, \
             entity_extract_for_poem, samhangsi_writing, movie_info, detail_answer_prompt, detail_answer_prompt_fortune, \
-            entity_extract_name, entity_extract_name_for_samhangsi, prompt_saju_consulting, prompt_dirty_OPT
+            entity_extract_name, entity_extract_name_for_samhangsi, prompt_saju_consulting, prompt_dirty_OPT, \
+            chat_prompt_expert_test_mode
 from const.fortune import job_list, Personality_types, places_to_meet, asian_man_looks, asian_women_looks, wealth
 
 from plugin.todays_fortune import get_todays_fortune
@@ -272,6 +273,8 @@ def query(context, message, user_input):
     elif context.user_data['councelor_type'] == "doctor":
         return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
+        if telegram_test_mode:
+            return chat_query(context, message, user_input, chat_prompt_expert_test_mode, "B", "A", 12)
         if 'language' not in context.user_data:
             context.user_data['language'] = 'ko'
         if context.user_data['language'] == 'ko':
@@ -599,6 +602,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
 
             # Stream Answer
             temp_gen_text_concat = ""
+            temp_gen_text_concat_start_pos = 0
             no_gen_count = 0
             stopped = False
             for event in response:
@@ -640,8 +644,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     temp_gen_text_concat += gen_text
                     if len(temp_gen_text_concat) < generation_chunk:
                         continue
-                    print(f"[{temp_gen_text_concat}]")
                     gen_text_to_reply += temp_gen_text_concat
+                    temp_gen_text_concat_start_pos += len(temp_gen_text_concat)
+                    print(f"[{temp_gen_text_concat}]={temp_gen_text_concat_start_pos}")
                     temp_gen_text_concat = ""
                     gen_text_to_reply, sent_message = reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message)
                 if 'stop_generation' in context.user_data:
@@ -649,7 +654,11 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     context.user_data.pop('stop_generation', None)
                     stopped = True
                 if stopped:
-                    print(f'**stop pos={len(gen_text)}')
+                    print(f"{len(gen_text_concat)=}, {temp_gen_text_concat_start_pos=}")
+                    stop_pos = len(gen_text_concat) - temp_gen_text_concat_start_pos + 1
+                    if stop_pos < 0:
+                        stop_pos = len(gen_text_concat)
+                    temp_gen_text_concat = temp_gen_text_concat[:stop_pos]
                     gen_text_to_reply += temp_gen_text_concat
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
