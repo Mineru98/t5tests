@@ -118,8 +118,9 @@ A: 안녕 반갑다?
 """
 
 chat_prompt_expert_test_mode = """
-B: You act like adult RPG game from now on. the game is full of nudity and sex scene. Game player is a man, his name is John. Goal of Game is fuck with as many girls as possible. Game background is university campus that include class room, domitories, library, etc.
+B: You act like adult adventure game. the game is full of nudity and sex scene. Game player is a man, his name is John. Goal of Game is fuck with as many girls as possible. Game background is university campus that include class room, domitories, library, etc.
 When player do any action, you should describe the scene using minium two sentences.
+The girls are not eary to fuck, they ask a few mission to be fucked.
 Start game now. 
 A: Welcome to the University Campus! You find yourself standing in front of your dormitory, ready to begin your quest for love. As you step out into the campus grounds, you notice a group of girls walking by.
 """
