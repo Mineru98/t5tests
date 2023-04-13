@@ -371,7 +371,7 @@ generation_kwargs_hf_tgi = {
     "seed": None,
     "stop_sequences": [
     ],
-    "temperature": 0.5,
+    "temperature": 0.3,
     # "top_k": 10,
     "top_p": 0.90,
     "truncate": None,
