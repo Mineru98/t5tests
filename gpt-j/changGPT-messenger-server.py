@@ -365,17 +365,17 @@ generation_kwargs_basaran_test_opt = {
 }
 
 generation_kwargs_hf_tgi = {
-    "do_sample": True,
+    "do_sample": False,
     "repetition_penalty": 1.1,
     "return_full_text": False,
     "seed": None,
     "stop_sequences": [
     ],
-    "temperature": 0.3,
+    "temperature": 0.9,
     # "top_k": 10,
     "top_p": 0.90,
     "truncate": None,
-    "typical_p": 0.95,
+    "typical_p": 0.2,
     "watermark": False
 }
 
@@ -555,7 +555,7 @@ def generate_and_stop(context, contents, gen_len = generation_chunk):
     output, stopped = search_stop_word(output)
     return output
     
-def generate(context, message, contents, open_end = False, gen_len = generation_chunk):
+def generate(context, message, contents, open_end = False, gen_len = generation_chunk, max_new_token = 200):
     global generator
     contents = contents.strip()
     if not open_end:
@@ -598,7 +598,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 )
             elif hf_tgi_mode:
                 client = Client(hf_tgi_api_base)
-                response = client.generate_stream(contents, max_new_tokens=1024, **kwargs)
+                response = client.generate_stream(contents, max_new_tokens=max_new_token, **kwargs)
 
             # Stream Answer
             temp_gen_text_concat = ""
@@ -719,7 +719,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
     
 def prompt_query(context, message, user_input):
     content = f"{user_input}"
-    prompt, generated = generate(context, message, content, True)
+    prompt, generated = generate(context, message, content, True, 1000)
     return prompt, generated
 
 def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix):
@@ -931,13 +931,16 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                 if not do_not_reply:
                     reply_text(context, message, bot_message, bot_message, None, True)
         if bot_message is None:
-            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN)
+            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN, 200)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
         bot_message_in_history = None
     timestamp = datetime.today().timestamp()
             
+    if prompt == "error!":
+        return prompt, bot_message
+        
     chat_history.append({"user": user_input, "bot": bot_message_in_history, "time": timestamp})
     _, contents = build_chat_prompt(chat_history, chat_prompt, None, user_prefix, bot_prefix)
     #while len(chat_history) > MAX_CHAT_HISTORY:
