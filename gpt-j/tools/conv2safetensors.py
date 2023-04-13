@@ -238,7 +238,7 @@ def convert_generic(model_id: str, folder: str, filenames: Set[str]) -> List["Co
     return operations
 
 
-def convert(model_id: str, force: bool = False) -> Optional["CommitInfo"]:
+def convert(model_id: str, force: bool = False, check: bool = False) -> Optional["CommitInfo"]:
     pr_title = "Adding `safetensors` variant of this model"
 
     folder = os.path.join(model_id, "safetensors")
@@ -253,7 +253,8 @@ def convert(model_id: str, force: bool = False) -> Optional["CommitInfo"]:
         operations = convert_multi(model_id, folder)
     else:
         raise RuntimeError(f"Model {model_id} doesn't seem to be a valid pytorch model. Cannot convert")
-    check_final_model(model_id, folder)
+    if check:
+        check_final_model(model_id, folder)
 
 if __name__ == "__main__":
     DESCRIPTION = """
@@ -274,6 +275,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Create the PR even if it already exists of if the model was already converted.",
     )
+    parser.add_argument(
+        "--check",
+        action="store_false",
+        help="check conversion.",
+    )
     args = parser.parse_args()
     model_id = args.model_id
-    convert(model_id, force=args.force)
+
+    convert(model_id, force=args.force, check=args.check)
