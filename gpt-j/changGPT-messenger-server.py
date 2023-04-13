@@ -635,6 +635,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                         reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                         break
                     continue
+                no_gen_count = 0
                 prev_len = len(gen_text_concat)
                 gen_text_concat += gen_text
                 if not stopped:
