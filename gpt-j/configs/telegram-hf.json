@@ -4,7 +4,7 @@
     "deepspeed_mode": false,
     "zero_mode": false,
     "basaran_mode": false,
-    "basaran_api_base": "http://192.168.25.98:8888/v1",
+    "basaran_api_base": "http://127.0.0.1:8888/v1",
     "hf_tgi_mode": true,
     "hf_tgi_api_base": "http://127.0.0.1:8080",
     "telegram": true,

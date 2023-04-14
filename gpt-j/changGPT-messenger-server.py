@@ -343,7 +343,7 @@ generation_kwargs_basaran = {
     "use_cache":False,
     "early_stopping":True,
     # "length_penalty":9.0,
-    "temperature":0.8,
+    "temperature":0.6,
     # "top_k":40,
     "top_p":0.90,
     # "no_repeat_ngram_size":2, 
@@ -380,7 +380,7 @@ generation_kwargs_hf_tgi = {
 }
 
 if basaran_mode:
-    generation_kwargs = generation_kwargs_basaran_test_opt
+    generation_kwargs = generation_kwargs_basaran
 elif hf_tgi_mode:
     generation_kwargs = generation_kwargs_hf_tgi
 else:
@@ -719,7 +719,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
     
 def prompt_query(context, message, user_input):
     content = f"{user_input}"
-    prompt, generated = generate(context, message, content, True, 1000)
+    prompt, generated = generate(context, message, content, True, 32, 1000)
     return prompt, generated
 
 def build_chat_prompt(chat_history, chat_prompt, user_input, user_prefix, bot_prefix):
@@ -931,7 +931,7 @@ def chat_query(context, message, user_input, chat_prompt, user_prefix="B", bot_p
                 if not do_not_reply:
                     reply_text(context, message, bot_message, bot_message, None, True)
         if bot_message is None:
-            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN, 200)
+            prompt, bot_message = generate(context, message, contents, True, CHAT_RESPONSE_LEN, 500)
 
     bot_message_in_history = bot_message
     if bot_message == last_bot_message:
