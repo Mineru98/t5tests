@@ -1,0 +1,39 @@
+{
+    "model_file": "./Models/llama-7B-ko-ext-qvproj/checkpoint-1920",
+    "tokenizer": "./StockModels/llama-7B-kor-extended",
+ 
+    "new_model_name": "lcw99/llama-7B-ko-ext-qvproj",
+    "save_path": "./Models/llama-7B-ko-ext-full",
+ 
+    "deepspeed_config_json": "./deepspeed_config_stage3.json",
+    "cache_folder_name": "cache-llama-7B-ko-extended",
+
+    "num_epochs": 1,
+    "save_step": 80,
+    "eval_step": 20,
+
+    "max_input_length": 1024,
+    "batch_size": 2,
+    "gradient_acc": 64,
+    "validation_data_size": 64,
+
+    "lora": false,
+    "prefixtuning": false,
+    "scratch": false,
+    "reset_weight": false,
+    "ignore_data_skip": false,
+    "skip_eval": false,
+    "optimizer_8bit": false,
+    "save_dataset": true,
+    "train_resume": 0.0,
+
+    "dataset": {
+        "wiki":1.0,
+        "namu":0.3
+    },
+    
+    "unfreeze": [
+    ]
+}
+
+
