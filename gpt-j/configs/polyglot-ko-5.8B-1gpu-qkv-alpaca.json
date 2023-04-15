@@ -56,7 +56,6 @@
         "gsm8k_en_to_ko":32,
         "korquad_2.1":32,
         "korquad_2.1_dev":32,
-        "tarot_conv":32,
         "alpaca":1.0
     },
     
