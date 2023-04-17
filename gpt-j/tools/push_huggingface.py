@@ -8,10 +8,10 @@ import torch
 
 notebook_login()
 
-repo_id = f"OPT-6.7B-Erebus-instruct-follow"
+repo_id = f"polyglot-ko-5.8b-instruct-native-finetune"
 
 #latest_model_dir = "EleutherAI/polyglot-ko-1.3b"
-latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/OPT-6.7B-Erebus-instruct-native"
+latest_model_dir = f"/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-odd-qkv-instruct"
 tokenizer_dir = latest_model_dir
 tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
 

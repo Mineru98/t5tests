@@ -371,7 +371,7 @@ generation_kwargs_hf_tgi = {
     "seed": None,
     "stop_sequences": [
     ],
-    "temperature": 0.9,
+    "temperature": 0.5,
     # "top_k": 10,
     "top_p": 0.90,
     "truncate": None,
@@ -430,7 +430,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|</s>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
+    match = re.search(r'<\|endoftext\|>|\n\n\n\n|</s>|\|sep\|>|\n#|\nB$|\n고객:|\n직원:|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
     if match is None:
         bot_message = generated
     else:
@@ -619,7 +619,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     gen_text = event['choices'][0]['text']  # extract the text
                 elif hf_tgi_mode:
                     id_str = tokenizer.decode([event.token.id])
-                    print(f"{event.token.text=} {event.token.id}={id_str}")
+                    print(f"'{event.token.text}',", end="")
                     # if not event.token.special:
                     gen_text = event.token.text
                 else:
