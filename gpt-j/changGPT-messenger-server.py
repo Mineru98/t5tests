@@ -339,13 +339,13 @@ generation_kwargs_contrasive = {
 }
 
 generation_kwargs_basaran = {
-    "do_sample":False,
-    "use_cache":False,
-    "early_stopping":True,
+    # "do_sample":False,
+    # "use_cache":False,
+    # "early_stopping":True,
     # "length_penalty":9.0,
-    "temperature":0.6,
+    "temperature":0.3,
     # "top_k":40,
-    "top_p":0.90,
+    "top_p":0.80,
     # "no_repeat_ngram_size":2, 
     # "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
