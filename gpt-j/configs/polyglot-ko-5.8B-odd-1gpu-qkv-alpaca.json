@@ -1,10 +1,10 @@
 {
 
-    "model_file": "EleutherAI/polyglot-ko-5.8b",
+    "model_file": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-odd-layer-32samp/final",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
 
     "new_model_name": "lcw99/polyglot-ko-5.8b-qkv-instruct",
-    "save_path": "./Models/polyglot-ko-5.8b-qkv-instruct",
+    "save_path": "./Models/polyglot-ko-5.8b-odd-qkv-instruct",
  
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
     "cache_folder_name": "cache-polyglot-ko",
@@ -14,7 +14,7 @@
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 4,
     "gradient_acc": 64,
     "validation_data_size": 64,
 
