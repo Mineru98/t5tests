@@ -3,7 +3,7 @@
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
     "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-odd-layers",
-    "save_path": "./Models/polyglot-ko-5.8b-odd-n-final-layers-tarot-10samp",
+    "save_path": "./Models/polyglot-ko-5.8b-odd-n-final-layers-tarot-32samp",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
     "cache_folder_name": "cache-v2",
