@@ -170,7 +170,10 @@ def tokenizing_sample(ss):
                     attention_mask_concat = attention_mask_concat[max_input_length:]
                 else:
                     break
-                                
+    if len(input_ids) == 0:
+        input_ids.append(input_ids_concat[:max_input_length])
+        attention_mask.append(attention_mask_concat[:max_input_length])
+                                        
     tokenized['input_ids'] = input_ids
     tokenized['attention_mask'] = attention_mask
     if PrefixTuning:
@@ -222,14 +225,13 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         val_size = int(rate / 100)
     if val_size < 1:
         val_size = 1
-    accelerator.print(f"{source=} {val_size=}")
     if len(dss) > 1:
         ds = dss[0]
         ds = ds.train_test_split(val_size)
         dss[0] = ds["train"]
         ds_eval = ds["test"]
         columns = ds_eval.column_names
-        # cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
+        cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
         ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
         if training_size > 0:
             ds_train = ds[0].select(range(training_size))
@@ -251,10 +253,10 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             ds_train = ds_train.select(range(training_size))
         if tokenize:
             cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
-            # cache_file_eval = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
+            cache_file_eval = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
             accelerator.print("tokninzing...", cache_file)
             columns = ds_train.column_names
-            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
+            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file_eval)
             ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
 
     if rate < 1.0:
