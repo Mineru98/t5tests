@@ -222,6 +222,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         val_size = int(rate / 100)
     if val_size < 1:
         val_size = 1
+    accelerator.print(f"{source=} {val_size=}")
     if len(dss) > 1:
         ds = dss[0]
         ds = ds.train_test_split(val_size)
