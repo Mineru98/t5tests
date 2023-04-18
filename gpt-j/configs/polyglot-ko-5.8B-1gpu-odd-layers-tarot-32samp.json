@@ -8,12 +8,12 @@
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
     "cache_folder_name": "cache-polyglot-ko",
 
-    "num_epochs": 4,
+    "num_epochs": 3,
     "save_step": 20,
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 4,
     "gradient_acc": 64,
     "validation_data_size": 64,
     
