@@ -230,6 +230,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         ds = ds.train_test_split(val_size)
         dss[0] = ds["train"]
         ds_eval = ds["test"]
+        accelerator.print(f"***** {val_size=} {len(ds_eval)=}")
         columns = ds_eval.column_names
         cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
         ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
@@ -256,7 +257,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             cache_file_eval = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
             accelerator.print("tokninzing...", cache_file)
             columns = ds_train.column_names
-            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns, cache_file_name=cache_file_eval)
+            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
             ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
 
     if rate < 1.0:

@@ -6,7 +6,7 @@
     "save_path": "./Models/polyglot-ko-5.8b-odd-n-final-layers-tarot-32samp",
  
     "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
-    "cache_folder_name": "cache-v2",
+    "cache_folder_name": "cache-polyglot-ko",
 
     "num_epochs": 4,
     "save_step": 20,
@@ -31,7 +31,6 @@
     "dataset": {
         "nikl_news":32,
         "nikl_news_2020":32,
-        "aihub_patent_summary":32,
         "aihub_paper_summary":32,
         "wikiqna":32,
         "wikiqna2":32,
