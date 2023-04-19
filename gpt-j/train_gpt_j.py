@@ -52,6 +52,7 @@ softembeddings = False
 save_dataset = False
 train_resume = 0.0
 accel_prepare = False
+huggingface_trainer = False
 
 model_name = None 
 model_save_dir = None
@@ -1674,8 +1675,10 @@ def huggingface_trainer():
     
     print(args)
     
-    # hf_trainer = Trainer
-    hf_trainer = MyTrainer2
+    if huggingface_trainer:
+        hf_trainer = Trainer
+    else:
+        hf_trainer = MyTrainer2
     # if not optimizer_8bit:
     #     hf_trainer = MyTrainer
         
@@ -1714,7 +1717,7 @@ def main():
             unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, train_dataset_size, ignore_data_skip, reset_weight, skip_eval, \
             deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings, \
-            save_dataset, train_resume, accel_prepare
+            save_dataset, train_resume, accel_prepare, huggingface_trainer
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1750,6 +1753,7 @@ def main():
     parser.add_argument("--save_dataset", action='store_true', help = "save_dataset")
     parser.add_argument("--train_resume", help = "resume epochs")
     parser.add_argument("--accel_prepare", action='store_true', help = "accel_prepare")
+    parser.add_argument("--huggingface_trainer", action='store_true', help = "huggingface_trainer")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1827,6 +1831,8 @@ def main():
         train_resume = args.train_resume
     if args.accel_prepare:
         accel_prepare = True
+    if args.huggingface_trainer:
+        huggingface_trainer = True
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")
