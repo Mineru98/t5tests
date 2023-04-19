@@ -158,7 +158,7 @@ def tokenizing_sample(ss):
                 continue
             
             while True:
-                if len(input_ids_concat) > int(max_input_length / 5):
+                if len(input_ids_concat) > 0:
                     input_ids_part = input_ids_concat[:max_input_length]
                     attention_mask_part = attention_mask_concat[:max_input_length]
                     if len(input_ids_part) < max_input_length:
