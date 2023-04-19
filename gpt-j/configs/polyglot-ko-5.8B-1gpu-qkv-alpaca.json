@@ -61,6 +61,7 @@
     
     "unfreeze": [
         "query_key_value.weight*", 
+        "dense.weight*",
         "gpt_neox.final_layer_norm.weight",
         "gpt_neox.embed_in.weight",
         "embed_out.weight"
