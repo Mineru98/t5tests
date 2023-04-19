@@ -289,11 +289,11 @@ def get_dataset(tokenize):
     if os.path.exists(saved_dataset_path):
         accelerator.print(f"\n----------------------\nloading dataset from {saved_dataset_path}")
         ds_train = load_from_disk(f"{saved_dataset_path}/train")
-        ds_eval = load_from_disk(f"{saved_dataset_path}/eval")
         if train_resume > 0.0:
-            start_row = int(len(ds_train) * train_resume)
-            ds_train = ds_train[start_row:]
+            start_row = int(train_resume * len(ds_train))
             accelerator.print(f"\n---------\nresume training {start_row=}")
+            ds_train = ds_train.select(range(start_row, len(ds_train)))
+        ds_eval = load_from_disk(f"{saved_dataset_path}/eval")
         return ds_eval, ds_train
         
     data_server = os.environ['AI_DATA_SERVER']

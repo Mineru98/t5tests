@@ -1,6 +1,6 @@
 {
     "model_file": "./Models/llama-7B-ko-ext-full/save-1040",
-    "tokenizer": "./StockModels/llama-7B-kor-extended",
+    "tokenizer": "./Models/llama-7B-ko-ext-full/save-1040",
  
     "new_model_name": "lcw99/llama-7B-ko-ext-qvproj",
     "save_path": "./Models/llama-7B-ko-ext-full",
