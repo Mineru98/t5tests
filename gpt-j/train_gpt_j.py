@@ -1565,7 +1565,8 @@ def huggingface_trainer():
     
     print(args)
     
-    hf_trainer = Trainer
+    # hf_trainer = Trainer
+    hf_trainer = MyTrainer
     # if not optimizer_8bit:
     #     hf_trainer = MyTrainer
         
