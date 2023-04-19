@@ -16,7 +16,7 @@
             "program": "${file}",
             "args": [
                 "--config_file",
-                "configs/llama-ko-7B-2gpu-embed-only.json",
+                "configs/llama-ko-7B-2gpu-ko-ext-full.json",
             ],
             "justMyCode": false
         },

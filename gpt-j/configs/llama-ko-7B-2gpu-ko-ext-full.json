@@ -1,5 +1,5 @@
 {
-    "model_file": "./Models/llama-7B-ko-ext-qvproj/checkpoint-1920",
+    "model_file": "./Models/llama-7B-ko-ext-full/save-1040",
     "tokenizer": "./StockModels/llama-7B-kor-extended",
  
     "new_model_name": "lcw99/llama-7B-ko-ext-qvproj",
@@ -25,9 +25,9 @@
     "skip_eval": false,
     "optimizer_8bit": false,
     "save_dataset": true,
-    "train_resume": 0.0,
+    "train_resume": 0.3,
     "accel_prepare": false,
-    "use_huggingface_trainer": true,
+    "use_huggingface_trainer": false,
 
     "dataset": {
         "wiki":1.0,
