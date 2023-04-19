@@ -3,12 +3,12 @@
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
     "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-odd-layers",
-    "save_path": "./Models/polyglot-ko-5.8b-odd-n-final-layers-tarot-32samp",
+    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-odd-layers-step1",
  
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
     "cache_folder_name": "cache-polyglot-ko",
 
-    "num_epochs": 3,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
@@ -26,7 +26,8 @@
     "optimizer_8bit": false,
     "save_dataset": true,
     "train_resume": 0.0,
-    "accel_prepare": true,
+    "accel_prepare": false,
+    "use_huggingface_trainer": true,
 
     "dataset": {
         "nikl_news":32,
