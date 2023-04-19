@@ -51,7 +51,7 @@ PrefixTuning = False
 softembeddings = False
 save_dataset = False
 train_resume = 0.0
-zero_prepare = False
+accel_prepare = False
 
 model_name = None 
 model_save_dir = None
@@ -1136,6 +1136,115 @@ def trainer():
             accelerator.print(loss)
             # torch.save(state, "./TestModel/model.pt")
 
+class MyTrainer2(Trainer):    
+    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
+        model.train()
+        inputs = self._prepare_inputs(inputs)
+        
+        # if is_sagemaker_mp_enabled():
+        #     loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
+        #     return loss_mb.reduce_mean().detach().to(self.args.device)
+
+
+        with self.compute_loss_context_manager():
+            loss = self.compute_loss(model, inputs)
+
+        if self.args.n_gpu > 1:
+            loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+        if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
+            # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
+            loss = loss / self.args.gradient_accumulation_steps
+
+        if self.do_grad_scaling:
+            loss = self.scaler.scale(loss)
+            accelerator.backward(loss)
+            # self.scaler.scale(loss).backward()
+        # elif self.use_apex:
+        #     with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+        #         scaled_loss.backward()
+        elif self.deepspeed:
+            # loss gets scaled under gradient_accumulation_steps in deepspeed
+            loss = self.deepspeed.backward(loss)
+        else:
+            #loss.backward()
+            accelerator.backward(loss)
+        # loss.backward(retain_graph=True)
+
+        return torch.squeeze(loss.detach())
+
+    def prediction_step(
+        self,
+        model: nn.Module,
+        inputs: Dict[str, Union[torch.Tensor, Any]],
+        prediction_loss_only: bool,
+        ignore_keys: Optional[List[str]] = None,
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+
+        if not self.args.do_predict:
+            return (None, None, None)
+        
+        global last_eval_model
+        
+        has_labels = all(inputs.get(k) is not None for k in self.label_names)
+        inputs = self._prepare_inputs(inputs)
+        if ignore_keys is None:
+            if hasattr(self.model, "config"):
+                ignore_keys = getattr(self.model.config, "keys_to_ignore_at_inference", [])
+            else:
+                ignore_keys = []
+
+        # labels may be popped when computing the loss (label smoothing for instance) so we grab them first.
+        if has_labels:
+            labels = nested_detach(tuple(inputs.get(name) for name in self.label_names))
+            if len(labels) == 1:
+                labels = labels[0]
+        else:
+            labels = None
+
+        with torch.no_grad():
+            with self.compute_loss_context_manager():
+                loss, outputs = self.compute_loss(model, inputs, return_outputs=True)
+            loss = loss.mean().detach()
+
+            if hasattr(outputs, "logits"):
+                logits = outputs.logits
+            else:
+                logits = None
+
+        if prediction_loss_only:
+            return (loss, None, None)
+
+        logits = nested_detach(logits)
+        if len(logits) == 1:
+            logits = logits[0]
+            
+        last_eval_model = model
+        return (loss, logits, labels)
+
+    def unwrap_model(self, model: nn.Module) -> nn.Module:
+        if hasattr(model, "module"):
+            return self.unwrap_model(model.module)
+        else:
+            return model
+    
+
+    loss_cross_entropy = nn.CrossEntropyLoss()
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
+        # Save past state if it exists
+        # TODO: this needs to be fixed and made cleaner later.
+        outputs = model(**inputs)
+        # if "loss" in outputs:
+        #     loss = outputs["loss"]
+        # else:
+        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
+            # loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+            #                    reduction='mean')
+        #print("loss=", loss)
+        return (loss, outputs) if return_outputs else loss
+
+
 class MyTrainer(Trainer):    
     # def create_optimizer_and_scheduler(self, num_training_steps):
     #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
@@ -1566,7 +1675,7 @@ def huggingface_trainer():
     print(args)
     
     # hf_trainer = Trainer
-    hf_trainer = MyTrainer
+    hf_trainer = MyTrainer2
     # if not optimizer_8bit:
     #     hf_trainer = MyTrainer
         
@@ -1585,7 +1694,7 @@ def huggingface_trainer():
     trainer.optimizers=(optimizer, lr_scheduler)
 
     # llama case prepare consume more GPU mem, and cause OOM. don't know why.
-    if zero_prepare:
+    if accel_prepare:
         trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader = accelerator.prepare(
             trainer, model, optimizer, lr_scheduler, train_dataloader, eval_dataloader
         )
@@ -1605,7 +1714,7 @@ def main():
             unfreeze, gpt_neo, model_file, save_path, num_train_epochs, gradient_acc, \
             save_step, eval_step, validation_data_size, train_dataset_size, ignore_data_skip, reset_weight, skip_eval, \
             deepspeed_config_json, new_model_name, cache_folder_name, data_build_only, LoRa, PrefixTuning, softembeddings, \
-            save_dataset, train_resume, zero_prepare
+            save_dataset, train_resume, accel_prepare
     
     parser_config = argparse.ArgumentParser()
     parser_config.add_argument("--config_file", help = "loading config json file")
@@ -1640,7 +1749,7 @@ def main():
     parser.add_argument("--softembeddings", action='store_true', help = "using softembeddings")
     parser.add_argument("--save_dataset", action='store_true', help = "save_dataset")
     parser.add_argument("--train_resume", help = "resume epochs")
-    parser.add_argument("--zero_prepare", action='store_true', help = "zero_prepare")
+    parser.add_argument("--accel_prepare", action='store_true', help = "accel_prepare")
 
     args_config, unknown = parser_config.parse_known_args()
 
@@ -1716,8 +1825,8 @@ def main():
         save_dataset = True
     if args.train_resume:
         train_resume = args.train_resume
-    if args.zero_prepare:
-        zero_prepare = True
+    if args.accel_prepare:
+        accel_prepare = True
                 
     if not os.path.exists(f"./{cache_folder_name}"):
         os.makedirs(f"./{cache_folder_name}")

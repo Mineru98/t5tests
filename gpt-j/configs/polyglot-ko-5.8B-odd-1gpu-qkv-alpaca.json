@@ -27,7 +27,7 @@
     "optimizer_8bit": false,
     "save_dataset": true,
     "train_resume": 0.0,
-    "zero_prepare": false,
+    "accel_prepare": false,
     
     "dataset": {
         "nikl_news":300,
