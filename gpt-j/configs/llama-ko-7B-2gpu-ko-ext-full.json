@@ -26,6 +26,7 @@
     "optimizer_8bit": false,
     "save_dataset": true,
     "train_resume": 0.0,
+    "accel_prepare": true,
 
     "dataset": {
         "wiki":1.0,
