@@ -269,6 +269,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             count = int(rate)
             from random import randrange
             L = [ randrange(train_len) for _ in range(count)]
+            accelerator.print(L)
             ds_train = ds_train.select(L)
 
     accelerator.print("**********************************************")
