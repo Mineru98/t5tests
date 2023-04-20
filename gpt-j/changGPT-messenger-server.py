@@ -278,7 +278,7 @@ def query(context, message, user_input):
         if 'language' not in context.user_data:
             context.user_data['language'] = 'ko'
         if context.user_data['language'] == 'ko':
-            return chat_query(context, message, user_input, chat_prompt_expert_ko, "B", "A", 5)
+            return chat_query(context, message, user_input, chat_prompt_expert_ko, "B", "A", 12)
         elif context.user_data['language'] == 'en':
             return chat_query(context, message, user_input, chat_prompt_expert_en, "B", "A", 5)
     elif context.user_data['councelor_type'] == "expert2":
@@ -366,16 +366,16 @@ generation_kwargs_basaran_test_opt = {
 
 generation_kwargs_hf_tgi = {
     "do_sample": False,
-    "repetition_penalty": 1.1,
+    # "repetition_penalty": 1.1,
     "return_full_text": False,
     "seed": None,
     "stop_sequences": [
     ],
-    "temperature": 0.65,
+    "temperature": 0.7,
     # "top_k": 10,
     "top_p": 0.8,
     "truncate": None,
-    "typical_p": 0.3,
+    "typical_p": 0.2,
     "watermark": False
 }
 
