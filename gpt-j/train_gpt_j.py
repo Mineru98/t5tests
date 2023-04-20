@@ -265,7 +265,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         ds_train = ds_train.shuffle().train_test_split(test_size=(1.0 - rate))["train"]
     elif rate > 1.0:
         if len(ds_train) > rate:
-            ds_train = ds_train.shuffle().select(range(int(rate)))
+            ds_train = ds_train.shuffle(load_from_cache_file=False).select(range(int(rate)))
 
     accelerator.print("**********************************************")
     accelerator.print(f'train dataset len, {source}: ', len(ds_train))
