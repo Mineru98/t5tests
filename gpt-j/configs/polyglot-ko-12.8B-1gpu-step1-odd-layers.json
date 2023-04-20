@@ -1,11 +1,11 @@
 {
-    "model_file": "beomi/KoAlpaca-Polyglot-12.8B",
+    "model_file": "EleutherAI/polyglot-ko-12.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
     "new_model_name": "lcw99/multi-function-polyglot-ko-12.8b-odd-layers",
     "save_path": "/home/chang/nvme/Models/polyglot-ko-12.8b-odd-layers-step1",
  
-    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
+    "deepspeed_config_json": "./deepspeed_config_stage3.json",
     "cache_folder_name": "cache-polyglot-ko",
 
     "num_epochs": 3,
