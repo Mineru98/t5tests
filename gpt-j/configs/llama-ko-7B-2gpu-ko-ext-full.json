@@ -27,7 +27,7 @@
     "save_dataset": true,
     "train_resume": 0.3,
     "accel_prepare": false,
-    "use_huggingface_trainer": false,
+    "use_huggingface_trainer": true,
 
     "dataset": {
         "wiki":1.0,
