@@ -8,7 +8,7 @@
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
     "cache_folder_name": "cache-polyglot-ko",
 
-    "num_epochs": 1,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
@@ -27,7 +27,7 @@
     "save_dataset": true,
     "train_resume": 0.0,
     "accel_prepare": false,
-    "use_huggingface_trainer": true,
+    "use_huggingface_trainer": false,
 
     "dataset": {
         "nikl_news":32,
