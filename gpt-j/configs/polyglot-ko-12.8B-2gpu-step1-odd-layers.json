@@ -3,9 +3,9 @@
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
     "new_model_name": "lcw99/multi-function-polyglot-ko-12.8b-odd-layers",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-12.8b-odd-layers-step1",
+    "save_path": "./Models/polyglot-ko-12.8b-odd-layers-step1",
  
-    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
+    "deepspeed_config_json": "./deepspeed_config_stage3.json",
     "cache_folder_name": "cache-polyglot-ko",
 
     "num_epochs": 3,
@@ -13,7 +13,7 @@
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 4,
     "gradient_acc": 64,
     "validation_data_size": 64,
     
