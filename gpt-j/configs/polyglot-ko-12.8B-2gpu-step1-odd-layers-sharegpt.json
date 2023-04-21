@@ -2,8 +2,8 @@
     "model_file": "EleutherAI/polyglot-ko-12.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
-    "new_model_name": "lcw99/multi-function-polyglot-ko-12.8b-odd-layers",
-    "save_path": "./Models/polyglot-ko-12.8b-odd-layers-step1",
+    "new_model_name": "lcw99/polyglot-ko-12.8b-odd-layers-step1-sharegpt",
+    "save_path": "./Models/polyglot-ko-12.8b-odd-layers-step1-sharegpt",
  
     "deepspeed_config_json": "./deepspeed_config_stage3.json",
     "cache_folder_name": "cache-polyglot-ko",
