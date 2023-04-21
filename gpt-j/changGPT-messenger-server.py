@@ -343,9 +343,9 @@ generation_kwargs_basaran = {
     # "use_cache":False,
     # "early_stopping":True,
     # "length_penalty":9.0,
-    "temperature":0.3,
+    "temperature":0.7,
     # "top_k":40,
-    "top_p":0.80,
+    "top_p":0.95,
     # "no_repeat_ngram_size":2, 
     # "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
@@ -632,9 +632,9 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     no_gen_count += 1
                     print(f"no gen text={no_gen_count}")
                     if no_gen_count > 5:
-                        reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
-                        break
-                    continue
+                        stopped = True
+                    else:
+                        continue
                 no_gen_count = 0
                 prev_len = len(gen_text_concat)
                 gen_text_concat += gen_text

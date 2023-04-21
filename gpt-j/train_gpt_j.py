@@ -735,6 +735,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "sharegpt_deepl_ko" in dataset_source.keys():
+        ds = load_dataset("junelee/sharegpt_deepl_ko")
+        text_templates = text_templates_qna_alpaca_en
+        source = "sharegpt_deepl_ko"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
                 
     ds_concat_eval = concatenate_datasets(dss_eval) 
     ds_concat_train = concatenate_datasets(dss_train)
