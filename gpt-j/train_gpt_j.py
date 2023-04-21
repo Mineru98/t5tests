@@ -694,7 +694,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "alpaca" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"}, download_mode='force_redownload')
+        ds = load_dataset("json", data_files={'train': f"{data_server}alpaca_data_kr_checked.zip"})
         text_templates = text_templates_qna_alpaca
         source = "alpaca"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
@@ -736,7 +736,7 @@ def get_dataset(tokenize):
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
     if "sharegpt_deepl_ko" in dataset_source.keys():
-        ds = load_dataset("junelee/sharegpt_deepl_ko")
+        ds = load_dataset("junelee/sharegpt_deepl_ko", data_files="ko_alpaca_style_dataset.json")
         text_templates = text_templates_qna_alpaca_en
         source = "sharegpt_deepl_ko"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
