@@ -1,9 +1,9 @@
 {
-    "model_file": "EleutherAI/polyglot-ko-5.8b",
+    "model_file": "/home/chang/nvme/Models/polyglot-ko-5.8b-saju1-step1-odd",
+    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-saju1-step2-qkv",
+    "new_model_name": "lcw99/polyglot-ko-5.8b-saju1",
+
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
- 
-    "new_model_name": "lcw99/polyglot-ko-5.8b-odd-layers-step1-saju1",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-odd-layers-step1-saju1",
  
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
     "cache_folder_name": "cache-polyglot-ko",
@@ -15,7 +15,7 @@
     "max_input_length": 1024,
     "batch_size": 2,
     "gradient_acc": 64,
-    "validation_data_size": 64,
+    "validation_data_size": 12,
     
     "lora": false,
     "prefixtuning": false,
@@ -27,7 +27,7 @@
     "save_dataset": true,
     "train_resume": 0.0,
     "accel_prepare": false,
-    "use_huggingface_trainer": true,
+    "use_huggingface_trainer": false,
 
     "dataset": {
         "wiki": 100,

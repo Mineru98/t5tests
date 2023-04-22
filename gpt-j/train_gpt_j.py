@@ -226,50 +226,33 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
     use_data_cache_file = True 
     if PrefixTuning:
         use_data_cache_file = False
+    if len(dss) > 1:
+        datasets = []
+        for i, ds in enumerate(dss):
+            if tokenize:
+                cache_file = f"./{cache_folder_name}/{source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+                accelerator.print("tokninzing...", cache_file)
+                ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
+            datasets.append(ds)
+        ds_train = concatenate_datasets(datasets)
+    else:
+        ds_train = dss["train"]
+        if tokenize:
+            cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+            accelerator.print("tokninzing...", cache_file)
+            columns = ds_train.column_names
+            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
+
     if rate <= 1.0:
         val_size = int(validation_data_size * rate)
     else:
         val_size = int(rate / 100)
     if val_size < 1:
         val_size = 1
-    if len(dss) > 1:
-        ds = dss[0]
-        if len(ds) < val_size:
-            val_size = 1
-        ds = ds.train_test_split(val_size)
-        dss[0] = ds["train"]
-        ds_eval = ds["test"]
-        accelerator.print(f"***** {val_size=} {len(ds_eval)=}")
-        columns = ds_eval.column_names
-        cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
-        ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
-        if training_size > 0:
-            ds_train = ds[0].select(range(training_size))
-        else:
-            datasets = []
-            for i, ds in enumerate(dss):
-                if tokenize:
-                    cache_file = f"./{cache_folder_name}/{source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
-                    accelerator.print("tokninzing...", cache_file)
-                    ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
-                datasets.append(ds)
-            ds_train = concatenate_datasets(datasets)
-    else:
-        ds = dss["train"]
-        if len(ds) < val_size:
-            val_size = 1
-        ds = ds.train_test_split(val_size)
-        ds_train = ds["train"]
-        ds_eval = ds["test"]
-        if training_size > 0:
-            ds_train = ds_train.select(range(training_size))
-        if tokenize:
-            cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
-            cache_file_eval = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}_eval.cache"
-            accelerator.print("tokninzing...", cache_file)
-            columns = ds_train.column_names
-            ds_eval = ds_eval.map(tokenizing_sample, batched=True, remove_columns=columns)
-            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
+
+    ds_split = ds_train.train_test_split(val_size)
+    ds_train = ds_split["train"]
+    ds_eval = ds_split["test"]
 
     if rate < 1.0:
         ds_train = ds_train.shuffle().train_test_split(test_size=(1.0 - rate))["train"]
@@ -282,7 +265,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             # accelerator.print(L)
             ds_train = ds_train.select(L)
 
-    accelerator.print("**********************************************")
+    accelerator.print(f"**********************************************\n{source}")
     accelerator.print(f'train dataset len, {source}: ', len(ds_train))
     accelerator.print(f'eval  dataset len, {source}: ', len(ds_eval))
     return ds_eval, ds_train
@@ -1525,50 +1508,9 @@ def get_perplexity():
         accelerator.print("\n!! get_perplexity error= ", e)
         return 0.0
 
-def compute_metrics(eval_pred):
-    # preds, labels = eval_pred
-    # # preds have the same shape as the labels, after the argmax(-1) has been calculated
-    # # by preprocess_logits_for_metrics
-    # labels = labels.reshape(-1)
-    # preds = preds[0].reshape(-1)
-    # mask = labels != -100
-    # labels = labels[mask]
-    # preds = preds[mask]
-    # acc = metric_accuracy.compute(predictions=preds, references=labels)
-    # return acc
-   
-    labels_ids = eval_pred.label_ids
-    pred_ids = eval_pred.predictions[0]     
-    
-    # pred_ids = numpy.array(pred_ids)
-    # labels = labels_ids.reshape(-1)
-    # preds = pred_ids.reshape(-1)
-    # mask = labels != -100
-    # labels = labels[mask]
-    # #preds = preds[mask]
-    # acc = metric_accuracy.compute(predictions=preds, references=labels)
-            
-    pred_str = tokenizer.batch_decode(pred_ids, skip_special_tokens=False)
-
+def compute_metrics(eval_pred):            
     ppl = {}
     ppl["mean_perplexity"] = get_perplexity()
-
-    accelerator.print("\n\n===========predictions first token\n", pred_str[0].replace('\n', '/'))
-
-    if eval_sample:
-        tt = tokenizer("It's cold now, but", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
-        output_sequences = last_eval_model(tt["input_ids"])
-        pred_ids = torch.argmax(output_sequences["logits"][0], dim=-1)
-        generated = tokenizer.decode(pred_ids, skip_special_tokens=True)     
-        generated = generated.replace('\n', '/')   
-        accelerator.print(f"\n{generated}\n")
-        
-        tt = tokenizer("봄이 왔어요. 이제 곧", max_length=max_input_length, truncation=True, return_tensors='pt').to(device)
-        output_sequences = last_eval_model(tt["input_ids"])
-        pred_ids = torch.argmax(output_sequences["logits"][0], dim=-1)
-        generated = tokenizer.decode(pred_ids, skip_special_tokens=True)     
-        generated = generated.replace('\n', '/')   
-        accelerator.print(f"\n{generated}\n")
         
     return {
         "mean_perplexity": round(ppl["mean_perplexity"], 4)
