@@ -375,7 +375,7 @@ generation_kwargs_hf_tgi = {
     # "top_k": 10,
     "top_p": 0.8,
     "truncate": None,
-    "typical_p": 0.2,
+    "typical_p": 0.9,
     "watermark": False
 }
 

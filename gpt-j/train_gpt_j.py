@@ -159,18 +159,24 @@ def tokenizing_sample(ss):
                 continue
             
             while True:
-                if len(input_ids_concat) > max_input_length / 4:
+                if len(input_ids_concat) > 0:
                     input_ids_part = input_ids_concat[:max_input_length]
                     attention_mask_part = attention_mask_concat[:max_input_length]
                     if len(input_ids_part) < max_input_length:
+                        last_n = max_input_length - 2
+                        input_ids_part = input_ids_concat[-last_n:]
+                        attention_mask_part = attention_mask_part[-last_n:]
                         input_ids_part = (input_ids_part + max_input_length * [tokenizer.pad_token_id])[:max_input_length]
                         attention_mask_part = (attention_mask_part + max_input_length * [0])[:max_input_length]
                     input_ids.append(input_ids_part)
                     attention_mask.append(attention_mask_part)
-                    input_ids_concat = input_ids_concat[max_input_length:]
-                    attention_mask_concat = attention_mask_concat[max_input_length:]
+                    overwrap = max_input_length - int(max_input_length / 10)
+                    input_ids_concat = input_ids_concat[overwrap:]
+                    attention_mask_concat = attention_mask_concat[overwrap:]
                 else:
                     break
+            input_ids_concat = []
+            attention_mask_concat = []
     if len(input_ids) == 0:
         input_ids.append(input_ids_concat[:max_input_length])
         attention_mask.append(attention_mask_concat[:max_input_length])
@@ -228,6 +234,8 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         val_size = 1
     if len(dss) > 1:
         ds = dss[0]
+        if len(ds) < val_size:
+            val_size = 1
         ds = ds.train_test_split(val_size)
         dss[0] = ds["train"]
         ds_eval = ds["test"]
@@ -248,6 +256,8 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             ds_train = concatenate_datasets(datasets)
     else:
         ds = dss["train"]
+        if len(ds) < val_size:
+            val_size = 1
         ds = ds.train_test_split(val_size)
         ds_train = ds["train"]
         ds_eval = ds["test"]
@@ -742,6 +752,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "stargio-saju-1" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}stargio-saju-1.zip"}, download_mode='force_redownload')
+        text_templates = ["{s['text']}"]
+        source = "stargio-saju-1"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
                 
     ds_concat_eval = concatenate_datasets(dss_eval) 
     ds_concat_train = concatenate_datasets(dss_train)
@@ -751,10 +768,7 @@ def get_dataset(tokenize):
     if len(ds_concat_eval) < validation_data_size:
         validation_data_size = len(ds_concat_eval) 
     ds_eval = ds_concat_eval.shuffle().select(range(validation_data_size))
-    if len(ds_concat_train) > 1024 * 10:
-        train_dataset_size = int(len(ds_concat_train) / 1024) * 1024
-    else:
-        train_dataset_size = len(ds_concat_train)
+    train_dataset_size = len(ds_concat_train)
     ds_train = ds_concat_train.shuffle().select(range(train_dataset_size))
     accelerator.print(f'combined train dataset len: ', "{:,}".format(len(ds_train)))
     
@@ -1241,23 +1255,6 @@ class MyTrainer2(Trainer):
         else:
             return model
     
-
-    loss_cross_entropy = nn.CrossEntropyLoss()
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
-        # Save past state if it exists
-        # TODO: this needs to be fixed and made cleaner later.
-        outputs = model(**inputs)
-        # if "loss" in outputs:
-        #     loss = outputs["loss"]
-        # else:
-        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
-            # loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
-            #                    reduction='mean')
-        #print("loss=", loss)
-        return (loss, outputs) if return_outputs else loss
-
-
 class MyTrainer(Trainer):    
     # def create_optimizer_and_scheduler(self, num_training_steps):
     #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
@@ -1582,10 +1579,11 @@ def preprocess_logits_for_metrics(logits, labels):
     Original Trainer may have a memory leak. 
     This is a workaround to avoid storing too many tensors that are not needed.
     """
-    pred_list = []
-    for logit in logits:
-        pred = torch.argmax(logit, dim=-1)
-        pred_list.append(pred)
+    if isinstance(logits, tuple):
+        # Depending on the model and config, logits may contain extra tensors,
+        # like past_key_values, but logits always come first
+        logits = logits[0]
+    pred_list = logits.argmax(dim=-1)
         
     try:
         batch = len(logits)
