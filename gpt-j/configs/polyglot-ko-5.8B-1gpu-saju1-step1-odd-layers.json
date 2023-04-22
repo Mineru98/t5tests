@@ -9,7 +9,7 @@
  
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
 
-    "num_epochs": 1,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
