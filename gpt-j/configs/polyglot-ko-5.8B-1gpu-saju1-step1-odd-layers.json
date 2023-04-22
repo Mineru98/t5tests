@@ -1,12 +1,13 @@
 {
     "model_file": "EleutherAI/polyglot-ko-5.8b",
+    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-saju1-step1-odd",
+    "cache_folder_name": "/home/chang/nvme/datacache/polyglot-ko",
+
+    "new_model_name": "lcw99/polyglot-ko-5.8b-odd-layers-step1-saju1",
+
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
-    "new_model_name": "lcw99/polyglot-ko-5.8b-odd-layers-step1-saju1",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-saju1-step1-odd",
- 
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
-    "cache_folder_name": "cache-polyglot-ko",
 
     "num_epochs": 1,
     "save_step": 20,

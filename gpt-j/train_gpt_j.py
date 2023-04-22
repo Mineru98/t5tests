@@ -71,7 +71,7 @@ tokenizer = None
 last_eval_model = None
 base_model_name = None
 
-cache_folder_name = "Cache2"
+cache_folder_name = None
 new_model_name = "lcw99/no-name"
 
 def name_to_filename(name):
@@ -158,16 +158,20 @@ def tokenizing_sample(ss):
             if len(input_ids_concat) < max_input_length:
                 continue
             
+            input_ids_concat_saved = input_ids_concat
+            attention_mask_concat_saved = attention_mask_concat
             while True:
                 if len(input_ids_concat) > 0:
                     input_ids_part = input_ids_concat[:max_input_length]
                     attention_mask_part = attention_mask_concat[:max_input_length]
                     if len(input_ids_part) < max_input_length:
                         last_n = max_input_length - 2
-                        input_ids_part = input_ids_concat[-last_n:]
-                        attention_mask_part = attention_mask_part[-last_n:]
-                        input_ids_part = (input_ids_part + max_input_length * [tokenizer.pad_token_id])[:max_input_length]
-                        attention_mask_part = (attention_mask_part + max_input_length * [0])[:max_input_length]
+                        input_ids_part = input_ids_concat_saved[-last_n:]
+                        attention_mask_part = attention_mask_concat_saved[-last_n:]
+                        input_ids_part = (input_ids_part + 2 * [tokenizer.pad_token_id])
+                        attention_mask_part = (attention_mask_part + 2 * [0])
+                        if len(input_ids_part) != max_input_length:
+                            accelerator.print(f"error!!!! = {len(input_ids_part)=}\n{input_ids_part}")
                     input_ids.append(input_ids_part)
                     attention_mask.append(attention_mask_part)
                     overwrap = max_input_length - int(max_input_length / 10)
@@ -230,18 +234,18 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
         datasets = []
         for i, ds in enumerate(dss):
             if tokenize:
-                cache_file = f"./{cache_folder_name}/{source}_{i}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+                cache_file = f"{cache_folder_name}/{source}_{i}_{name_to_filename(tokenizer_name)}_{max_input_length}.cache"
                 accelerator.print("tokninzing...", cache_file)
-                ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
+                ds = ds.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=8, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
             datasets.append(ds)
         ds_train = concatenate_datasets(datasets)
     else:
         ds_train = dss["train"]
         if tokenize:
-            cache_file = f"./{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{training_size}_{max_input_length}.cache"
+            cache_file = f"{cache_folder_name}/{source}_{name_to_filename(tokenizer_name)}_{max_input_length}.cache"
             accelerator.print("tokninzing...", cache_file)
             columns = ds_train.column_names
-            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=5, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
+            ds_train = ds_train.map(tokenizing_sample, batched=True, remove_columns=columns, num_proc=8, cache_file_name=cache_file, load_from_cache_file=use_data_cache_file)
 
     if rate <= 1.0:
         val_size = int(validation_data_size * rate)
@@ -1786,8 +1790,8 @@ def main():
     if args.use_huggingface_trainer:
         use_huggingface_trainer = True
                 
-    if not os.path.exists(f"./{cache_folder_name}"):
-        os.makedirs(f"./{cache_folder_name}")
+    if not os.path.exists(f"{cache_folder_name}"):
+        os.makedirs(f"{cache_folder_name}")
 
     if scratch:
         kor_voca_extention = False

@@ -1,14 +1,14 @@
 {
-    "model_file": "EleutherAI/polyglot-ko-5.8b",
+    "model_file": "EleutherAI/polyglot-ko-12.8b",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
-    "new_model_name": "lcw99/multi-function-polyglot-ko-5.8b-odd-layers",
-    "save_path": "./Models/polyglot-ko-5.8b-odd-layers-embed-out",
+    "new_model_name": "lcw99/polyglot-ko-12.8b-odd-layers-step1-sharegpt",
+    "save_path": "./Models/polyglot-ko-12.8b-odd-layers-step1-sharegpt",
  
-    "deepspeed_config_json": "./deepspeed_config_stage2_2gpu.json",
-    "cache_folder_name": "cache-v2",
+    "deepspeed_config_json": "./deepspeed_config_stage3.json",
+    "cache_folder_name": "./cache/polyglot-ko",
 
-    "num_epochs": 4,
+    "num_epochs": 3,
     "save_step": 20,
     "eval_step": 20,
 
@@ -16,18 +16,22 @@
     "batch_size": 2,
     "gradient_acc": 64,
     "validation_data_size": 64,
-
+    
     "lora": false,
     "prefixtuning": false,
     "scratch": false,
     "reset_weight": false,
     "ignore_data_skip": false,
     "skip_eval": false,
+    "optimizer_8bit": false,
+    "save_dataset": true,
+    "train_resume": 0.0,
+    "accel_prepare": false,
+    "use_huggingface_trainer": true,
 
     "dataset": {
         "nikl_news":32,
         "nikl_news_2020":32,
-        "aihub_patent_summary":32,
         "aihub_paper_summary":32,
         "wikiqna":32,
         "wikiqna2":32,
@@ -45,17 +49,12 @@
         "aihub_technology_science_translation_to_korean":32,
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
-        "gsm8k_train":32,
-        "gsm8k_train_en":32,
-        "gsm8k_ko_to_en":32,
-        "gsm8k_en_to_ko":32,
-        "korquad_2.1":32,
-        "korquad_2.1_dev":32,
-        "tarot_conv":32,
-        "alpaca":1.0
+        "alpaca":1.0,
+        "sharegpt_deepl_ko":1.0
     },
     
     "unfreeze": [
+        "gpt_neox.embed_in.weight", 
         "embed_out.weight",
         "gpt_neox.final_layer_norm.weight",
         "gpt_neox.final_layer_norm.bias",

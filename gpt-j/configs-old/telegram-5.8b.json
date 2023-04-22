@@ -1,9 +1,0 @@
-{
-    "normal_model": "EleutherAI/polyglot-ko-5.8b",
-    "test_model": "EleutherAI/polyglot-ko-5.8b",
-    "deepspeed_mode": false,
-    "zero_mode": false,
-    "telegram": true,
-    "facebook": false,
-    "telegram_test_mode": true
-}
