@@ -1242,6 +1242,21 @@ class MyTrainer2(Trainer):
         else:
             return model
     
+    loss_cross_entropy = nn.CrossEntropyLoss()
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
+        # Save past state if it exists
+        # TODO: this needs to be fixed and made cleaner later.
+        outputs = model(**inputs)
+        # if "loss" in outputs:
+        #     loss = outputs["loss"]
+        # else:
+        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
+            # loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
+            #                    reduction='mean')
+        #print("loss=", loss)
+        return (loss, outputs) if return_outputs else loss
+        
 class MyTrainer(Trainer):    
     # def create_optimizer_and_scheduler(self, num_training_steps):
     #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)

@@ -1,21 +1,21 @@
 {
-    "model_file": "/home/chang/nvme/Models/polyglot-ko-5.8b-saju1-step1-odd",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-saju1-step2-qkv2",
-    "cache_folder_name": "/home/chang/nvme/datacache/polyglot-ko",
+    "model_file": "./Models/polyglot-ko-12.8b-sharegpt-step1-odd/odd-to-27-layers-ck260",
+    "save_path": "./Models/polyglot-ko-12.8b-sharegpt-step2-qkv",
+    "new_model_name": "lcw99/polyglot-ko-12.8b-sharegpt-step2-qkv",
 
-    "new_model_name": "lcw99/polyglot-ko-5.8b-saju1",
-
+    "cache_folder_name": "./cache/polyglot-ko",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
-    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
+ 
+    "deepspeed_config_json": "./deepspeed_config_stage3.json",
 
-    "num_epochs": 1,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 4,
     "gradient_acc": 64,
-    "validation_data_size": 12,
+    "validation_data_size": 64,
     
     "lora": false,
     "prefixtuning": false,
@@ -27,12 +27,11 @@
     "save_dataset": true,
     "train_resume": 0.0,
     "accel_prepare": false,
-    "use_huggingface_trainer": false,
+    "use_huggingface_trainer": true,
 
     "dataset": {
-        "wiki": 100,
-        "nikl_news":100,
-        "nikl_news_2020":100,
+        "nikl_news":32,
+        "nikl_news_2020":32,
         "aihub_paper_summary":32,
         "wikiqna":32,
         "wikiqna2":32,
@@ -51,7 +50,7 @@
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
         "alpaca":1.0,
-        "stargio-saju-1":1.0
+        "sharegpt_deepl_ko":1.0
     },
     
     "unfreeze": [
@@ -61,5 +60,4 @@
         "embed_out.weight"
     ]
 }
-
 

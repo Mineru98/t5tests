@@ -641,7 +641,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 if not stopped:
                     gen_text_concat, stopped = search_stop_word(gen_text_concat)
                 gen_text = gen_text_concat[prev_len:]
-                if len(gen_text) > 0:
+                if len(gen_text) > 0 and not stopped:
                     temp_gen_text_concat += gen_text
                     if len(temp_gen_text_concat) < generation_chunk:
                         continue
@@ -656,11 +656,11 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     stopped = True
                 if stopped:
                     print(f"{len(gen_text_concat)=}, {temp_gen_text_concat_start_pos=}")
-                    stop_pos = len(gen_text_concat) - temp_gen_text_concat_start_pos + 1
-                    if stop_pos < 0:
-                        stop_pos = len(gen_text_concat)
-                    temp_gen_text_concat = temp_gen_text_concat[:stop_pos]
-                    gen_text_to_reply += temp_gen_text_concat
+                    # stop_pos = len(gen_text_concat) - temp_gen_text_concat_start_pos + 1
+                    # if stop_pos < 0:
+                    #     stop_pos = len(gen_text_concat)
+                    # temp_gen_text_concat = temp_gen_text_concat[:stop_pos]
+                    gen_text_to_reply = gen_text_concat
                     reply_text(context, message, gen_text_to_reply, gen_text_concat, sent_message, True)
                     break
         else:
