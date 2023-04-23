@@ -50,7 +50,8 @@
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
         "alpaca":1.0,
-        "sharegpt_deepl_ko":1.0
+        "sharegpt_deepl_ko":1.0,
+        "stargio-saju-1":1.0
     },
     
     "unfreeze": [
