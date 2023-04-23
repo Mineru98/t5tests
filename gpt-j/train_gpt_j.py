@@ -228,7 +228,7 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
     print("****************************")
     print(f"processing data: {source}")
     use_data_cache_file = True 
-    if PrefixTuning:
+    if PrefixTuning or 'saju' in source:
         use_data_cache_file = False
     if len(dss) > 1:
         datasets = []
