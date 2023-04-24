@@ -274,7 +274,7 @@ def query(context, message, user_input):
         return chat_query(context, message, user_input, chat_prompt_doctor)
     elif context.user_data['councelor_type'] == "expert":
         if telegram_test_mode:
-            return chat_query(context, message, user_input, chat_prompt_expert_test_mode, "B", "A", 12)
+            return chat_query(context, message, user_input, chat_prompt_expert_ko, "B", "A", 12)
         if 'language' not in context.user_data:
             context.user_data['language'] = 'ko'
         if context.user_data['language'] == 'ko':
@@ -345,9 +345,9 @@ generation_kwargs_basaran = {
     # "length_penalty":9.0,
     "temperature":0.7,
     # "top_k":40,
-    "top_p":0.95,
+    "top_p":0.7,
     # "no_repeat_ngram_size":2, 
-    # "repetition_penalty":50.0,
+    "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -366,7 +366,7 @@ generation_kwargs_basaran_test_opt = {
 
 generation_kwargs_hf_tgi = {
     "do_sample": False,
-    # "repetition_penalty": 1.1,
+    "repetition_penalty": 1.1,
     "return_full_text": False,
     "seed": None,
     "stop_sequences": [
@@ -375,7 +375,7 @@ generation_kwargs_hf_tgi = {
     # "top_k": 10,
     "top_p": 0.8,
     "truncate": None,
-    "typical_p": 0.9,
+    "typical_p": 0.8,
     "watermark": False
 }
 
@@ -430,7 +430,7 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\n\n\n\n|</s>|\|sep\|>|\nB$|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
+    match = re.search(r'<\|endoftext\|>|\n\n\n\n|\n###|</s>|\|sep\|>|\nB$|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
     if match is None:
         bot_message = generated
     else:
@@ -619,7 +619,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                     gen_text = event['choices'][0]['text']  # extract the text
                 elif hf_tgi_mode:
                     id_str = tokenizer.decode([event.token.id])
-                    print(f"'{event.token.text}',", end="")
+                    # print(f"'{event.token.text}',", end="")
                     # if not event.token.special:
                     gen_text = event.token.text
                 else:
@@ -1028,12 +1028,7 @@ B, 즉 고객을 지칭할떄는 "너"라고 하면 된다.
 {sex_partner_str2}의 외모는 {appearance}.
 {sex_partner_str2}의 재산은 {money}.
 {sex_partner_str2}의 이름은 당연히 알 수가 없어.
-위 내용에 기반하여 답변을 하되, 내용에 없는 질문에 대해서는 "상담 범위를 벗어난다"는 취지로 답변한다. 대화는 연애상담에 국한한다.
-위에서 제공되지 않은 정보에 대한 질문에 대해서는 {sex_partner_str2}의 생일을 모르기 때문에 명리학 적으로 정확한 예측을 할 수 없다고 답변해. 
-B: 지금부터 모든 답변은 완전 반말로 한다. 알았지?
-A: 알았어.
-B: 오늘날씨?
-A: 그건 상담범위를 벗어나는 질문이야. 연애상담에 집중 해 줄래?
+위 내용에 기반하여 답변을 하되, 위 내용에 없는 질문에 대해서는 "상담 범위를 벗어난다"는 취지로 답변한다. 대화는 연애상담에 국한한다.
 """
     fortune_prompt2 = f"""
 B는 사주를 통해 연애상담을 하는 고객이다.
@@ -1079,8 +1074,8 @@ A: {sex_partner_str2}의 성격은 {personality} 으로 보이네, 그리고 외
 B: {sex_partner_str2}에 대해서 말해줘.
 A: {sex_partner_str2}의 재산은 {money} 그리고 성격은 {personality} 로 보여. 그리고 {sex_partner_str2}의 외모는 {appearance}
 """
-    print(fortune_prompt)
-    return fortune_prompt
+    print(fortune_prompt1)
+    return fortune_prompt1
 
 def chatting(update: Update, context: CallbackContext):
     context.user_data["councelor_type"] = "chatting"  
