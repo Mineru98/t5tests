@@ -1,6 +1,6 @@
 {
     "model_file": "EleutherAI/polyglot-ko-5.8b",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-oddnqkv",
+    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-oddnqkv-hf",
     "new_model_name": "lcw99/polyglot-ko-5.8b-oddnqkv",
 
     "cache_folder_name": "/home/chang/nvme/datacache/polyglot-ko",
@@ -27,7 +27,7 @@
     "save_dataset": true,
     "train_resume": 0.0,
     "accel_prepare": false,
-    "use_huggingface_trainer": false,
+    "use_huggingface_trainer": true,
 
     "dataset": {
         "nikl_news":32,
@@ -50,7 +50,7 @@
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
         "alpaca":1.0,
-        "sharegpt_deepl_ko":1000,
+        "sharegpt_deepl_ko":10000,
         "stargio-saju-1":1.0
     },
     

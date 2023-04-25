@@ -345,9 +345,9 @@ generation_kwargs_basaran = {
     # "length_penalty":9.0,
     "temperature":0.7,
     # "top_k":40,
-    "top_p":0.7,
+    "top_p":0.65,
     # "no_repeat_ngram_size":2, 
-    "repetition_penalty":50.0,
+    # "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
 }
 
@@ -364,16 +364,31 @@ generation_kwargs_basaran_test_opt = {
     # "pad_token_id":tokenizer.eos_token_id,
 }
 
-generation_kwargs_hf_tgi = {
+generation_kwargs_hf_tgi_optimal_with_polyglot_12_8B_hf_tgi = {
     "do_sample": False,
-    "repetition_penalty": 1.1,
+    # "repetition_penalty": 1.1,
     "return_full_text": False,
     "seed": None,
     "stop_sequences": [
     ],
     "temperature": 0.7,
     # "top_k": 10,
-    "top_p": 0.8,
+    "top_p": 0.65,
+    "truncate": None,
+    "typical_p": 0.8,
+    "watermark": False
+}
+
+generation_kwargs_hf_tgi = {
+    "do_sample": False,
+    # "repetition_penalty": 1.1,
+    "return_full_text": False,
+    "seed": None,
+    "stop_sequences": [
+    ],
+    "temperature": 0.7,
+    # "top_k": 10,
+    "top_p": 0.65,
     "truncate": None,
     "typical_p": 0.8,
     "watermark": False
@@ -430,14 +445,14 @@ def generate_base_zero(zero_generator, contents, gen_len = generation_chunk):
 
 def search_stop_word(generated):
     stopped = False
-    match = re.search(r'<\|endoftext\|>|\n\n\n\n|\n###|</s>|\|sep\|>|\nB$|\nB는 A|\nA와 B|\nA가\s|\n[A-Z]\s?[\.:;-]', generated)
+    match = re.search(r'<\|endoftext\|>|\n\n\n\n\n|\n###|</s>|\|sep\|>|\n[A-Z]\s?[:;-]', generated)
     if match is None:
         bot_message = generated
     else:
         stopped = True
         stop_index = match.start()
         bot_message = generated[:stop_index].strip()
-        print(f'prefix stop remained = {generated[stop_index:]}')
+        print(f'{bot_message=}\nprefix stop remained = [{generated[stop_index:]}]')
     return bot_message, stopped
 
 def remove_trash(text):
