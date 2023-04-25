@@ -1,6 +1,6 @@
 {
     "model_file": "./Models/polyglot-ko-12.8b-sharegpt-step2-qkv/checkpoint-180",
-    "save_path": "./Models/polyglot-ko-12.8b-sharegpt-step3-oddnqkv",
+    "save_path": "./Models/polyglot-ko-12.8b-sharegpt-step3-oddnqkv-hf",
     "new_model_name": "lcw99/polyglot-ko-12.8b-sharegpt-step3-oddnqkv",
 
     "cache_folder_name": "./cache/polyglot-ko",
@@ -8,7 +8,7 @@
  
     "deepspeed_config_json": "./deepspeed_config_stage3.json",
 
-    "num_epochs": 1,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
@@ -27,7 +27,7 @@
     "save_dataset": true,
     "train_resume": 0.0,
     "accel_prepare": false,
-    "use_huggingface_trainer": false,
+    "use_huggingface_trainer": true,
 
     "dataset": {
         "nikl_news":32,
@@ -50,7 +50,7 @@
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
         "alpaca":1.0,
-        "sharegpt_deepl_ko":1000,
+        "sharegpt_deepl_ko":10000,
         "stargio-saju-1":1.0
     },
     
