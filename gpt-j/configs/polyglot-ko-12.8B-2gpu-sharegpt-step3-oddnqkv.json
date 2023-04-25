@@ -1,19 +1,19 @@
 {
-    "model_file": "/home/chang/AI/llm/t5tests/gpt-j/Models/polyglot-ko-5.8b-odd-qkv-instruct",
+    "model_file": "./Models/polyglot-ko-12.8b-sharegpt-step2-qkv/checkpoint-180",
+    "save_path": "./Models/polyglot-ko-12.8b-sharegpt-step3-oddnqkv",
+    "new_model_name": "lcw99/polyglot-ko-12.8b-sharegpt-step3-oddnqkv",
+
+    "cache_folder_name": "./cache/polyglot-ko",
     "tokenizer": "EleutherAI/polyglot-ko-3.8b",
  
-    "new_model_name": "lcw99/polyglot-ko-5.8b-odd-qkv-layers",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-odd-qkv2",
- 
-    "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
-    "cache_folder_name": "cache-polyglot-ko",
+    "deepspeed_config_json": "./deepspeed_config_stage3.json",
 
     "num_epochs": 1,
     "save_step": 20,
     "eval_step": 20,
 
     "max_input_length": 1024,
-    "batch_size": 2,
+    "batch_size": 4,
     "gradient_acc": 64,
     "validation_data_size": 64,
     
@@ -49,24 +49,17 @@
         "aihub_technology_science_translation_to_korean":32,
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
-        "gsm8k_train":32,
-        "gsm8k_train_en":32,
-        "gsm8k_ko_to_en":32,
-        "gsm8k_en_to_ko":32,
-        "korquad_2.1":32,
-        "korquad_2.1_dev":32,
-        "tarot_conv":32,
-        "alpaca":1.0
+        "alpaca":1.0,
+        "sharegpt_deepl_ko":1000,
+        "stargio-saju-1":1.0
     },
     
     "unfreeze": [
         "query_key_value.weight*", 
-
-        "gpt_neox.embed_in.weight", 
-        "embed_out.weight",
         "gpt_neox.final_layer_norm.weight",
-        "gpt_neox.final_layer_norm.bias",
-        
+        "gpt_neox.embed_in.weight",
+        "embed_out.weight",
+
         "gpt_neox.layers.1.input_layernorm.weight",
         "gpt_neox.layers.1.input_layernorm.bias",
         "gpt_neox.layers.1.post_attention_layernorm.weight",
@@ -260,7 +253,90 @@
         "gpt_neox.layers.27.mlp.dense_h_to_4h.weight",
         "gpt_neox.layers.27.mlp.dense_h_to_4h.bias",
         "gpt_neox.layers.27.mlp.dense_4h_to_h.weight",
-        "gpt_neox.layers.27.mlp.dense_4h_to_h.bias"                
+        "gpt_neox.layers.27.mlp.dense_4h_to_h.bias",                
+
+        "gpt_neox.layers.29.input_layernorm.weight",
+        "gpt_neox.layers.29.input_layernorm.bias",
+        "gpt_neox.layers.29.post_attention_layernorm.weight",
+        "gpt_neox.layers.29.post_attention_layernorm.bias",
+        "gpt_neox.layers.29.attention.query_key_value.weight",
+        "gpt_neox.layers.29.attention.query_key_value.bias",
+        "gpt_neox.layers.29.attention.dense.weight",
+        "gpt_neox.layers.29.attention.dense.bias",
+        "gpt_neox.layers.29.mlp.dense_h_to_4h.weight",
+        "gpt_neox.layers.29.mlp.dense_h_to_4h.bias",
+        "gpt_neox.layers.29.mlp.dense_4h_to_h.weight",
+        "gpt_neox.layers.29.mlp.dense_4h_to_h.bias",                
+
+        "gpt_neox.layers.31.input_layernorm.weight",
+        "gpt_neox.layers.31.input_layernorm.bias",
+        "gpt_neox.layers.31.post_attention_layernorm.weight",
+        "gpt_neox.layers.31.post_attention_layernorm.bias",
+        "gpt_neox.layers.31.attention.query_key_value.weight",
+        "gpt_neox.layers.31.attention.query_key_value.bias",
+        "gpt_neox.layers.31.attention.dense.weight",
+        "gpt_neox.layers.31.attention.dense.bias",
+        "gpt_neox.layers.31.mlp.dense_h_to_4h.weight",
+        "gpt_neox.layers.31.mlp.dense_h_to_4h.bias",
+        "gpt_neox.layers.31.mlp.dense_4h_to_h.weight",
+        "gpt_neox.layers.31.mlp.dense_4h_to_h.bias",        
+    
+
+        "gpt_neox.layers.33.input_layernorm.weight",
+        "gpt_neox.layers.33.input_layernorm.bias",
+        "gpt_neox.layers.33.post_attention_layernorm.weight",
+        "gpt_neox.layers.33.post_attention_layernorm.bias",
+        "gpt_neox.layers.33.attention.query_key_value.weight",
+        "gpt_neox.layers.33.attention.query_key_value.bias",
+        "gpt_neox.layers.33.attention.dense.weight",
+        "gpt_neox.layers.33.attention.dense.bias",
+        "gpt_neox.layers.33.mlp.dense_h_to_4h.weight",
+        "gpt_neox.layers.33.mlp.dense_h_to_4h.bias",
+        "gpt_neox.layers.33.mlp.dense_4h_to_h.weight",
+        "gpt_neox.layers.33.mlp.dense_4h_to_h.bias",        
+    
+
+        "gpt_neox.layers.35.input_layernorm.weight",
+        "gpt_neox.layers.35.input_layernorm.bias",
+        "gpt_neox.layers.35.post_attention_layernorm.weight",
+        "gpt_neox.layers.35.post_attention_layernorm.bias",
+        "gpt_neox.layers.35.attention.query_key_value.weight",
+        "gpt_neox.layers.35.attention.query_key_value.bias",
+        "gpt_neox.layers.35.attention.dense.weight",
+        "gpt_neox.layers.35.attention.dense.bias",
+        "gpt_neox.layers.35.mlp.dense_h_to_4h.weight",
+        "gpt_neox.layers.35.mlp.dense_h_to_4h.bias",
+        "gpt_neox.layers.35.mlp.dense_4h_to_h.weight",
+        "gpt_neox.layers.35.mlp.dense_4h_to_h.bias",        
+    
+
+        "gpt_neox.layers.37.input_layernorm.weight",
+        "gpt_neox.layers.37.input_layernorm.bias",
+        "gpt_neox.layers.37.post_attention_layernorm.weight",
+        "gpt_neox.layers.37.post_attention_layernorm.bias",
+        "gpt_neox.layers.37.attention.query_key_value.weight",
+        "gpt_neox.layers.37.attention.query_key_value.bias",
+        "gpt_neox.layers.37.attention.dense.weight",
+        "gpt_neox.layers.37.attention.dense.bias",
+        "gpt_neox.layers.37.mlp.dense_h_to_4h.weight",
+        "gpt_neox.layers.37.mlp.dense_h_to_4h.bias",
+        "gpt_neox.layers.37.mlp.dense_4h_to_h.weight",
+        "gpt_neox.layers.37.mlp.dense_4h_to_h.bias",        
+    
+
+        "gpt_neox.layers.39.input_layernorm.weight",
+        "gpt_neox.layers.39.input_layernorm.bias",
+        "gpt_neox.layers.39.post_attention_layernorm.weight",
+        "gpt_neox.layers.39.post_attention_layernorm.bias",
+        "gpt_neox.layers.39.attention.query_key_value.weight",
+        "gpt_neox.layers.39.attention.query_key_value.bias",
+        "gpt_neox.layers.39.attention.dense.weight",
+        "gpt_neox.layers.39.attention.dense.bias",
+        "gpt_neox.layers.39.mlp.dense_h_to_4h.weight",
+        "gpt_neox.layers.39.mlp.dense_h_to_4h.bias",
+        "gpt_neox.layers.39.mlp.dense_4h_to_h.weight",
+        "gpt_neox.layers.39.mlp.dense_4h_to_h.bias"        
+
     ]
 }
 
