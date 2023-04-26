@@ -9,8 +9,8 @@
     "deepspeed_config_json": "./deepspeed_config_stage3.json",
 
     "num_epochs": 1,
-    "save_step": 10,
-    "eval_step": 10,
+    "save_step": 20,
+    "eval_step": 20,
 
     "max_input_length": 1024,
     "batch_size": 2,
@@ -50,7 +50,7 @@
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
         "alpaca":1.0,
-        "sharegpt_deepl_ko":10000,
+        "sharegpt_deepl_ko":30000,
         "stargio-saju-1":1.0
     },
     
