@@ -8,7 +8,7 @@
  
     "deepspeed_config_json": "./deepspeed_config_stage3.json",
 
-    "num_epochs": 1,
+    "num_epochs": 2,
     "save_step": 20,
     "eval_step": 20,
 
