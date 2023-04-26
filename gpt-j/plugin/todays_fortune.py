@@ -38,14 +38,5 @@ def get_todays_fortune(gender, birthday, target_date):
     
     return saju, target_date_samju, fortune
 
-def simple_keyword(user_input):
-    bytes = str.encode(user_input)
-    keyword_len = len(today_fortune_keyword)
-    s = 0
-    for i in bytes:
-        s += i
-    today = datetime.today().day + datetime.today().month + datetime.today().year
-    key1 = int((s * 12 * today) % keyword_len)
-    key2 = int((s * 3.141592 * 7 * today) % keyword_len)
-    key3 = int((s * 36.5 * today) % keyword_len)
-    keystr = f'{today_fortune_keyword[key1]}, {today_fortune_keyword[key2]}'
+if __name__ == "__main__":
+    get_todays_fortune('male', '199909090000', '20201010')

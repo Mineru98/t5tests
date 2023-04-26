@@ -346,7 +346,7 @@ generation_kwargs_basaran = {
     "temperature":0.7,
     # "top_k":40,
     "top_p":0.65,
-    # "no_repeat_ngram_size":2, 
+    # "no_repeat_ngram_size":10, 
     # "repetition_penalty":50.0,
     # "pad_token_id":tokenizer.eos_token_id,
 }
@@ -452,7 +452,7 @@ def search_stop_word(generated):
         stopped = True
         stop_index = match.start()
         bot_message = generated[:stop_index].strip()
-        print(f'{bot_message=}\nprefix stop remained = [{generated[stop_index:]}]')
+        print(f'{bot_message=}\n\n---------------------\nprefix stop remained = [{generated[stop_index:]}]')
     return bot_message, stopped
 
 def remove_trash(text):
