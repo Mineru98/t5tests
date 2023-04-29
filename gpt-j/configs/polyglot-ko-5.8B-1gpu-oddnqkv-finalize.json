@@ -1,19 +1,19 @@
 {
     "model_file": "/home/chang/nvme/Models/polyglot-ko-5.8b-oddnqkv-hf",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-oddnqkv-hf-finalize",
-    "new_model_name": "lcw99/polyglot-ko-5.8b-oddnqkv",
+    "save_path":  "/home/chang/nvme/Models/polyglot-ko-5.8b-oddnqkv-hf-finalize",
+    "new_model_name": "lcw99/polyglot-ko-5.8b-oddnqkv-hf-finalize",
 
     "cache_folder_name": "/home/chang/nvme/datacache/polyglot-ko",
-
-    "tokenizer": "EleutherAI/polyglot-ko-3.8b",  
+    "tokenizer": "EleutherAI/polyglot-ko-3.8b",
+ 
     "deepspeed_config_json": "./deepspeed_config_stage1_1gpu.json",
 
     "num_epochs": 1,
-    "save_step": 10,
-    "eval_step": 10,
+    "save_step": 30,
+    "eval_step": 30,
+    "batch_size": 4,
 
     "max_input_length": 1024,
-    "batch_size": 2,
     "gradient_acc": 64,
     "validation_data_size": 64,
     
@@ -50,7 +50,7 @@
         "aihub_news_qna_writing":32,
         "nikl_news_2020_writing":32,
         "alpaca":1.0,
-        "sharegpt_deepl_ko":10000,
+        "sharegpt_deepl_ko":30000,
         "stargio-saju-1":1.0
     },
     

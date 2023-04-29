@@ -588,7 +588,6 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
         # if basaran_mode or (hf_tgi_mode and not telegram_test_mode) or 'chatgpt' in context.user_data:
         if streaming or 'chatgpt' in context.user_data:
             speed = 0.1 #smaller is faster
-            max_response_length = 1500
             start_time = time.time()
             # Generate Answer
             kwargs = generation_kwargs
@@ -607,7 +606,7 @@ def generate(context, message, contents, open_end = False, gen_len = generation_
                 response = openai.Completion.create(
                     model='text-davinci-003',
                     prompt=prompt,
-                    max_tokens=max_response_length,
+                    max_tokens=max_new_token,
                     stream=True,  # this time, we set stream=True
                     **kwargs,
                 )
