@@ -138,9 +138,9 @@ def tokenizing_sample(ss):
         s = ss[i]
         i += 1
         text = eval(f'f"{text_templates[tt]}"')
-        if "'conversation'" in text_templates[tt]:
-            text = text.replace("\nA:", f"\n{sep}A:")
-            text = text.replace("\nB:", f"\n{sep}B:")
+        # if "'conversation'" in text_templates[tt]:
+        #     text = text.replace("\nA:", f"\n{sep}A:")
+        #     text = text.replace("\nB:", f"\n{sep}B:")
         tt += 1
         if tt >= num_text_templates:
             tt = 0
@@ -325,12 +325,7 @@ def get_dataset(tokenize):
     ]
     
     text_templates_conversation = [
-        "아래 대화를 연결해 보시오.\\n{s['conversation']}",
-        "아래 대화를 잘 보고 다음 대화를 연결해 나가봐.\\n{s['conversation']}",
-        "아래 대화를 계속 진행 해봐..\\n{s['conversation']}",
-        "아래 대화를 보고 적절한 다음 응답을 하시오.\\n{s['conversation']}",
-        "대화를 계속 진행 하시오.\\n{s['conversation']}",
-        "아래 대화를 계속 진행 하시오.\\n{s['conversation']}",
+        "{s['conversation']}",
     ]
     text_templates_tran_ko_to_en = [
         "한글원문:{eos}{s['korean']}\\n{eos}영어번역:{s['english']}",
