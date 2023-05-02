@@ -1,6 +1,6 @@
 {
     "model_file": "EleutherAI/polyglot-ko-5.8b",
-    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-oddnqkv-hf-conversation",
+    "save_path": "/home/chang/nvme/Models/polyglot-ko-5.8b-step1-conversation-oddnqkv",
     "new_model_name": "lcw99/polyglot-ko-5.8b-oddnqkv-conversation",
 
     "cache_folder_name": "/home/chang/nvme/datacache/polyglot-ko",
