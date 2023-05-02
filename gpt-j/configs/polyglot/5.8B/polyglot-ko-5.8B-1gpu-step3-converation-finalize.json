@@ -57,7 +57,8 @@
     },
     
     "unfreeze": [
-        "query_key_value.weight*" 
+        "query_key_value.weight*",
+        "embed_out.weight"
     ]
 }
 
