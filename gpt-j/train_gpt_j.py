@@ -335,7 +335,7 @@ def get_dataset(tokenize):
         "B: {s['korean']}{eos} 영어로 번역 해 주세요.\\nA: {s['english']}",
         "B: {s['korean']}\\n{eos}A: 영어로 번역.\\nB: {s['english']}",
         "B: {s['korean']}\\n{eos}A: 영어로.\\nB: {s['english']}",
-        "B: {s['korean']}\\n{eos}A: 영어로 해봐.\\nB: {s['english']}",
+        "B: {s['korean']}\\n{eos}A: 영어로 번역 해봐.\\nB: {s['english']}",
     ]
     text_templates_tran_en_to_ko = [
         "영어원문:{s['english']}\\n{eos}한글번역:{s['korean']}",
@@ -345,7 +345,7 @@ def get_dataset(tokenize):
         "B: {s['english']}{eos} 한글로 번역 해 주세요.\\nA: {s['korean']}",
         "B: {s['english']}\\n{eos}A: 한글로\\nB: {s['korean']}",
         "B: {s['english']}\\n{eos}A: 한글로 번역.\\nB: {s['korean']}",
-        "B: {s['english']}\\n{eos}A: 한글로 해봐.\\nB: {s['korean']}",
+        "B: {s['english']}\\n{eos}A: 한글로 번역 해봐.\\nB: {s['korean']}",
     ]
     text_templates_gsm8k_ko_to_en = [
         "한글원문:{eos}{s['question_kr']}\\n{s['reasoning_kr']}\\n{eos}영어번역:{s['question']}\\n{s['reasoning']}",
