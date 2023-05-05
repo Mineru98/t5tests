@@ -16,7 +16,7 @@
             "program": "${file}",
             "args": [
                 "--config_file",
-                "configs/llama-ko-7B-2gpu-ko-ext-full.json",
+                "configs/polyglot/5.8B/test.json",
             ],
             "justMyCode": false
         },

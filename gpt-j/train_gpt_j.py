@@ -227,6 +227,14 @@ def wikitext_detokenizer(string):
 def preprocess_dataset(source, rate, dss, tokenize: bool = True):
     print("****************************")
     print(f"processing data: {source}")
+    dup = 1
+    if isinstance(rate, str):
+        if "*" in rate:
+            rr = rate.split("*")
+            rate = float(rr[0])
+            dup = int(rr[1])
+        else:
+            rate = float(rate) 
     use_data_cache_file = True 
     if PrefixTuning or 'saju' in source:
         use_data_cache_file = False
@@ -268,7 +276,15 @@ def preprocess_dataset(source, rate, dss, tokenize: bool = True):
             L = [ randrange(train_len) for _ in range(count)]
             # accelerator.print(L)
             ds_train = ds_train.select(L)
-
+            
+    if dup != 1:
+        dss = []
+        for i in range(dup):
+            dss.append(ds_train)
+        dup_dataset = concatenate_datasets(dss)
+        accelerator.print(f'dup({dup}) train dataset len, {source}: ', len(dup_dataset))
+        ds_train = dup_dataset
+        
     accelerator.print(f"**********************************************\n{source}")
     accelerator.print(f'train dataset len, {source}: ', len(ds_train))
     accelerator.print(f'eval  dataset len, {source}: ', len(ds_eval))
