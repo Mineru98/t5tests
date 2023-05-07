@@ -750,6 +750,13 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
+    if "dolly-15k-kr-without-context" in dataset_source.keys():
+        ds = load_dataset("junelee/sharegpt_deepl_ko", data_files="databricks-dolly-15k-kr-without-context.json")
+        text_templates = "B: {s['instruction_kr']}\\nA: {s['response_kr']}"
+        source = "sharegpt_deepl_ko"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)        
     if "stargio-saju-1" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}stargio-saju-1.zip"}, download_mode='force_redownload')
         text_templates = ["{s['text']}"]
