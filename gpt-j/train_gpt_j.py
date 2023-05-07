@@ -752,7 +752,7 @@ def get_dataset(tokenize):
         dss_train.append(ds_train)        
     if "dolly-15k-kr-without-context" in dataset_source.keys():
         ds = load_dataset("json", data_files={'train': f"{data_server}databricks-dolly-15k-kr-without-context.zip"})
-        text_templates = "B: {s['instruction_kr']}\\nA: {s['response_kr']}"
+        text_templates = ["B: {s['instruction_kr']}\\nA: {s['response_kr']}"]
         source = "dolly-15k-kr-without-context"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
