@@ -16,7 +16,7 @@
             "program": "${file}",
             "args": [
                 "--config_file",
-                "configs/polyglot/5.8B/test.json",
+                "configs/polyglot/5.8B/polyglot-ko-5.8B-1gpu-saju-overfit-finalize.json",
             ],
             "justMyCode": false
         },

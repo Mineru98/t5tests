@@ -5,7 +5,7 @@ from accelerate import Accelerator, DistributedDataParallelKwargs
 import accelerate
 from tqdm.contrib.concurrent import process_map
 from transformers import  AutoModelForCausalLM, AutoTokenizer, TrainingArguments, Trainer, TrainingArguments, \
-                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel, default_data_collator
+                            DataCollatorForLanguageModeling, pipeline, GPTNeoForCausalLM, AutoConfig, GPTNeoModel, default_data_collator, GPTNeoXForCausalLM
 from transformers.optimization import AdafactorSchedule
 from transformers.trainer_pt_utils import get_parameter_names, nested_detach, IterableDatasetShard
 from transformers.trainer_utils import seed_worker
@@ -1262,265 +1262,24 @@ class MyTrainer2(Trainer):
     
     loss_cross_entropy = nn.CrossEntropyLoss()
     def compute_loss(self, model, inputs, return_outputs=False):
-        # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
-        # Save past state if it exists
-        # TODO: this needs to be fixed and made cleaner later.
         outputs = model(**inputs)
-        # if "loss" in outputs:
-        #     loss = outputs["loss"]
-        # else:
-        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
-            # loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
-            #                    reduction='mean')
-        #print("loss=", loss)
-        return (loss, outputs) if return_outputs else loss
-        
-class MyTrainer(Trainer):    
-    # def create_optimizer_and_scheduler(self, num_training_steps):
-    #     self.optimizer = Adam8bit(self.model.parameters(), lr=1e-5)
-    #     self.lr_scheduler = AdafactorSchedule(self.optimizer)    
-    def _prepare_input(self, data: Union[torch.Tensor, Any]) -> Union[torch.Tensor, Any]:
-        """
-        Prepares one `data` before feeding it to the model, be it a tensor or a nested list/dictionary of tensors.
-        """
-        if isinstance(data, Mapping):
-            return type(data)({k: self._prepare_input(v) for k, v in data.items()})
-        elif isinstance(data, (tuple, list)):
-            return type(data)(self._prepare_input(v) for v in data)
-        elif isinstance(data, torch.Tensor):
-            kwargs = dict(device=self.args.device)
-            if self.deepspeed and data.dtype != torch.int64:
-                # NLP models inputs are int64 and those get adjusted to the right dtype of the
-                # embedding. Other models such as wav2vec2's inputs are already float and thus
-                # may need special handling to match the dtypes of the model
-                kwargs.update(dict(dtype=self.args.hf_deepspeed_config.dtype()))
-            return data.to(**kwargs)
-        return data
-    
-    def _prepare_inputs(self, inputs: Dict[str, Union[torch.Tensor, Any]]) -> Dict[str, Union[torch.Tensor, Any]]:
-        inputs = self._prepare_input(inputs)
-        if len(inputs) == 0:
+        if isinstance(outputs, dict) and "loss" not in outputs:
             raise ValueError(
-                "The batch received was empty, your model won't be able to train on it. Double-check that your "
-                f"training dataset contains keys expected by the model: {','.join(self._signature_columns)}."
+                "The model did not return a loss from the inputs, only the following keys: "
+                f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
             )
-        if self.args.past_index >= 0 and self._past is not None:
-            inputs["mems"] = self._past
-
-        return inputs
-
-    
-    def training_step(self, model: nn.Module, inputs: Dict[str, Union[torch.Tensor, Any]]) -> torch.Tensor:
-        model.train()
-        inputs = self._prepare_inputs(inputs)
+        # We don't use .loss here since the model may return tuples instead of ModelOutput.
+        loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]        
+        loss2 = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
         
-        # if is_sagemaker_mp_enabled():
-        #     loss_mb = smp_forward_backward(model, inputs, self.args.gradient_accumulation_steps)
-        #     return loss_mb.reduce_mean().detach().to(self.args.device)
+        # eq = torch.eq(loss2, loss)
+        # accelerator.print("eq=", eq.item())
+        # if not eq:
+        #     accelerator.print(f"{loss.item()=}, {loss3.item()=}")
 
-
-        with self.compute_loss_context_manager():
-            loss = self.compute_loss(model, inputs)
-
-        if self.args.n_gpu > 1:
-            loss = loss.mean()  # mean() to average on multi-gpu parallel training
-
-        if self.args.gradient_accumulation_steps > 1 and not self.deepspeed:
-            # deepspeed handles loss scaling by gradient_accumulation_steps in its `backward`
-            loss = loss / self.args.gradient_accumulation_steps
-
-        if self.do_grad_scaling:
-            loss = self.scaler.scale(loss)
-            accelerator.backward(loss)
-            # self.scaler.scale(loss).backward()
-        # elif self.use_apex:
-        #     with amp.scale_loss(loss, self.optimizer) as scaled_loss:
-        #         scaled_loss.backward()
-        elif self.deepspeed:
-            # loss gets scaled under gradient_accumulation_steps in deepspeed
-            loss = self.deepspeed.backward(loss)
-        else:
-            #loss.backward()
-            accelerator.backward(loss)
-        # loss.backward(retain_graph=True)
-
-        return torch.squeeze(loss.detach())
-
-    def prediction_step(
-        self,
-        model: nn.Module,
-        inputs: Dict[str, Union[torch.Tensor, Any]],
-        prediction_loss_only: bool,
-        ignore_keys: Optional[List[str]] = None,
-    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
-
-        if not self.args.do_predict:
-            return (None, None, None)
-        
-        global last_eval_model
-        
-        has_labels = all(inputs.get(k) is not None for k in self.label_names)
-        inputs = self._prepare_inputs(inputs)
-        if ignore_keys is None:
-            if hasattr(self.model, "config"):
-                ignore_keys = getattr(self.model.config, "keys_to_ignore_at_inference", [])
-            else:
-                ignore_keys = []
-
-        # labels may be popped when computing the loss (label smoothing for instance) so we grab them first.
-        if has_labels:
-            labels = nested_detach(tuple(inputs.get(name) for name in self.label_names))
-            if len(labels) == 1:
-                labels = labels[0]
-        else:
-            labels = None
-
-        with torch.no_grad():
-            with self.compute_loss_context_manager():
-                loss, outputs = self.compute_loss(model, inputs, return_outputs=True)
-            loss = loss.mean().detach()
-
-            if hasattr(outputs, "logits"):
-                logits = outputs.logits
-            else:
-                logits = None
-
-        if prediction_loss_only:
-            return (loss, None, None)
-
-        logits = nested_detach(logits)
-        if len(logits) == 1:
-            logits = logits[0]
-            
-        last_eval_model = model
-        return (loss, logits, labels)
-
-    def unwrap_model(self, model: nn.Module) -> nn.Module:
-        if hasattr(model, "module"):
-            return self.unwrap_model(model.module)
-        else:
-            return model
-    
-
-    loss_cross_entropy = nn.CrossEntropyLoss()
-    def compute_loss(self, model, inputs, return_outputs=False):
-        # return super(MyTrainer, self).compute_loss(outputs, inputs, return_outputs)
-        # Save past state if it exists
-        # TODO: this needs to be fixed and made cleaner later.
-        outputs = model(**inputs)
-        # if "loss" in outputs:
-        #     loss = outputs["loss"]
-        # else:
-        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
-            # loss = F.cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten(),
-            #                    reduction='mean')
-        #print("loss=", loss)
+        loss = (loss + loss2) / 2.0
         return (loss, outputs) if return_outputs else loss
-    
-    def get_train_dataloader(self) -> DataLoader:
-        """
-        Returns the training [`~torch.utils.data.DataLoader`].
-
-        Will use no sampler if `train_dataset` does not implement `__len__`, a random sampler (adapted to distributed
-        training if necessary) otherwise.
-
-        Subclass and override this method if you want to inject some custom behavior.
-        """
-        if self.train_dataset is None:
-            raise ValueError("Trainer: training requires a train_dataset.")
-
-        train_dataset = self.train_dataset
-        data_collator = self.data_collator
-        if is_datasets_available() and isinstance(train_dataset, Dataset):
-            train_dataset = self._remove_unused_columns(train_dataset, description="training")
-        else:
-            data_collator = self._get_collator_with_removed_columns(data_collator, description="training")
-
-        if isinstance(train_dataset, torch.utils.data.IterableDataset):
-            if self.args.world_size > 1:
-                train_dataset = IterableDatasetShard(
-                    train_dataset,
-                    batch_size=self._train_batch_size,
-                    drop_last=self.args.dataloader_drop_last,
-                    num_processes=self.args.world_size,
-                    process_index=self.args.process_index,
-                )
-
-            dl = DataLoader(
-                train_dataset,
-                batch_size=self.args.per_device_train_batch_size,
-                collate_fn=data_collator,
-                num_workers=self.args.dataloader_num_workers,
-                pin_memory=self.args.dataloader_pin_memory,
-            )
-            return accelerator.prepare(dl)
-        
-        train_sampler = self._get_train_sampler()
-
-        dl = DataLoader(
-            train_dataset,
-            batch_size=self._train_batch_size,
-            sampler=train_sampler,
-            collate_fn=data_collator,
-            drop_last=self.args.dataloader_drop_last,
-            num_workers=self.args.dataloader_num_workers,
-            pin_memory=self.args.dataloader_pin_memory,
-            worker_init_fn=seed_worker,
-        )
-        return accelerator.prepare(dl)
-
-    def get_eval_dataloader(self, eval_dataset: Optional[Dataset] = None) -> DataLoader:
-        """
-        Returns the evaluation [`~torch.utils.data.DataLoader`].
-
-        Subclass and override this method if you want to inject some custom behavior.
-
-        Args:
-            eval_dataset (`torch.utils.data.Dataset`, *optional*):
-                If provided, will override `self.eval_dataset`. If it is a [`~datasets.Dataset`], columns not accepted
-                by the `model.forward()` method are automatically removed. It must implement `__len__`.
-        """
-        if eval_dataset is None and self.eval_dataset is None:
-            raise ValueError("Trainer: evaluation requires an eval_dataset.")
-        eval_dataset = eval_dataset if eval_dataset is not None else self.eval_dataset
-        data_collator = self.data_collator
-
-        if is_datasets_available() and isinstance(eval_dataset, Dataset):
-            eval_dataset = self._remove_unused_columns(eval_dataset, description="evaluation")
-        else:
-            data_collator = self._get_collator_with_removed_columns(data_collator, description="evaluation")
-
-        if isinstance(eval_dataset, torch.utils.data.IterableDataset):
-            if self.args.world_size > 1:
-                eval_dataset = IterableDatasetShard(
-                    eval_dataset,
-                    batch_size=self.args.per_device_eval_batch_size,
-                    drop_last=self.args.dataloader_drop_last,
-                    num_processes=self.args.world_size,
-                    process_index=self.args.process_index,
-                )
-            dl = DataLoader(
-                eval_dataset,
-                batch_size=self.args.eval_batch_size,
-                collate_fn=data_collator,
-                num_workers=self.args.dataloader_num_workers,
-                pin_memory=self.args.dataloader_pin_memory,
-            )
-            return accelerator.prepare(dl)
-
-        eval_sampler = self._get_eval_sampler(eval_dataset)
-
-        dl = DataLoader(
-            eval_dataset,
-            sampler=eval_sampler,
-            batch_size=self.args.eval_batch_size,
-            collate_fn=data_collator,
-            drop_last=self.args.dataloader_drop_last,
-            num_workers=self.args.dataloader_num_workers,
-            pin_memory=self.args.dataloader_pin_memory,
-        )
-        return accelerator.prepare(dl)
-    
+            
 metric_accuracy = evaluate.load("accuracy")
 perplexity = evaluate.load("perplexity", module_type="metric")
 

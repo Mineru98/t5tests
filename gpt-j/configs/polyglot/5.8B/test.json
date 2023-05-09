@@ -13,7 +13,7 @@
     "eval_step": 40,
 
     "max_input_length": 1024,
-    "batch_size": 4,
+    "batch_size": 2,
     "gradient_acc": 64,
     "validation_data_size": 64,
     
@@ -27,7 +27,7 @@
     "save_dataset": true,
     "train_resume": 0.0,
     "accel_prepare": false,
-    "use_huggingface_trainer": true,
+    "use_huggingface_trainer": false,
 
     "dataset": {
         "stargio-saju-1":"1.0*2"
@@ -35,7 +35,6 @@
     
     "unfreeze": [
         "query_key_value.weight*",
-        "gpt_neox.embed_in.weight", 
         "embed_out.weight"
     ]
 }
