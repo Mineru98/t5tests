@@ -1,7 +1,7 @@
 {
     "model_file": "EleutherAI/polyglot-ko-12.8b",
-    "save_path": "./Models/polyglot-ko-12.8b-eqkv-avgloss",
-    "new_model_name": "lcw99/polyglot-ko-12.8b-eqkv-avgloss",
+    "save_path": "./Models/polyglot-ko-12.8b-eqkv-hf",
+    "new_model_name": "lcw99/polyglot-ko-12.8b-eqkv-hf",
 
     "cache_folder_name": "./cache/polyglot-ko",
 
