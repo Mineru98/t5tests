@@ -757,10 +757,17 @@ def get_dataset(tokenize):
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)        
-    if "stargio-saju-1" in dataset_source.keys():
-        ds = load_dataset("json", data_files={'train': f"{data_server}stargio-saju-1.zip"}, download_mode='force_redownload')
+    if "stargio-saju-txt" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}stargio-saju-txt.zip"}, download_mode='force_redownload')
         text_templates = ["{s['text']}"]
-        source = "stargio-saju-1"
+        source = "stargio-saju-txt"
+        ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
+        dss_eval.append(ds_eval)
+        dss_train.append(ds_train)
+    if "stargio-saju-sample" in dataset_source.keys():
+        ds = load_dataset("json", data_files={'train': f"{data_server}stargio-saju-sample.zip"}, download_mode='force_redownload')
+        text_templates = ["{s['text']}"]
+        source = "stargio-saju-sample"
         ds_eval, ds_train = preprocess_dataset(source, dataset_source[source], ds, tokenize)
         dss_eval.append(ds_eval)
         dss_train.append(ds_train)
@@ -1269,15 +1276,15 @@ class MyTrainer2(Trainer):
                 f"{','.join(outputs.keys())}. For reference, the inputs it received are {','.join(inputs.keys())}."
             )
         # We don't use .loss here since the model may return tuples instead of ModelOutput.
-        loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]        
-        loss2 = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
+        loss = self.loss_cross_entropy(outputs.logits[:, :-1, :].flatten(0, -2), inputs['input_ids'][:, 1:].flatten()) 
+        loss2 = outputs["loss"] if isinstance(outputs, dict) else outputs[0]        
         
         # eq = torch.eq(loss2, loss)
         # accelerator.print("eq=", eq.item())
         # if not eq:
         #     accelerator.print(f"{loss.item()=}, {loss3.item()=}")
 
-        loss = (loss + loss2) / 2.0
+        # loss = (loss + loss2) / 2.0
         return (loss, outputs) if return_outputs else loss
             
 metric_accuracy = evaluate.load("accuracy")
